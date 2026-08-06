@@ -79,7 +79,7 @@ interface Column<T> {
   width?: string;
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   columns,
   data,
   maxHeight = 500,
