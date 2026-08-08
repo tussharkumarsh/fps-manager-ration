@@ -7,14 +7,19 @@ import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * On login (from any browser/device), loads every transaction already
- * synced for this user — a pure read from the stored Excel sheet, never
- * calls the gov API. Runs once per authenticated session so previously
- * fetched months (e.g. Jan-Aug) show up immediately without needing to
- * re-select and re-fetch each month one by one.
+ * synced and every customer already imported for this user — a pure read
+ * from the stored Excel sheet, never calls the gov API. Runs once per
+ * authenticated session.
+ *
+ * Customers are replaced wholesale (not merged) with the server's data:
+ * the server is the source of truth, and a browser's locally-cached copy
+ * can be stale (e.g. from before a parser bug fix was re-imported), so on
+ * load the server's current data should always win.
  */
 export function useLoadAllHistory(): void {
   const { status } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
+  const setCustomers = useStore((s) => s.setCustomers);
   const loadedRef = useRef(false);
 
   useEffect(() => {
@@ -27,8 +32,18 @@ export function useLoadAllHistory(): void {
         if (data.success) addTransactions(data.transactions);
       })
       .catch(() => {
-        // Non-fatal — per-month auto-load on individual pages still works.
+        // Non-fatal — per-month auto-load on individual pages still works,
+        // and allow a retry on the next mount.
         loadedRef.current = false;
       });
-  }, [status, addTransactions]);
+
+    apiFetch("/api/customers")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setCustomers(data.customers);
+      })
+      .catch(() => {
+        // Non-fatal — the browser keeps whatever it already had cached.
+      });
+  }, [status, addTransactions, setCustomers]);
 }
