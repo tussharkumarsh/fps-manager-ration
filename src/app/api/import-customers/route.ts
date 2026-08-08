@@ -63,39 +63,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-
+    let workbook: XLSX.WorkBook;
     let customers: Customer[];
     let sheetName: string;
     let format: "beneficiary_drilldown" | "kgs_master";
 
-    if (looksLikeBeneficiaryDrillDown(workbook)) {
-      format = "beneficiary_drilldown";
-      sheetName = workbook.SheetNames[0];
-      customers = parseBeneficiaryDrillDown(workbook);
-    } else {
-      format = "kgs_master";
-      const parsed = parseKgsMaster(workbook);
-      customers = parsed.customers;
-      sheetName = parsed.sheetName;
+    try {
+      const buffer = await file.arrayBuffer();
+      workbook = XLSX.read(buffer, { type: "array" });
+
+      if (looksLikeBeneficiaryDrillDown(workbook)) {
+        format = "beneficiary_drilldown";
+        sheetName = workbook.SheetNames[0];
+        customers = parseBeneficiaryDrillDown(workbook);
+      } else {
+        format = "kgs_master";
+        const parsed = parseKgsMaster(workbook);
+        customers = parsed.customers;
+        sheetName = parsed.sheetName;
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return NextResponse.json({ error: `Failed to parse Excel: ${message}` }, { status: 400 });
     }
 
-    const savedCount = await transactionService.importCustomers(session.fpsId, customers);
-
-    return NextResponse.json({
-      success: true,
-      customers,
-      count: customers.length,
-      savedCount,
-      sheetName,
-      format,
-    });
+    // Separately caught so a storage failure is reported accurately rather
+    // than being mislabeled as a parsing error.
+    try {
+      const savedCount = await transactionService.importCustomers(session.fpsId, customers);
+      return NextResponse.json({
+        success: true,
+        customers,
+        count: customers.length,
+        savedCount,
+        sheetName,
+        format,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return NextResponse.json(
+        { error: `Parsed ${customers.length} customer(s) but failed to save them to storage: ${message}` },
+        { status: 500 }
+      );
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: `Failed to parse Excel: ${message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
