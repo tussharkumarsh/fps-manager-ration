@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Customer, Transaction, FPSSettings, SyncLog } from "@/types";
-import { deduplicateTransactions, generateId } from "@/lib/utils";
+import { deduplicateTransactions, generateId, isValidReceiptNo } from "@/lib/utils";
 
 interface AppState {
   // Settings
@@ -80,7 +80,12 @@ export const useStore = create<AppState>()(
       transactions: [],
       addTransactions: (txns) =>
         set((state) => ({
-          transactions: deduplicateTransactions(state.transactions, txns),
+          // Also drops any invalid entries already sitting in persisted
+          // browser state from before this validation existed.
+          transactions: deduplicateTransactions(
+            state.transactions.filter((t) => isValidReceiptNo(t.receiptNo)),
+            txns
+          ),
         })),
       clearTransactions: () => set({ transactions: [] }),
 

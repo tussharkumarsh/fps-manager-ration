@@ -108,12 +108,18 @@ export function calculateChartData(transactions: Transaction[]): ChartDataPoint[
     .map((d) => ({ ...d, date: d.date.slice(5) }));
 }
 
+/** A transaction (receipt) number must be numeric-only and at least 12 digits long. */
+export function isValidReceiptNo(receiptNo: string): boolean {
+  return /^\d{12,}$/.test(receiptNo);
+}
+
 export function deduplicateTransactions(
   existing: Transaction[],
   incoming: Transaction[]
 ): Transaction[] {
+  const validIncoming = incoming.filter((t) => isValidReceiptNo(t.receiptNo));
   const existingIds = new Set(existing.map((t) => t.receiptNo));
-  const newTxns = incoming.filter((t) => !existingIds.has(t.receiptNo));
+  const newTxns = validIncoming.filter((t) => !existingIds.has(t.receiptNo));
   return [...existing, ...newTxns];
 }
 
