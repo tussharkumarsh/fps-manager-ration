@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { Badge, DataTable } from "@/components/ui";
 import { getMonthName } from "@/lib/utils";
@@ -10,10 +11,18 @@ import type { SyncLog } from "@/types";
 
 export default function SyncPage() {
   const { settings, updateSettings, addTransactions, addSyncLog, syncLogs, transactions } = useStore();
+  const { data: session } = useSession();
   const [status, setStatus] = useState<"idle" | "fetching" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [fetchSettings, setFetchSettings] = useState({ ...settings });
+  const [monthYear, setMonthYear] = useState({ month: settings.month, year: settings.year });
   const autoLoad = useAutoLoadMonth(settings.month, settings.year);
+
+  // The FPS ID / district code used in the actual government API call is
+  // always taken from the signed-in user's session on the server — never
+  // from anything sent by the browser. Displayed here read-only so it's
+  // clear this can't be changed to fetch another dealer's data.
+  const distCode = session?.distCode || "—";
+  const fpsId = session?.fpsId || "—";
 
   const handleFetch = async () => {
     setStatus("fetching");
@@ -23,7 +32,7 @@ export default function SyncPage() {
       const res = await apiFetch("/api/fetch-transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fetchSettings),
+        body: JSON.stringify(monthYear),
       });
 
       const data = await res.json();
@@ -41,15 +50,15 @@ export default function SyncPage() {
 
         addSyncLog({
           timestamp: new Date().toISOString(),
-          month: fetchSettings.month,
-          year: fetchSettings.year,
+          month: monthYear.month,
+          year: monthYear.year,
           transactionCount: added,
           status: "success",
           message: `Fetched ${added} transactions`,
         });
 
         // Also update main settings
-        updateSettings(fetchSettings);
+        updateSettings(monthYear);
       } else {
         throw new Error(data.error || "Unknown error");
       }
@@ -60,8 +69,8 @@ export default function SyncPage() {
 
       addSyncLog({
         timestamp: new Date().toISOString(),
-        month: fetchSettings.month,
-        year: fetchSettings.year,
+        month: monthYear.month,
+        year: monthYear.year,
         transactionCount: 0,
         status: "error",
         message: errMsg,
@@ -88,29 +97,31 @@ export default function SyncPage() {
           <div className="text-gray-900 font-medium break-all">
             https://epos.mahafood.gov.in/FPS_Trans_Details.jsp
           </div>
-          <div className="text-gray-500 mt-2">Payload</div>
+          <div className="text-gray-500 mt-2">Payload (fps_id / dist_code are fixed to your login)</div>
           <div className="text-gray-700">
-            dist_code={fetchSettings.distCode}&amp;fps_id={fetchSettings.fpsId}&amp;month={fetchSettings.month}&amp;year={fetchSettings.year}
+            dist_code={distCode}&amp;fps_id={fpsId}&amp;month={monthYear.month}&amp;year={monthYear.year}
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-5">
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">District Code</label>
-            <input value={fetchSettings.distCode}
-              onChange={(e) => setFetchSettings((s) => ({ ...s, distCode: e.target.value }))}
-              className="input-field" />
+            <label className="text-xs font-semibold text-gray-500 block mb-1">
+              District Code <span className="font-normal text-gray-400">(from your login)</span>
+            </label>
+            <input value={distCode} readOnly disabled
+              className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">FPS ID</label>
-            <input value={fetchSettings.fpsId}
-              onChange={(e) => setFetchSettings((s) => ({ ...s, fpsId: e.target.value }))}
-              className="input-field" />
+            <label className="text-xs font-semibold text-gray-500 block mb-1">
+              FPS ID <span className="font-normal text-gray-400">(from your login)</span>
+            </label>
+            <input value={fpsId} readOnly disabled
+              className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">Month</label>
-            <select value={fetchSettings.month}
-              onChange={(e) => setFetchSettings((s) => ({ ...s, month: e.target.value }))}
+            <select value={monthYear.month}
+              onChange={(e) => setMonthYear((s) => ({ ...s, month: e.target.value }))}
               className="input-field">
               {Array.from({ length: 12 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -121,8 +132,8 @@ export default function SyncPage() {
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">Year</label>
-            <input value={fetchSettings.year}
-              onChange={(e) => setFetchSettings((s) => ({ ...s, year: e.target.value }))}
+            <input value={monthYear.year}
+              onChange={(e) => setMonthYear((s) => ({ ...s, year: e.target.value }))}
               className="input-field" />
           </div>
         </div>
