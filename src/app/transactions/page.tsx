@@ -3,7 +3,8 @@
 import { useState, useMemo } from "react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, EmptyState } from "@/components/ui";
-import { getMonthName, formatNumber } from "@/lib/utils";
+import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
+import { exportRowsToPdf } from "@/lib/pdfExport";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import type { Transaction } from "@/types";
 
@@ -12,6 +13,9 @@ export default function TransactionsPage() {
   useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [authFilter, setAuthFilter] = useState<string>("ALL");
+  const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
 
   const customerMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -28,18 +32,59 @@ export default function TransactionsPage() {
     [transactions, customerMap]
   );
 
+  const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
+
   const filtered = useMemo(() => {
     let result = enriched;
     if (schemeFilter !== "ALL") result = result.filter((t) => t.scheme === schemeFilter);
     if (authFilter !== "ALL") result = result.filter((t) => t.availType === authFilter);
+    if (monthFilter !== "ALL") result = result.filter((t) => dateOnly(t.date).slice(0, 7) === monthFilter);
+    if (fromDate) result = result.filter((t) => dateOnly(t.date) >= fromDate);
+    if (toDate) result = result.filter((t) => dateOnly(t.date) <= toDate);
     return result;
-  }, [enriched, schemeFilter, authFilter]);
+  }, [enriched, schemeFilter, authFilter, monthFilter, fromDate, toDate]);
 
   const totals = useMemo(() => ({
     wheat: filtered.reduce((s, t) => s + t.wheat, 0),
     rice: filtered.reduce((s, t) => s + t.rice, 0),
     saree: filtered.reduce((s, t) => s + t.saree, 0),
   }), [filtered]);
+
+  const handleExportPdf = () => {
+    exportRowsToPdf(
+      "FPS Transactions Report",
+      `FPS ${settings.fpsId} · ${formatNumber(filtered.length)} record(s)` +
+        (monthFilter !== "ALL" ? ` · ${monthOptions.find((m) => m.value === monthFilter)?.label}` : "") +
+        (fromDate || toDate ? ` · ${fromDate || "…"} to ${toDate || "…"}` : ""),
+      [
+        { header: "#", key: "slNo" },
+        { header: "SRC No", key: "srcNo" },
+        { header: "Customer Name", key: "customerName" },
+        { header: "Scheme", key: "scheme" },
+        { header: "Auth Type", key: "availType" },
+        { header: "Date", key: "date" },
+        { header: "Wheat (Kg)", key: "wheat" },
+        { header: "Rice (Kg)", key: "rice" },
+        { header: "Saree", key: "saree" },
+        { header: "Amount", key: "amount" },
+        { header: "Portability", key: "portability" },
+      ],
+      filtered.map((t) => ({
+        slNo: t.slNo,
+        srcNo: t.srcNo,
+        customerName: t.customerName || "",
+        scheme: t.scheme,
+        availType: t.availType,
+        date: formatDate(dateOnly(t.date)),
+        wheat: t.wheat,
+        rice: t.rice,
+        saree: t.saree,
+        amount: t.amount,
+        portability: t.portability,
+      })),
+      `transactions-${settings.fpsId}-${new Date().toISOString().slice(0, 10)}.pdf`
+    );
+  };
 
   if (transactions.length === 0) {
     return (
@@ -56,7 +101,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold">📋 Transactions</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -65,7 +110,7 @@ export default function TransactionsPage() {
           </p>
         </div>
 
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-3 items-center flex-wrap">
           {/* Scheme filter */}
           <div className="flex gap-1">
             {(["ALL", "PHH", "AAY"] as const).map((s) => (
@@ -82,12 +127,43 @@ export default function TransactionsPage() {
 
           {/* Auth filter */}
           <select value={authFilter} onChange={(e) => setAuthFilter(e.target.value)}
-            className="input-field w-40 text-xs">
+            className="input-field w-36 text-xs">
             <option value="ALL">All Auth Types</option>
             <option value="Authenticated">Authenticated</option>
             <option value="OTP">OTP</option>
             <option value="IRIS">IRIS</option>
           </select>
+
+          {/* Month filter */}
+          <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}
+            className="input-field w-36 text-xs">
+            <option value="ALL">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          {/* Date range filter */}
+          <div className="flex items-center gap-1.5">
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+              className="input-field w-36 text-xs" aria-label="From date" />
+            <span className="text-xs text-gray-400">to</span>
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+              className="input-field w-36 text-xs" aria-label="To date" />
+          </div>
+
+          {(schemeFilter !== "ALL" || authFilter !== "ALL" || monthFilter !== "ALL" || fromDate || toDate) && (
+            <button
+              onClick={() => { setSchemeFilter("ALL"); setAuthFilter("ALL"); setMonthFilter("ALL"); setFromDate(""); setToDate(""); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Clear filters
+            </button>
+          )}
+
+          <button onClick={handleExportPdf} disabled={filtered.length === 0} className="btn-secondary text-xs disabled:opacity-50">
+            🖨️ Export PDF
+          </button>
         </div>
       </div>
 
@@ -106,7 +182,8 @@ export default function TransactionsPage() {
             render: (v) => <span className="text-gray-800">{String(v) || "—"}</span> },
           { key: "scheme", label: "Scheme", render: (v) => <Badge text={String(v)} /> },
           { key: "availType", label: "Auth Type", render: (v) => <Badge text={String(v)} /> },
-          { key: "date", label: "Date & Time", mono: true },
+          { key: "date", label: "Date", mono: true,
+            render: (v) => <span>{formatDate(dateOnly(String(v)))}</span> },
           { key: "wheat", label: "Wheat (Kg)", align: "right", mono: true },
           { key: "rice", label: "Rice (Kg)", align: "right", mono: true },
           { key: "saree", label: "Saree", align: "right", mono: true },

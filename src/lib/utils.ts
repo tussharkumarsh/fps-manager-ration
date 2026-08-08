@@ -120,3 +120,19 @@ export function deduplicateTransactions(
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
+
+/** Extracts just the "YYYY-MM-DD" portion of a "YYYY-MM-DD HH:mm" transaction date string. */
+export function dateOnly(dateStr: string): string {
+  return dateStr.split(" ")[0];
+}
+
+/** Distinct "YYYY-MM" values present in a transaction list, newest first, with a display label. */
+export function getDistinctMonths(transactions: Transaction[]): { value: string; label: string }[] {
+  const set = new Set(transactions.map((t) => dateOnly(t.date).slice(0, 7)));
+  return Array.from(set)
+    .sort((a, b) => b.localeCompare(a))
+    .map((ym) => {
+      const [year, month] = ym.split("-");
+      return { value: ym, label: `${getMonthName(parseInt(month, 10))} ${year}` };
+    });
+}
