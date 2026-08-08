@@ -42,6 +42,16 @@ export class SyncService {
   private txnRepo = new BlobTransactionRepository();
   private lockRepo = new BlobMonthLockRepository();
 
+  /**
+   * Reads every transaction already stored for this dealer, across all
+   * months — a pure read from the Excel sheet, never calls the gov API.
+   * Used to hydrate a freshly logged-in session (any browser/device) with
+   * everything already synced, without re-fetching or duplicating anything.
+   */
+  async getAllStoredTransactions(fpsId: string): Promise<Transaction[]> {
+    return this.txnRepo.getAll(fpsId);
+  }
+
   async getMonthData(
     distCode: string,
     fpsId: string,

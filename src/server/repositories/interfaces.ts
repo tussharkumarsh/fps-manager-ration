@@ -39,6 +39,7 @@ export interface IUserRepository {
 
 export interface ITransactionRepository {
   getForMonth(fpsId: string, year: string, month: string): Promise<StoredTransaction[]>;
+  getAll(fpsId: string): Promise<StoredTransaction[]>;
   upsertMany(
     fpsId: string,
     year: string,

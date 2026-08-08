@@ -142,6 +142,14 @@ export class BlobTransactionRepository implements ITransactionRepository {
       .map(rowToTxn);
   }
 
+  async getAll(fpsId: string): Promise<StoredTransaction[]> {
+    const wb = await readWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS);
+    const rows = sheetToRows<TransactionRow>(wb, TRANSACTIONS_SHEET);
+    return rows
+      .filter((r) => String(r.fps_id ?? "").trim() === fpsId.trim())
+      .map(rowToTxn);
+  }
+
   async upsertMany(
     fpsId: string,
     year: string,
