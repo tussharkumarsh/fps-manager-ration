@@ -1,10 +1,64 @@
 "use client";
 
+import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { getMonthName } from "@/lib/utils";
+import { apiFetch } from "@/lib/apiFetch";
 
 export default function SettingsPage() {
   const { settings, updateSettings, transactions, customers, syncLogs } = useStore();
+  const [dangerMessage, setDangerMessage] = useState("");
+  const [dangerBusy, setDangerBusy] = useState<"transactions" | "customers" | "all" | null>(null);
+
+  const clearTransactionsOnServer = async () => {
+    if (!confirm("Clear ALL your transaction data from the server? This cannot be undone.")) return;
+    setDangerBusy("transactions");
+    setDangerMessage("");
+    try {
+      const res = await apiFetch("/api/transactions/all", { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to clear transactions");
+      useStore.getState().clearTransactions();
+      setDangerMessage("All transactions deleted from the server.");
+    } catch (err) {
+      setDangerMessage(`Error: ${err instanceof Error ? err.message : "Failed to clear transactions"}`);
+    } finally {
+      setDangerBusy(null);
+    }
+  };
+
+  const clearCustomersOnServer = async () => {
+    if (!confirm("Clear ALL your customer data from the server? This cannot be undone.")) return;
+    setDangerBusy("customers");
+    setDangerMessage("");
+    try {
+      const res = await apiFetch("/api/customers?all=true", { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to clear customers");
+      useStore.getState().setCustomers([]);
+      setDangerMessage("All customers deleted from the server.");
+    } catch (err) {
+      setDangerMessage(`Error: ${err instanceof Error ? err.message : "Failed to clear customers"}`);
+    } finally {
+      setDangerBusy(null);
+    }
+  };
+
+  const resetEverythingOnServer = async () => {
+    if (!confirm("Reset EVERYTHING — all your transactions and customers on the server? This cannot be undone.")) return;
+    setDangerBusy("all");
+    setDangerMessage("");
+    try {
+      const res = await apiFetch("/api/reset-all", { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to reset");
+      localStorage.removeItem("fps-manager-storage");
+      window.location.reload();
+    } catch (err) {
+      setDangerMessage(`Error: ${err instanceof Error ? err.message : "Failed to reset"}`);
+      setDangerBusy(null);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
@@ -99,43 +153,48 @@ export default function SettingsPage() {
       {/* Danger Zone */}
       <div className="card p-6 border-red-200">
         <h3 className="text-base font-semibold mb-3 text-red-600">Danger Zone</h3>
+        <p className="text-xs text-gray-500 mb-3">
+          These delete data permanently from the server (Vercel Blob), scoped only to your own
+          login ({settings.fpsId}) — other dealers&apos; data is never affected.
+        </p>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium">Clear All Transactions</div>
-              <div className="text-xs text-gray-500">Remove all fetched transaction data</div>
+              <div className="text-xs text-gray-500">Remove all fetched transaction data from the server</div>
             </div>
-            <button onClick={() => {
-              if (confirm("Clear all transactions?")) useStore.getState().clearTransactions();
-            }} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100">
-              Clear
+            <button onClick={clearTransactionsOnServer} disabled={dangerBusy !== null}
+              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
+              {dangerBusy === "transactions" ? "Clearing…" : "Clear"}
             </button>
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">
             <div>
               <div className="text-sm font-medium">Clear All Customers</div>
-              <div className="text-xs text-gray-500">Remove customer master data</div>
+              <div className="text-xs text-gray-500">Remove customer master data from the server</div>
             </div>
-            <button onClick={() => {
-              if (confirm("Clear all customers?")) useStore.getState().setCustomers([]);
-            }} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100">
-              Clear
+            <button onClick={clearCustomersOnServer} disabled={dangerBusy !== null}
+              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
+              {dangerBusy === "customers" ? "Clearing…" : "Clear"}
             </button>
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">
             <div>
               <div className="text-sm font-medium">Reset Everything</div>
-              <div className="text-xs text-gray-500">Clear all data and reset to defaults</div>
+              <div className="text-xs text-gray-500">Delete all transactions and customers from the server</div>
             </div>
-            <button onClick={() => {
-              if (confirm("Reset EVERYTHING? This cannot be undone.")) {
-                localStorage.removeItem("fps-manager-storage");
-                window.location.reload();
-              }
-            }} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700">
-              Reset All
+            <button onClick={resetEverythingOnServer} disabled={dangerBusy !== null}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+              {dangerBusy === "all" ? "Resetting…" : "Reset All"}
             </button>
           </div>
+          {dangerMessage && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${
+              dangerMessage.startsWith("Error") ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+            }`}>
+              {dangerMessage}
+            </div>
+          )}
         </div>
       </div>
     </div>

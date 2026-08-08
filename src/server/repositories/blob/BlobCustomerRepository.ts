@@ -1,3 +1,4 @@
+import type * as XLSX from "xlsx";
 import { mutateWorkbook, readWorkbook, rowsToSheet, sheetToRows } from "@/server/clients/BlobXlsxClient";
 import type { ICustomerRepository } from "@/server/repositories/interfaces";
 import type { Customer } from "@/types";
@@ -60,6 +61,13 @@ function mergeRow(existing: CustomerRow, incoming: Customer, fpsId: string): Cus
   return merged;
 }
 
+/** Pure mutation: removes every customer row belonging to this fps_id. */
+export function applyClearCustomers(wb: XLSX.WorkBook, fpsId: string): void {
+  const rows = sheetToRows<CustomerRow>(wb, CUSTOMERS_SHEET);
+  const remaining = rows.filter((r) => String(r.fps_id ?? "").trim() !== fpsId.trim());
+  rowsToSheet(wb, CUSTOMERS_SHEET, remaining as unknown as Record<string, unknown>[], CUSTOMERS_HEADERS);
+}
+
 export class BlobCustomerRepository implements ICustomerRepository {
   async getAll(fpsId: string): Promise<Customer[]> {
     const wb = await readWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS);
@@ -107,6 +115,12 @@ export class BlobCustomerRepository implements ICustomerRepository {
         (r) => !(String(r.fps_id ?? "").trim() === fpsId.trim() && r.srcNo === srcNo)
       );
       rowsToSheet(wb, CUSTOMERS_SHEET, filtered as unknown as Record<string, unknown>[], CUSTOMERS_HEADERS);
+    });
+  }
+
+  async clearAll(fpsId: string): Promise<void> {
+    await mutateWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS, (wb) => {
+      applyClearCustomers(wb, fpsId);
     });
   }
 }

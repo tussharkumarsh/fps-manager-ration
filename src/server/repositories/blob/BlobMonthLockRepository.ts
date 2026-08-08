@@ -61,6 +61,13 @@ export function applyLockUpsert(wb: XLSX.WorkBook, lock: MonthLock): void {
   rowsToSheet(wb, MONTH_LOCKS_SHEET, rows as unknown as Record<string, unknown>[], MONTH_LOCKS_HEADERS);
 }
 
+/** Pure mutation: removes every month lock belonging to this fps_id. */
+export function applyClearLocks(wb: XLSX.WorkBook, fpsId: string): void {
+  const rows = sheetToRows<MonthLockRow>(wb, MONTH_LOCKS_SHEET);
+  const remaining = rows.filter((r) => String(r.fps_id ?? "").trim() !== fpsId.trim());
+  rowsToSheet(wb, MONTH_LOCKS_SHEET, remaining as unknown as Record<string, unknown>[], MONTH_LOCKS_HEADERS);
+}
+
 export class BlobMonthLockRepository implements IMonthLockRepository {
   async get(fpsId: string, year: string, month: string): Promise<MonthLock | null> {
     const wb = await readWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS);
@@ -77,5 +84,11 @@ export class BlobMonthLockRepository implements IMonthLockRepository {
 
   async upsert(lock: MonthLock): Promise<void> {
     await mutateWorkbook(dealerBlobPath(lock.fpsId), DEALER_SHEETS, (wb) => applyLockUpsert(wb, lock));
+  }
+
+  async clearAll(fpsId: string): Promise<void> {
+    await mutateWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS, (wb) => {
+      applyClearLocks(wb, fpsId);
+    });
   }
 }

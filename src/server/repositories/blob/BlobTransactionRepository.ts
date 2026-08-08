@@ -128,6 +128,20 @@ export function applyTransactionUpserts(
   return changed;
 }
 
+/**
+ * Pure mutation: removes every transaction row belonging to this fps_id.
+ * Exported so callers can combine this with clearing MonthLocks in a single
+ * atomic write (see BlobTransactionRepository.clearAll / resetAllForFps) —
+ * clearing transactions without also clearing their locks would leave
+ * locks claiming months are "already synced" when the data behind them is
+ * gone, causing the same lock/data mismatch bug fixed earlier.
+ */
+export function applyClearTransactions(wb: XLSX.WorkBook, fpsId: string): void {
+  const rows = sheetToRows<TransactionRow>(wb, TRANSACTIONS_SHEET);
+  const remaining = rows.filter((r) => String(r.fps_id ?? "").trim() !== fpsId.trim());
+  rowsToSheet(wb, TRANSACTIONS_SHEET, remaining as unknown as Record<string, unknown>[], TRANSACTIONS_HEADERS);
+}
+
 export class BlobTransactionRepository implements ITransactionRepository {
   async getForMonth(fpsId: string, year: string, month: string): Promise<StoredTransaction[]> {
     const wb = await readWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS);
@@ -161,5 +175,11 @@ export class BlobTransactionRepository implements ITransactionRepository {
     return mutateWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS, (wb) =>
       applyTransactionUpserts(wb, fpsId, year, month, txns, source)
     );
+  }
+
+  async clearAll(fpsId: string): Promise<void> {
+    await mutateWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS, (wb) => {
+      applyClearTransactions(wb, fpsId);
+    });
   }
 }

@@ -3,10 +3,12 @@ import { mutateWorkbook } from "@/server/clients/BlobXlsxClient";
 import {
   BlobTransactionRepository,
   applyTransactionUpserts,
+  applyClearTransactions,
 } from "@/server/repositories/blob/BlobTransactionRepository";
 import {
   BlobMonthLockRepository,
   applyLockUpsert,
+  applyClearLocks,
 } from "@/server/repositories/blob/BlobMonthLockRepository";
 import { DEALER_SHEETS, dealerBlobPath } from "@/server/repositories/blob/dealerWorkbook";
 import { SheetCache } from "@/server/cache/SheetCache";
@@ -50,6 +52,23 @@ export class SyncService {
    */
   async getAllStoredTransactions(fpsId: string): Promise<Transaction[]> {
     return this.txnRepo.getAll(fpsId);
+  }
+
+  /**
+   * Deletes every transaction AND month lock stored for this dealer
+   * (fps_id) in a single atomic write. Locks must be cleared together with
+   * their transactions — leaving a lock claiming a month is "already
+   * synced" after its data is gone would reproduce the lock/data mismatch
+   * bug fixed earlier. Scoped strictly to fpsId, which is always the
+   * caller's own session — this can never touch another dealer's data,
+   * since each dealer's data lives in its own blob file (data/{fps_id}.xlsx).
+   */
+  async clearAllTransactions(fpsId: string): Promise<void> {
+    await mutateWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS, (wb) => {
+      applyClearTransactions(wb, fpsId);
+      applyClearLocks(wb, fpsId);
+    });
+    monthDataCache.invalidate(fpsId);
   }
 
   async getMonthData(

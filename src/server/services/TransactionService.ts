@@ -47,4 +47,13 @@ export class TransactionService {
   async deleteCustomer(fpsId: string, srcNo: string): Promise<void> {
     await this.customerRepo.remove(fpsId, srcNo);
   }
+
+  /**
+   * Deletes every customer stored for this dealer. Scoped strictly to
+   * fpsId (always the caller's own session) — each dealer's data lives in
+   * its own blob file, so this can never touch another dealer's data.
+   */
+  async clearAllCustomers(fpsId: string): Promise<void> {
+    await this.customerRepo.clearAll(fpsId);
+  }
 }

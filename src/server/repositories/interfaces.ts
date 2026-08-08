@@ -47,11 +47,14 @@ export interface ITransactionRepository {
     txns: Transaction[],
     source?: "api" | "manual"
   ): Promise<number>;
+  /** Deletes every transaction stored for this fps_id (and their month locks — see clearAll). */
+  clearAll(fpsId: string): Promise<void>;
 }
 
 export interface IMonthLockRepository {
   get(fpsId: string, year: string, month: string): Promise<MonthLock | null>;
   upsert(lock: MonthLock): Promise<void>;
+  clearAll(fpsId: string): Promise<void>;
 }
 
 export interface ICustomerRepository {
@@ -59,4 +62,5 @@ export interface ICustomerRepository {
   upsertMany(fpsId: string, customers: Customer[]): Promise<number>;
   add(fpsId: string, customer: Customer): Promise<void>;
   remove(fpsId: string, srcNo: string): Promise<void>;
+  clearAll(fpsId: string): Promise<void>;
 }

@@ -51,12 +51,18 @@ export async function DELETE(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const srcNo = searchParams.get("srcNo");
-  if (!srcNo) {
-    return NextResponse.json({ error: "Missing srcNo" }, { status: 400 });
+  const all = searchParams.get("all") === "true";
+
+  if (!srcNo && !all) {
+    return NextResponse.json({ error: "Missing srcNo (or pass ?all=true to clear everything)" }, { status: 400 });
   }
 
   try {
-    await transactionService.deleteCustomer(session.fpsId, srcNo);
+    if (all) {
+      await transactionService.clearAllCustomers(session.fpsId);
+    } else {
+      await transactionService.deleteCustomer(session.fpsId, srcNo as string);
+    }
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
