@@ -44,8 +44,8 @@ export default function SettingsPage() {
     }
   };
 
-  const resetEverythingOnServer = async () => {
-    if (!confirm("Reset EVERYTHING — all your transactions and customers on the server? This cannot be undone.")) return;
+  const factoryResetOnServer = async () => {
+    if (!confirm("Factory Reset — permanently delete ALL your transaction data AND ALL your customer data from the server? This cannot be undone.")) return;
     setDangerBusy("all");
     setDangerMessage("");
     try {
@@ -180,12 +180,14 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">
             <div>
-              <div className="text-sm font-medium">Reset Everything</div>
-              <div className="text-xs text-gray-500">Delete all transactions and customers from the server</div>
+              <div className="text-sm font-medium">Factory Reset</div>
+              <div className="text-xs text-gray-500">
+                Permanently delete ALL transaction data AND ALL customer data from the server, in one go
+              </div>
             </div>
-            <button onClick={resetEverythingOnServer} disabled={dangerBusy !== null}
+            <button onClick={factoryResetOnServer} disabled={dangerBusy !== null}
               className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
-              {dangerBusy === "all" ? "Resetting…" : "Reset All"}
+              {dangerBusy === "all" ? "Resetting…" : "Factory Reset"}
             </button>
           </div>
           {dangerMessage && (
