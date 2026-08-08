@@ -4,10 +4,12 @@ import { useState, useMemo } from "react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, EmptyState } from "@/components/ui";
 import { getMonthName, formatNumber } from "@/lib/utils";
+import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import type { Transaction } from "@/types";
 
 export default function TransactionsPage() {
   const { transactions, customers, settings } = useStore();
+  useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [authFilter, setAuthFilter] = useState<string>("ALL");
 

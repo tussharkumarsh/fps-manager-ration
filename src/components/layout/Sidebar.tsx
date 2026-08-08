@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,8 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, toggleSidebar, settings } = useStore();
+  const { sidebarOpen, toggleSidebar } = useStore();
+  const { data: session } = useSession();
 
   return (
     <aside
@@ -64,12 +66,22 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      {sidebarOpen && (
-        <div className="px-4 py-3 border-t border-white/10 text-[11px] text-white/50 space-y-0.5">
-          <div>FPS: {settings.fpsId}</div>
-          <div>{new Date().toLocaleDateString("en-IN")}</div>
-        </div>
-      )}
+      <div className="px-2 py-3 border-t border-white/10 space-y-2">
+        {sidebarOpen && session?.fpsId && (
+          <div className="px-2 text-[11px] text-white/50 space-y-0.5">
+            <div>FPS: {session.fpsId}</div>
+            <div>{new Date().toLocaleDateString("en-IN")}</div>
+          </div>
+        )}
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+          title="Sign out"
+        >
+          <span>🚪</span>
+          {sidebarOpen && <span>Sign Out</span>}
+        </button>
+      </div>
     </aside>
   );
 }

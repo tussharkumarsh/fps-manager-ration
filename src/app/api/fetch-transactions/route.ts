@@ -1,48 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseEposHtml } from "@/lib/parser";
+import { auth } from "@/auth";
+import { SyncService } from "@/server/services/SyncService";
 
+// This route reads/writes Vercel Blob storage on every call and must never
+// see a cached response.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+const syncService = new SyncService();
+
+/**
+ * Triggers a sync for the given month/year, scoped to the authenticated
+ * user's FPS ID (never trusts a client-supplied fps_id). District code
+ * comes from the user's session record (set when the user was created).
+ */
 export async function POST(req: NextRequest) {
-  try {
-    const { distCode, fpsId, month, year } = await req.json();
+  const session = await auth();
+  if (!session?.fpsId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
 
-    if (!distCode || !fpsId || !month || !year) {
+  try {
+    const { month, year } = await req.json();
+
+    if (!month || !year) {
       return NextResponse.json(
-        { error: "Missing required fields: distCode, fpsId, month, year" },
+        { error: "Missing required fields: month, year" },
         { status: 400 }
       );
     }
 
-    const formBody = `dist_code=${encodeURIComponent(distCode)}&fps_id=${encodeURIComponent(fpsId)}&month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}`;
-
-    const response = await fetch(
-      "https://epos.mahafood.gov.in/FPS_Trans_Details.jsp",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "Mozilla/5.0",
-          Accept: "text/html",
-        },
-        body: formBody,
-      }
+    const result = await syncService.getMonthData(
+      session.distCode,
+      session.fpsId,
+      String(year),
+      String(month)
     );
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: `ePOS API returned status ${response.status}` },
-        { status: 502 }
-      );
-    }
-
-    const html = await response.text();
-    const transactions = parseEposHtml(html);
 
     return NextResponse.json({
       success: true,
-      transactions,
-      count: transactions.length,
+      transactions: result.transactions,
+      count: result.transactions.length,
+      source: result.source,
+      lockStatus: result.lockStatus,
       fetchedAt: new Date().toISOString(),
-      params: { distCode, fpsId, month, year },
+      params: { distCode: session.distCode, fpsId: session.fpsId, month, year },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

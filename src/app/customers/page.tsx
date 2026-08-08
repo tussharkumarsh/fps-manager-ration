@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from "react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, KPICard, EmptyState } from "@/components/ui";
 import { formatNumber } from "@/lib/utils";
+import { apiFetch } from "@/lib/apiFetch";
 import type { Customer } from "@/types";
 
 export default function CustomersPage() {
@@ -42,7 +43,7 @@ export default function CustomersPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/import-customers", {
+      const res = await apiFetch("/api/import-customers", {
         method: "POST",
         body: formData,
       });

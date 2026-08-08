@@ -8,11 +8,13 @@ import {
 import { useStore } from "@/store/useStore";
 import { KPICard, Badge, EmptyState } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber } from "@/lib/utils";
+import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
 
 export default function DashboardPage() {
   const { transactions, customers, settings } = useStore();
+  useAutoLoadMonth(settings.month, settings.year);
 
   const stats = useMemo(() => calculateMonthlyStats(transactions), [transactions]);
   const chartData = useMemo(() => calculateChartData(transactions), [transactions]);

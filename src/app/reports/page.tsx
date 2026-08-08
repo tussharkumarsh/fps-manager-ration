@@ -4,10 +4,12 @@ import { useState, useMemo } from "react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
 import { calculateDailySummary, getMonthName, formatNumber } from "@/lib/utils";
+import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import type { DailySummary, Transaction, Customer } from "@/types";
 
 export default function ReportsPage() {
   const { transactions, customers, settings } = useStore();
+  useAutoLoadMonth(settings.month, settings.year);
   const [reportType, setReportType] = useState("daily");
 
   const customerMap = useMemo(() => {

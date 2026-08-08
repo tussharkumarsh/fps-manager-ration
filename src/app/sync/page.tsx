@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { Badge, DataTable } from "@/components/ui";
 import { getMonthName } from "@/lib/utils";
+import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
+import { apiFetch } from "@/lib/apiFetch";
 import type { SyncLog } from "@/types";
 
 export default function SyncPage() {
@@ -11,13 +13,14 @@ export default function SyncPage() {
   const [status, setStatus] = useState<"idle" | "fetching" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [fetchSettings, setFetchSettings] = useState({ ...settings });
+  const autoLoad = useAutoLoadMonth(settings.month, settings.year);
 
   const handleFetch = async () => {
     setStatus("fetching");
     setMessage("");
 
     try {
-      const res = await fetch("/api/fetch-transactions", {
+      const res = await apiFetch("/api/fetch-transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fetchSettings),
@@ -26,13 +29,15 @@ export default function SyncPage() {
       const data = await res.json();
 
       if (data.success) {
-        const prevCount = transactions.length;
         addTransactions(data.transactions);
-        const newCount = data.transactions.length;
         const added = data.count;
+        const storedNote =
+          data.source === "sheet_cache"
+            ? "Loaded from the stored Excel sheet (already synced — no API call made)."
+            : "Fetched from the government API and saved to the Excel sheet on Vercel.";
 
         setStatus("success");
-        setMessage(`Fetched ${added} transactions. ${data.count} from API, deduplicated with existing data.`);
+        setMessage(`${storedNote} ${added} record(s) for this month.`);
 
         addSyncLog({
           timestamp: new Date().toISOString(),
@@ -148,6 +153,22 @@ export default function SyncPage() {
         <div className="text-sm text-gray-600 space-y-1">
           <div>Transactions loaded: <strong className="font-mono">{transactions.length}</strong></div>
           <div>Unique dates: <strong className="font-mono">{new Set(transactions.map((t) => t.date.split(" ")[0])).size}</strong></div>
+          <div className="flex items-center gap-2 pt-1">
+            <span>Server status for {getMonthName(Number(settings.month))} {settings.year}:</span>
+            {autoLoad.loading && <span className="text-xs text-gray-400">checking sheet…</span>}
+            {!autoLoad.loading && autoLoad.source === "sheet_cache" && (
+              <Badge text="Loaded from stored sheet" variant="success" />
+            )}
+            {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "live" && (
+              <Badge text="Live (current month, re-synced)" variant="info" />
+            )}
+            {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "synced_locked" && (
+              <Badge text="Fetched & saved to sheet just now" variant="success" />
+            )}
+            {!autoLoad.loading && autoLoad.error && (
+              <Badge text={`Error: ${autoLoad.error}`} variant="error" />
+            )}
+          </div>
           {transactions.length > 0 && (
             <button onClick={() => {
               if (confirm("Clear all transactions? This cannot be undone.")) {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
+import Providers from "@/components/Providers";
+import AppShell from "@/components/layout/AppShell";
+import GlobalLoader from "@/components/layout/GlobalLoader";
 
 export const metadata: Metadata = {
   title: "FPS Smart Management System",
@@ -21,8 +23,10 @@ export default function RootLayout({
         />
       </head>
       <body className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <Providers>
+          <GlobalLoader />
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

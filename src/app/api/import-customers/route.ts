@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import { auth } from "@/auth";
+import { TransactionService } from "@/server/services/TransactionService";
 import type { Customer } from "@/types";
 
+// This route writes Vercel Blob storage and must never see a cached fetch
+// response.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+const transactionService = new TransactionService();
+
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.fpsId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
@@ -46,10 +60,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const savedCount = await transactionService.importCustomers(session.fpsId, customers);
+
     return NextResponse.json({
       success: true,
       customers,
       count: customers.length,
+      savedCount,
       sheetName,
     });
   } catch (error: unknown) {
