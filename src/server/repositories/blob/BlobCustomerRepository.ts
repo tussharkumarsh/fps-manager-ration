@@ -15,22 +15,36 @@ interface CustomerRow {
   name?: string;
   last_dispatched?: string;
   scheme?: string;
+  s_no?: string | number;
   area_type?: string;
   status?: string;
   member_count?: string | number;
   mobile?: string;
+  family_head?: string;
+  members_json?: string;
 }
 
 function rowToCustomer(row: CustomerRow): Customer {
+  let members: Customer["members"];
+  if (row.members_json) {
+    try {
+      members = JSON.parse(row.members_json);
+    } catch {
+      members = undefined;
+    }
+  }
   return {
     srcNo: String(row.srcNo ?? ""),
     name: String(row.name ?? ""),
     lastDispatched: row.last_dispatched || undefined,
     scheme: (row.scheme as Customer["scheme"]) || undefined,
+    sNo: row.s_no ? parseInt(String(row.s_no), 10) || undefined : undefined,
     areaType: row.area_type || undefined,
     status: row.status || undefined,
     memberCount: row.member_count ? parseInt(String(row.member_count), 10) || undefined : undefined,
     mobile: row.mobile || undefined,
+    familyHead: row.family_head || undefined,
+    members,
   };
 }
 
@@ -41,10 +55,13 @@ function customerToRow(fpsId: string, c: Customer): CustomerRow {
     name: c.name,
     last_dispatched: c.lastDispatched || "",
     scheme: c.scheme || "",
+    s_no: c.sNo ?? "",
     area_type: c.areaType || "",
     status: c.status || "",
     member_count: c.memberCount ?? "",
     mobile: c.mobile || "",
+    family_head: c.familyHead || "",
+    members_json: c.members && c.members.length > 0 ? JSON.stringify(c.members) : "",
   };
 }
 

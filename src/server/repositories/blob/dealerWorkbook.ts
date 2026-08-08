@@ -45,10 +45,13 @@ export const CUSTOMERS_HEADERS = [
   "name",
   "last_dispatched",
   "scheme",
+  "s_no",
   "area_type",
   "status",
   "member_count",
   "mobile",
+  "family_head",
+  "members_json",
 ];
 
 export const DEALER_SHEETS = [

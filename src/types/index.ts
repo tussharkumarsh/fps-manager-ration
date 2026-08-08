@@ -1,3 +1,18 @@
+export interface FamilyMember {
+  msNo: number;
+  nameEng: string;
+  nameLL?: string;
+  hofn?: string;
+  memberId?: string;
+  age?: string;
+  uid?: string;
+  mobile?: string;
+  relation?: string;
+  motherName?: string;
+  fatherName?: string;
+  gender?: string;
+}
+
 export interface Customer {
   srcNo: string;
   name: string;
@@ -5,11 +20,13 @@ export interface Customer {
   scheme?: "PHH" | "AAY";
   // Enrichment fields from the government "FPS Beneficiary Detail" export
   // (Ration Card No. in that file === srcNo here).
+  sNo?: number;
   areaType?: string;
   status?: string;
   memberCount?: number;
   mobile?: string;
   familyHead?: string;
+  members?: FamilyMember[];
 }
 
 export interface Transaction {
