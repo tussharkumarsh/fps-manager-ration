@@ -74,10 +74,16 @@ export class SyncService {
       return { transactions: cached, source: "sheet_cache", lockStatus: "synced_locked" };
     }
 
-    // Never synced before — fetch once and lock.
+    // Never synced before — fetch once. Only locks if real records came
+    // back (see fetchAndStore); an empty result stays retryable.
     const result = await this.fetchAndStore(distCode, fpsId, year, month, "synced_locked");
     monthDataCache.invalidate(fpsId);
-    return { transactions: result, source: "gov_api", lockStatus: "synced_locked" };
+    const newLock = await this.lockRepo.get(fpsId, year, month);
+    return {
+      transactions: result,
+      source: "gov_api",
+      lockStatus: newLock?.status ?? "live",
+    };
   }
 
   private async fetchAndStore(
@@ -89,6 +95,14 @@ export class SyncService {
   ): Promise<Transaction[]> {
     const { transactions } = await this.govApi.fetchTransactions(distCode, fpsId, month, year);
 
+    // A historical month that comes back with zero records is NOT locked as
+    // permanently synced — an empty response can be a transient gov-server
+    // glitch, and locking it would mean the app never checks that month
+    // again even after real data appears there later. Only lock once we've
+    // actually observed real records (or it's the current month, which
+    // always stays 'live' and is re-checked every time regardless).
+    const shouldLock = status !== "synced_locked" || transactions.length > 0;
+
     // Both sheet mutations are applied in a single atomic blob read-modify-
     // write — writing them as two separate sequential repo calls (each with
     // its own read-modify-write cycle against the same blob) risks the
@@ -96,14 +110,16 @@ export class SyncService {
     // silently dropping it.
     await mutateWorkbook(dealerBlobPath(fpsId), DEALER_SHEETS, (wb) => {
       applyTransactionUpserts(wb, fpsId, year, month, transactions, "api");
-      applyLockUpsert(wb, {
-        fpsId,
-        year,
-        month,
-        status,
-        lastSyncedAt: new Date().toISOString(),
-        recordCount: transactions.length,
-      });
+      if (shouldLock) {
+        applyLockUpsert(wb, {
+          fpsId,
+          year,
+          month,
+          status,
+          lastSyncedAt: new Date().toISOString(),
+          recordCount: transactions.length,
+        });
+      }
     });
 
     return transactions;
