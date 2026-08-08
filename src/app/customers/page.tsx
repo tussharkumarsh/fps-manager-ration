@@ -22,7 +22,7 @@ export default function CustomersPage() {
       const collected = txns.some((t) => t.wheat > 0);
       return {
         ...c,
-        status: collected ? "Collected" : "Pending",
+        collectionStatus: collected ? "Collected" : "Pending",
         txnCount: txns.length,
         totalWheat: txns.reduce((s, t) => s + t.wheat, 0),
         totalRice: txns.reduce((s, t) => s + t.rice, 0),
@@ -30,7 +30,7 @@ export default function CustomersPage() {
     });
   }, [customers, transactions]);
 
-  const collectedCount = customerStats.filter((c) => c.status === "Collected").length;
+  const collectedCount = customerStats.filter((c) => c.collectionStatus === "Collected").length;
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,7 +77,8 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-xl font-bold">👥 Customer Master</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage SRC No → Customer Name mapping
+            Manage Ration Card / SRC No → Customer mapping — import KGS_Master or the
+            FPS Beneficiary Detail Drill-Down file to enrich records
           </p>
         </div>
         <div className="flex gap-2">
@@ -145,11 +146,19 @@ export default function CustomersPage() {
           description="Import your KGS_Master Excel file or add customers manually."
         />
       ) : (
-        <DataTable<Customer & { status: string; txnCount: number; totalWheat: number; totalRice: number }>
+        <DataTable<Customer & { collectionStatus: string; txnCount: number; totalWheat: number; totalRice: number }>
           columns={[
-            { key: "srcNo", label: "SRC No", mono: true },
+            { key: "srcNo", label: "Ration Card / SRC No", mono: true },
             { key: "name", label: "Customer Name" },
-            { key: "status", label: "Status",
+            { key: "scheme", label: "Scheme",
+              render: (v) => (v ? <Badge text={String(v)} /> : <span className="text-gray-300">—</span>) },
+            { key: "areaType", label: "Area",
+              render: (v) => <span className="text-gray-500">{String(v) || "—"}</span> },
+            { key: "memberCount", label: "Members", align: "right", mono: true,
+              render: (v) => <span>{v ? String(v) : "—"}</span> },
+            { key: "status", label: "Verification",
+              render: (v) => <span className="text-xs text-gray-500">{String(v) || "—"}</span> },
+            { key: "collectionStatus", label: "This Month",
               render: (v) => <Badge text={String(v)} /> },
             { key: "lastDispatched", label: "Last Dispatched",
               render: (v) => <span className="text-gray-500">{String(v) || "—"}</span> },

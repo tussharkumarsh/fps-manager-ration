@@ -39,7 +39,17 @@ export const MONTH_LOCKS_HEADERS = [
   "record_count",
 ];
 
-export const CUSTOMERS_HEADERS = ["fps_id", "srcNo", "name", "last_dispatched"];
+export const CUSTOMERS_HEADERS = [
+  "fps_id",
+  "srcNo",
+  "name",
+  "last_dispatched",
+  "scheme",
+  "area_type",
+  "status",
+  "member_count",
+  "mobile",
+];
 
 export const DEALER_SHEETS = [
   { name: TRANSACTIONS_SHEET, headers: TRANSACTIONS_HEADERS },

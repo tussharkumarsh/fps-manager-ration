@@ -3,6 +3,13 @@ export interface Customer {
   name: string;
   lastDispatched?: string;
   scheme?: "PHH" | "AAY";
+  // Enrichment fields from the government "FPS Beneficiary Detail" export
+  // (Ration Card No. in that file === srcNo here).
+  areaType?: string;
+  status?: string;
+  memberCount?: number;
+  mobile?: string;
+  familyHead?: string;
 }
 
 export interface Transaction {

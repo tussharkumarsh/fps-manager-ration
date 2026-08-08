@@ -28,6 +28,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# downloaded government data files (contain personal information) — never commit
+*.xlsx
+*.xls
+!public/**/*.xlsx
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
