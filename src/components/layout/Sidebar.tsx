@@ -13,6 +13,7 @@ const navItems = [
   { href: "/inventory", label: "Inventory", icon: "📦" },
   { href: "/reports", label: "Reports", icon: "📑" },
   { href: "/sync", label: "Sync Data", icon: "🔄" },
+  { href: "/profile", label: "Profile", icon: "👤" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
