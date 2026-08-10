@@ -34,6 +34,19 @@ export async function backendFetch<T>(
     cache: "no-store",
   });
 
+  // A non-2xx response isn't guaranteed to be JSON — a platform-level crash
+  // or timeout returns an HTML error page instead of anything our backend
+  // wrote, and res.json() would throw a cryptic "Unexpected token '<'"
+  // that hides what actually happened.
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = (await res.text()).slice(0, 300);
+    throw new BackendError(
+      `Backend returned a non-JSON response (status ${res.status}): ${text || "(empty body)"}`,
+      res.status
+    );
+  }
+
   const data = await res.json();
   if (!res.ok) {
     throw new BackendError(data?.error || `Backend request failed with status ${res.status}`, res.status);

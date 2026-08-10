@@ -7,6 +7,10 @@ import type { Customer } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+// Large imports (hundreds of customers) upsert-then-verify against the
+// backend, which itself round-trips to Supabase twice on a mismatch —
+// the platform's default 10s function timeout isn't enough headroom.
+export const maxDuration = 60;
 
 function looksLikeBeneficiaryDrillDown(workbook: XLSX.WorkBook): boolean {
   const ws = workbook.Sheets[workbook.SheetNames[0]];
