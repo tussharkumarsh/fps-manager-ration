@@ -158,6 +158,8 @@ const en = {
     setOpeningBalancesDesc: "Set the starting stock for every item for {month}. This overwrites the current opening balance.",
     monthwiseClosing: "Monthwise Closing Balance",
     availableStock: "Available Stock",
+    asOfNow: "as of now",
+    asOfEndOf: "as of end of",
   },
   reports: {
     title: "Reports",
@@ -410,6 +412,8 @@ const hi: typeof en = {
     setOpeningBalancesDesc: "{month} के लिए हर वस्तु का प्रारंभिक स्टॉक सेट करें। यह मौजूदा प्रारंभिक शेष को अधिलेखित कर देगा।",
     monthwiseClosing: "माह-वार अंतिम शेष",
     availableStock: "उपलब्ध स्टॉक",
+    asOfNow: "अभी तक",
+    asOfEndOf: "के अंत तक",
   },
   reports: {
     title: "रिपोर्ट",
@@ -662,6 +666,8 @@ const mr: typeof en = {
     setOpeningBalancesDesc: "{month} साठी प्रत्येक वस्तूचा सुरुवातीचा साठा सेट करा. हे सध्याचा सुरुवातीचा साठा अधिलिखित करेल.",
     monthwiseClosing: "महिनावार अंतिम साठा",
     availableStock: "उपलब्ध साठा",
+    asOfNow: "आत्तापर्यंत",
+    asOfEndOf: "च्या अखेरीपर्यंत",
   },
   reports: {
     title: "अहवाल",

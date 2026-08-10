@@ -19,6 +19,7 @@ const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"
 interface StockRow {
   name: string;
   unit: string;
+  opening: number;
   closing: number;
 }
 
@@ -39,6 +40,7 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
             byItem.set(row.itemName, {
               name: row.itemName,
               unit: row.unit,
+              opening: (existing?.opening ?? 0) + row.opening,
               closing: (existing?.closing ?? 0) + row.closing,
             });
           }
@@ -52,7 +54,14 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
         const items = data.items as InventoryItem[];
         const ledger = data.ledger as InventoryLedgerEntry[];
         const ledgerByItem = new Map(ledger.map((l) => [l.itemId, l]));
-        setStock(items.map((item) => ({ name: item.name, unit: item.unit, closing: ledgerByItem.get(item.id)?.closing ?? 0 })));
+        setStock(
+          items.map((item) => ({
+            name: item.name,
+            unit: item.unit,
+            opening: ledgerByItem.get(item.id)?.opening ?? 0,
+            closing: ledgerByItem.get(item.id)?.closing ?? 0,
+          }))
+        );
       } catch {
         // Non-fatal — the dashboard's main content doesn't depend on this.
       }
@@ -74,10 +83,18 @@ export default function DashboardPage() {
     ? t("common.allDealersCollective")
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
-  const availableStock = useAvailableStock(settings.month, settings.year, viewingDealer?.fpsId, aggregateMode);
 
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
   const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
+
+  // "All Months" has no single closing balance to show (each month's
+  // closing carries into the next, so summing them would double-count) —
+  // it shows the current standing stock instead, i.e. the account's
+  // default (real current) month. Picking a specific month shows the
+  // stock as it stood at the end of that month.
+  const [stockYear, stockMonth] =
+    monthFilter === "ALL" ? [settings.year, settings.month] : monthFilter.split("-").map((v) => String(parseInt(v, 10)));
+  const availableStock = useAvailableStock(stockMonth, stockYear, viewingDealer?.fpsId, aggregateMode);
 
   const scopedTransactions = useMemo(() => {
     if (monthFilter === "ALL") return transactions;
@@ -112,16 +129,23 @@ export default function DashboardPage() {
   }, [scopedTransactions, customers]);
 
   const stockIcons: Record<string, string> = { Wheat: "🌾", Rice: "🍚" };
+  const stockAsOfLabel =
+    monthFilter === "ALL"
+      ? t("inventory.asOfNow")
+      : `${t("inventory.asOfEndOf")} ${getMonthName(parseInt(stockMonth))} ${stockYear}`;
   const availableStockSection = availableStock.length > 0 && (
     <div className="card p-5">
-      <h3 className="text-sm font-semibold mb-4">📦 {t("inventory.availableStock")}</h3>
+      <div className="flex items-baseline justify-between mb-4">
+        <h3 className="text-sm font-semibold">📦 {t("inventory.availableStock")}</h3>
+        <span className="text-xs text-gray-400">{stockAsOfLabel}</span>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {availableStock.map((s) => (
           <KPICard
             key={s.name}
             label={s.name}
             value={`${formatNumber(s.closing)} ${s.unit}`}
-            sub={t("inventory.closing")}
+            sub={`${t("inventory.carriedForward")}: ${formatNumber(s.opening)} ${s.unit}`}
             color="blue"
             icon={stockIcons[s.name] ?? "📦"}
           />
