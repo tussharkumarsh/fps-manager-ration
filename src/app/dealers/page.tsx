@@ -37,6 +37,9 @@ export default function DealersPage() {
   const [rowMessage, setRowMessage] = useState<{ fpsId: string; text: string } | null>(null);
   const [deletingFpsId, setDeletingFpsId] = useState<string | null>(null);
 
+  const [clearingFpsId, setClearingFpsId] = useState<string | null>(null);
+  const [clearBusyScope, setClearBusyScope] = useState<"transactions" | "customers" | "all" | null>(null);
+
   const isAdmin = session?.role === "admin";
 
   const loadDealers = async () => {
@@ -131,6 +134,32 @@ export default function DealersPage() {
       setRowMessage({ fpsId: dealer.fpsId, text: `Error: ${err instanceof Error ? err.message : "Failed to delete"}` });
     } finally {
       setDeletingFpsId(null);
+    }
+  };
+
+  const handleClearData = async (dealer: DealerProfile, scope: "transactions" | "customers" | "all") => {
+    const confirmText =
+      scope === "all"
+        ? `Permanently delete ALL transactions AND ALL customers for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone — use this when handing the account over to a real client so they start from a clean slate.`
+        : scope === "transactions"
+          ? `Permanently delete ALL transactions for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone.`
+          : `Permanently delete ALL customers for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone.`;
+    if (!confirm(confirmText)) return;
+
+    setClearBusyScope(scope);
+    setRowMessage(null);
+    try {
+      const res = await apiFetch(`/api/admin/dealers/${encodeURIComponent(dealer.fpsId)}/data?scope=${scope}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to clear data");
+      setRowMessage({ fpsId: dealer.fpsId, text: `Cleared ${scope === "all" ? "all data" : scope} for ${dealer.displayName}.` });
+      setClearingFpsId(null);
+    } catch (err) {
+      setRowMessage({ fpsId: dealer.fpsId, text: `Error: ${err instanceof Error ? err.message : "Failed to clear data"}` });
+    } finally {
+      setClearBusyScope(null);
     }
   };
 
@@ -319,6 +348,14 @@ export default function DealersPage() {
                                   {t("dealers.viewData")}
                                 </button>
                               )}
+                              {d.role === "dealer" && (
+                                <button
+                                  onClick={() => setClearingFpsId(clearingFpsId === d.fpsId ? null : d.fpsId)}
+                                  className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md text-xs font-semibold hover:bg-amber-100 mr-1"
+                                >
+                                  {t("dealers.clearData")}
+                                </button>
+                              )}
                               {!isSelf && (
                                 <>
                                   <button
@@ -340,6 +377,44 @@ export default function DealersPage() {
                           </>
                         )}
                       </tr>
+                      {clearingFpsId === d.fpsId && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-3 bg-amber-50">
+                            <div className="text-xs font-semibold text-amber-800 mb-2">
+                              {t("dealers.clearDataFor", { name: d.displayName })}
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <button
+                                onClick={() => handleClearData(d, "transactions")}
+                                disabled={clearBusyScope !== null}
+                                className="px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                              >
+                                {clearBusyScope === "transactions" ? t("settings.clearing") : t("sync.clearAllTransactions")}
+                              </button>
+                              <button
+                                onClick={() => handleClearData(d, "customers")}
+                                disabled={clearBusyScope !== null}
+                                className="px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                              >
+                                {clearBusyScope === "customers" ? t("settings.clearing") : t("dealers.clearAllCustomers")}
+                              </button>
+                              <button
+                                onClick={() => handleClearData(d, "all")}
+                                disabled={clearBusyScope !== null}
+                                className="px-2 py-1 bg-red-600 text-white rounded-md text-xs font-semibold hover:bg-red-700 disabled:opacity-50"
+                              >
+                                {clearBusyScope === "all" ? t("settings.resetting") : t("settings.factoryReset")}
+                              </button>
+                              <button
+                                onClick={() => setClearingFpsId(null)}
+                                className="px-2 py-1 bg-white border border-gray-300 text-gray-600 rounded-md text-xs font-semibold hover:bg-gray-50"
+                              >
+                                {t("common.cancel")}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {rowMessage?.fpsId === d.fpsId && (
                         <tr>
                           <td colSpan={7} className="px-3 py-2 bg-red-50 text-red-700 text-xs">

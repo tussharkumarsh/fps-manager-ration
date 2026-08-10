@@ -257,6 +257,9 @@ const en = {
     viewData: "View Data",
     saving: "Saving…",
     deleting: "Deleting…",
+    clearData: "Clear Data",
+    clearDataFor: "Clear data for {name} — for onboarding a real client onto a previously test/setup account.",
+    clearAllCustomers: "Clear All Customers",
   },
 };
 
@@ -511,6 +514,9 @@ const hi: typeof en = {
     viewData: "डेटा देखें",
     saving: "सेव हो रहा है…",
     deleting: "हटाया जा रहा है…",
+    clearData: "डेटा साफ़ करें",
+    clearDataFor: "{name} का डेटा साफ़ करें — किसी पूर्व टेस्ट/सेटअप खाते को असली ग्राहक को सौंपते समय उपयोग करें।",
+    clearAllCustomers: "सभी ग्राहक साफ़ करें",
   },
 };
 
@@ -765,6 +771,9 @@ const mr: typeof en = {
     viewData: "डेटा पहा",
     saving: "जतन होत आहे…",
     deleting: "हटवत आहे…",
+    clearData: "डेटा साफ करा",
+    clearDataFor: "{name} चा डेटा साफ करा — पूर्वी चाचणी/सेटअपसाठी वापरलेले खाते खऱ्या ग्राहकाला देताना वापरा.",
+    clearAllCustomers: "सर्व ग्राहक साफ करा",
   },
 };
 
