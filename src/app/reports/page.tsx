@@ -6,14 +6,16 @@ import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
 import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { DailySummary, Transaction, Customer } from "@/types";
 
 export default function ReportsPage() {
   const { data: session } = useSession();
+  const { t } = useTranslation();
   const { transactions, customers, settings, viewingDealer } = useStore();
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const scopeLabel = aggregateMode
-    ? "All Dealers (Collective)"
+    ? t("common.allDealersCollective")
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
   const [reportType, setReportType] = useState("daily");
@@ -70,14 +72,14 @@ export default function ReportsPage() {
     const phh = enriched.filter((t) => t.scheme === "PHH");
     const aay = enriched.filter((t) => t.scheme === "AAY");
     return [
-      { label: "Families Served", phh: phh.length, aay: aay.filter((t) => t.wheat > 0).length },
-      { label: "Wheat Distributed (Kg)", phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
-      { label: "Rice Distributed (Kg)", phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
-      { label: "Saree (Pkts)", phh: 0, aay: aay.reduce((s, t) => s + t.saree, 0) },
-      { label: "Portability Txns", phh: phh.filter((t) => t.portability !== "Self").length, aay: aay.filter((t) => t.portability !== "Self").length },
-      { label: "Active Days", phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
+      { label: t("reports.familiesServed"), phh: phh.length, aay: aay.filter((t) => t.wheat > 0).length },
+      { label: t("reports.wheatDistributed"), phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
+      { label: t("reports.riceDistributed"), phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
+      { label: `${t("transactions.saree")} (Pkts)`, phh: 0, aay: aay.reduce((s, t) => s + t.saree, 0) },
+      { label: t("reports.portabilityTxns"), phh: phh.filter((t) => t.portability !== "Self").length, aay: aay.filter((t) => t.portability !== "Self").length },
+      { label: t("reports.activeDays"), phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
     ];
-  }, [enriched]);
+  }, [enriched, t]);
 
   const monthLabel =
     monthFilter !== "ALL"
@@ -89,8 +91,8 @@ export default function ReportsPage() {
   if (transactions.length === 0) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-2">📑 Reports</h1>
-        <EmptyState icon="📑" title="No data for reports" description="Fetch transactions first to generate reports." />
+        <h1 className="text-xl font-bold mb-2">📑 {t("reports.title")}</h1>
+        <EmptyState icon="📑" title={t("reports.noDataTitle")} description={t("reports.noDataDesc")} />
       </div>
     );
   }
@@ -99,7 +101,7 @@ export default function ReportsPage() {
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-start flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold">📑 Reports</h1>
+          <h1 className="text-xl font-bold">📑 {t("reports.title")}</h1>
           <p className="text-sm text-gray-500">
             {scopeLabel} · {monthLabel} · {formatNumber(scopedTransactions.length)} record(s)
           </p>
@@ -109,7 +111,7 @@ export default function ReportsPage() {
           {/* Month filter */}
           <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}
             className="input-field w-36 text-xs">
-            <option value="ALL">All Months</option>
+            <option value="ALL">{t("dashboard.allMonths")}</option>
             {monthOptions.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
@@ -129,7 +131,7 @@ export default function ReportsPage() {
               onClick={() => { setMonthFilter("ALL"); setFromDate(""); setToDate(""); }}
               className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
-              Clear filters
+              {t("common.clearFilters")}
             </button>
           )}
         </div>
@@ -137,10 +139,10 @@ export default function ReportsPage() {
 
       <TabGroup
         tabs={[
-          { id: "daily", label: "Daily Summary" },
-          { id: "scheme", label: "Scheme-wise" },
-          { id: "pending", label: "Pending List" },
-          { id: "goshwara", label: "Goshwara" },
+          { id: "daily", label: t("reports.dailySummary") },
+          { id: "scheme", label: t("reports.schemeWise") },
+          { id: "pending", label: t("reports.pendingList") },
+          { id: "goshwara", label: t("reports.goshwara") },
         ]}
         active={reportType}
         onChange={setReportType}
@@ -150,10 +152,10 @@ export default function ReportsPage() {
       {reportType === "daily" && (
         <DataTable<DailySummary>
           columns={[
-            { key: "date", label: "Date", mono: true,
+            { key: "date", label: t("transactions.date"), mono: true,
               render: (v) =>
                 String(v) === "TOTAL"
-                  ? <span className="font-bold text-blue-700">TOTAL</span>
+                  ? <span className="font-bold text-blue-700">{t("reports.total")}</span>
                   : <span>{formatDate(String(v))}</span> },
             { key: "phhFamilies", label: "PHH #", align: "right", mono: true },
             { key: "phhWheat", label: "PHH Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
@@ -161,9 +163,9 @@ export default function ReportsPage() {
             { key: "aayFamilies", label: "AAY #", align: "right", mono: true },
             { key: "aayWheat", label: "AAY Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
             { key: "aayRice", label: "AAY Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "aaySaree", label: "Saree", align: "right", mono: true },
-            { key: "totalWheat", label: "Total Wheat", align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
-            { key: "totalRice", label: "Total Rice", align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+            { key: "aaySaree", label: t("transactions.saree"), align: "right", mono: true },
+            { key: "totalWheat", label: `${t("reports.total")} ${t("transactions.wheat")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+            { key: "totalRice", label: `${t("reports.total")} ${t("transactions.rice")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
             { key: "totalTransactions", label: "Total Txns", align: "right", mono: true },
           ]}
           data={dailyWithTotals}
@@ -176,31 +178,31 @@ export default function ReportsPage() {
       {reportType === "scheme" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3 text-blue-800">PHH — Priority Household</h3>
+            <h3 className="text-sm font-semibold mb-3 text-blue-800">PHH — {t("dashboard.priorityHousehold")}</h3>
             <DataTable<Transaction & { customerName?: string }>
               columns={[
-                { key: "date", label: "Date", mono: true, render: (v) => formatDate(dateOnly(String(v))) },
-                { key: "srcNo", label: "SRC No", mono: true },
-                { key: "customerName", label: "Name", render: (v) => String(v) || "—" },
-                { key: "availType", label: "Auth", render: (v) => <Badge text={String(v)} /> },
-                { key: "wheat", label: "Wheat", align: "right", mono: true },
-                { key: "rice", label: "Rice", align: "right", mono: true },
+                { key: "date", label: t("transactions.date"), mono: true, render: (v) => formatDate(dateOnly(String(v))) },
+                { key: "srcNo", label: t("transactions.srcNo"), mono: true },
+                { key: "customerName", label: t("transactions.customerName"), render: (v) => String(v) || "—" },
+                { key: "availType", label: t("transactions.authType"), render: (v) => <Badge text={String(v)} /> },
+                { key: "wheat", label: t("transactions.wheat"), align: "right", mono: true },
+                { key: "rice", label: t("transactions.rice"), align: "right", mono: true },
               ]}
               data={enriched.filter((t) => t.scheme === "PHH")}
               maxHeight={450}
             />
           </div>
           <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3 text-amber-800">AAY — Antyodaya Anna Yojana</h3>
+            <h3 className="text-sm font-semibold mb-3 text-amber-800">AAY — {t("dashboard.antyodaya")}</h3>
             <DataTable<Transaction & { customerName?: string }>
               columns={[
-                { key: "date", label: "Date", mono: true, render: (v) => formatDate(dateOnly(String(v))) },
-                { key: "srcNo", label: "SRC No", mono: true },
-                { key: "customerName", label: "Name", render: (v) => String(v) || "—" },
-                { key: "availType", label: "Auth", render: (v) => <Badge text={String(v)} /> },
-                { key: "wheat", label: "Wheat", align: "right", mono: true },
-                { key: "rice", label: "Rice", align: "right", mono: true },
-                { key: "saree", label: "Saree", align: "right", mono: true },
+                { key: "date", label: t("transactions.date"), mono: true, render: (v) => formatDate(dateOnly(String(v))) },
+                { key: "srcNo", label: t("transactions.srcNo"), mono: true },
+                { key: "customerName", label: t("transactions.customerName"), render: (v) => String(v) || "—" },
+                { key: "availType", label: t("transactions.authType"), render: (v) => <Badge text={String(v)} /> },
+                { key: "wheat", label: t("transactions.wheat"), align: "right", mono: true },
+                { key: "rice", label: t("transactions.rice"), align: "right", mono: true },
+                { key: "saree", label: t("transactions.saree"), align: "right", mono: true },
               ]}
               data={enriched.filter((t) => t.scheme === "AAY")}
               maxHeight={450}
@@ -219,9 +221,9 @@ export default function ReportsPage() {
           </div>
           <DataTable<Customer>
             columns={[
-              { key: "srcNo", label: "SRC No", mono: true },
-              { key: "name", label: "Customer Name" },
-              { key: "lastDispatched", label: "Last Dispatched",
+              { key: "srcNo", label: t("transactions.srcNo"), mono: true },
+              { key: "name", label: t("transactions.customerName") },
+              { key: "lastDispatched", label: t("customers.lastDispatched"),
                 render: (v) => <span className="text-gray-500">{String(v) || "—"}</span> },
             ]}
             data={pendingCustomers}
@@ -233,15 +235,15 @@ export default function ReportsPage() {
       {reportType === "goshwara" && (
         <div className="card p-6 max-w-3xl">
           <h3 className="text-base font-bold text-center text-brand-700 mb-5">
-            गोषवारा — Monthly Summary ({monthLabel})
+            गोषवारा — {t("reports.monthlySummary")} ({monthLabel})
           </h3>
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-brand-700 text-white">
-                <th className="px-4 py-3 text-left font-semibold">Particulars</th>
+                <th className="px-4 py-3 text-left font-semibold">{t("reports.particulars")}</th>
                 <th className="px-4 py-3 text-right font-semibold">PHH</th>
                 <th className="px-4 py-3 text-right font-semibold">AAY</th>
-                <th className="px-4 py-3 text-right font-semibold">Total</th>
+                <th className="px-4 py-3 text-right font-semibold">{t("reports.total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -257,7 +259,7 @@ export default function ReportsPage() {
           </table>
           <div className="mt-4 flex justify-end">
             <button onClick={() => window.print()} className="btn-secondary text-xs">
-              🖨️ Print Report
+              🖨️ {t("reports.printReport")}
             </button>
           </div>
         </div>

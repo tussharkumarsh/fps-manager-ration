@@ -6,6 +6,7 @@ import { useStore } from "@/store/useStore";
 import { Badge, KPICard, EmptyState } from "@/components/ui";
 import { formatNumber, dateOnly, getMonthName } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { Customer } from "@/types";
 
 const PAGE_SIZE = 25;
@@ -22,6 +23,7 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 
 export default function CustomersPage() {
   const { data: session } = useSession();
+  const { t } = useTranslation();
   const { customers, transactions, importCustomers, addCustomer, deleteCustomer, viewingDealer } = useStore();
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
@@ -117,19 +119,18 @@ export default function CustomersPage() {
     <div className="p-6 space-y-5">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-xl font-bold">👥 Customer Master</h1>
+          <h1 className="text-xl font-bold">👥 {t("customers.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage Ration Card / SRC No → Customer mapping — import KGS_Master or the
-            FPS Beneficiary Detail Drill-Down file to enrich records
+            {t("customers.subtitle")}
           </p>
         </div>
         {!readOnly && (
           <div className="flex gap-2">
             <button onClick={() => setShowAdd(!showAdd)} className="btn-secondary text-xs">
-              {showAdd ? "Cancel" : "+ Add Customer"}
+              {showAdd ? t("common.cancel") : t("customers.addCustomer")}
             </button>
             <label className={`btn-primary text-xs cursor-pointer ${importing ? "opacity-50" : ""}`}>
-              {importing ? "Importing..." : "Import Excel"}
+              {importing ? t("customers.importing") : t("customers.importExcel")}
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
                 onChange={handleImport} disabled={importing} />
             </label>
@@ -140,18 +141,18 @@ export default function CustomersPage() {
       {readOnly && (
         <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800">
           {viewingDealer
-            ? <>You&apos;re viewing {viewingDealer.displayName}&apos;s data as admin — read only.</>
-            : "Collective view across all dealers — read only."}
+            ? t("common.readOnlyBanner", { name: viewingDealer.displayName })
+            : t("common.readOnlyCollective")}
         </div>
       )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label="Registered" value={customers.length} color="blue" icon="👥" />
-        <KPICard label="Collected" value={collectedCount} color="green" icon="✅" />
-        <KPICard label="Pending" value={customers.length - collectedCount} color="red" icon="⚠️" />
+        <KPICard label={t("customers.registered")} value={customers.length} color="blue" icon="👥" />
+        <KPICard label={t("customers.collected")} value={collectedCount} color="green" icon="✅" />
+        <KPICard label={t("customers.pending")} value={customers.length - collectedCount} color="red" icon="⚠️" />
         <KPICard
-          label="Coverage"
+          label={t("customers.coverage")}
           value={customers.length > 0 ? `${((collectedCount / customers.length) * 100).toFixed(1)}%` : "—"}
           color="purple" icon="📈"
         />
@@ -171,20 +172,20 @@ export default function CustomersPage() {
       {/* Add customer form */}
       {showAdd && (
         <div className="card p-4">
-          <h3 className="text-sm font-semibold mb-3">Add New Customer</h3>
+          <h3 className="text-sm font-semibold mb-3">{t("customers.addNewCustomer")}</h3>
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="text-xs font-medium text-gray-500 block mb-1">SRC No</label>
+              <label className="text-xs font-medium text-gray-500 block mb-1">{t("customers.srcNoLabel")}</label>
               <input value={newSrc} onChange={(e) => setNewSrc(e.target.value)}
                 placeholder="272004850xxx" className="input-field" />
             </div>
             <div className="flex-1">
-              <label className="text-xs font-medium text-gray-500 block mb-1">Customer Name</label>
+              <label className="text-xs font-medium text-gray-500 block mb-1">{t("customers.customerNameLabel")}</label>
               <input value={newName} onChange={(e) => setNewName(e.target.value)}
                 placeholder="CUSTOMER NAME" className="input-field" />
             </div>
             <button onClick={handleAddCustomer} className="btn-primary" disabled={!newSrc || !newName}>
-              Add
+              {t("common.add")}
             </button>
           </div>
         </div>
@@ -194,19 +195,19 @@ export default function CustomersPage() {
       {customers.length === 0 ? (
         <EmptyState
           icon="👥"
-          title="No customers registered"
-          description="Import your KGS_Master Excel file or add customers manually."
+          title={t("customers.noCustomersTitle")}
+          description={t("customers.noCustomersDesc")}
         />
       ) : (
         <div>
           <div className="flex justify-between items-center mb-3">
             <input
-              placeholder="Search by Ration Card No. or name..."
+              placeholder={t("customers.searchPlaceholder")}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               className="input-field w-72"
             />
-            <span className="text-xs text-gray-500">{formatNumber(filtered.length)} records</span>
+            <span className="text-xs text-gray-500">{formatNumber(filtered.length)} {t("customers.records")}</span>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -214,17 +215,17 @@ export default function CustomersPage() {
               <thead>
                 <tr className="bg-brand-700 text-white text-xs font-semibold tracking-wide">
                   <th className="px-2 py-2.5 w-8"></th>
-                  {showDealerColumn && <th className="px-3 py-2.5 text-left whitespace-nowrap">Dealer</th>}
-                  <th className="px-3 py-2.5 text-left whitespace-nowrap">S.No.</th>
-                  <th className="px-3 py-2.5 text-left whitespace-nowrap">Ration Card No.</th>
-                  <th className="px-3 py-2.5 text-left whitespace-nowrap">Status</th>
-                  <th className="px-3 py-2.5 text-left whitespace-nowrap">Area Type</th>
-                  <th className="px-3 py-2.5 text-left whitespace-nowrap">Family Head</th>
-                  <th className="px-3 py-2.5 text-left whitespace-nowrap">Last Dispatched</th>
-                  <th className="px-3 py-2.5 text-right whitespace-nowrap">Txns</th>
-                  <th className="px-3 py-2.5 text-right whitespace-nowrap">Wheat (Kg)</th>
-                  <th className="px-3 py-2.5 text-right whitespace-nowrap">Rice (Kg)</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Action</th>
+                  {showDealerColumn && <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.dealer")}</th>}
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.sNo")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.rationCardNo")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.status")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.areaType")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.familyHead")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.lastDispatched")}</th>
+                  <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.txns")}</th>
+                  <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.wheatKg")}</th>
+                  <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.riceKg")}</th>
+                  <th className="px-3 py-2.5 text-center whitespace-nowrap">{t("customers.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -264,7 +265,7 @@ export default function CustomersPage() {
                             <button onClick={() => {
                               if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.srcNo);
                             }} className="text-red-500 hover:text-red-700 text-xs font-medium">
-                              Delete
+                              {t("common.delete")}
                             </button>
                           )}
                         </td>
@@ -273,7 +274,7 @@ export default function CustomersPage() {
                         <tr key={`${c.srcNo}-members`} className="bg-gray-50">
                           <td colSpan={showDealerColumn ? 12 : 11} className="px-6 py-3">
                             <div className="text-xs font-semibold text-gray-500 mb-2">
-                              Family Members ({c.members!.length})
+                              {t("customers.familyMembers")} ({c.members!.length})
                             </div>
                             <div className="overflow-x-auto rounded border border-gray-200 bg-white">
                               <table className="w-full border-collapse text-xs">
@@ -324,7 +325,7 @@ export default function CustomersPage() {
                 {paged.length === 0 && (
                   <tr>
                     <td colSpan={showDealerColumn ? 12 : 11} className="px-4 py-12 text-center text-gray-400">
-                      No records found
+                      {t("customers.noRecordsFound")}
                     </td>
                   </tr>
                 )}

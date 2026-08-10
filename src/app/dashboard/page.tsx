@@ -10,15 +10,17 @@ import { useStore } from "@/store/useStore";
 import { KPICard, Badge, EmptyState } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, dateOnly } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
 
 export default function DashboardPage() {
   const { data: session } = useSession();
   const { transactions, customers, settings, viewingDealer } = useStore();
+  const { t } = useTranslation();
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const scopeLabel = aggregateMode
-    ? "All Dealers (Collective)"
+    ? t("common.allDealersCollective")
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
 
@@ -60,14 +62,14 @@ export default function DashboardPage() {
   if (transactions.length === 0) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-2">📊 Dashboard</h1>
+        <h1 className="text-xl font-bold mb-2">📊 {t("dashboard.title")}</h1>
         <p className="text-sm text-gray-500 mb-6">
           {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year}
         </p>
         <EmptyState
           icon="📋"
-          title="No transactions yet"
-          description="Go to Sync Data to fetch transactions from the ePOS system, or import your Excel file in the Customers section."
+          title={t("dashboard.noTransactionsTitle")}
+          description={t("dashboard.noTransactionsDesc")}
         />
       </div>
     );
@@ -77,7 +79,7 @@ export default function DashboardPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-start flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold">📊 Dashboard</h1>
+          <h1 className="text-xl font-bold">📊 {t("dashboard.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
             {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year} · {formatNumber(scopedTransactions.length)} record(s)
           </p>
@@ -86,7 +88,7 @@ export default function DashboardPage() {
         <div className="flex gap-3 items-center flex-wrap">
           <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}
             className="input-field w-36 text-xs">
-            <option value="ALL">All Months</option>
+            <option value="ALL">{t("dashboard.allMonths")}</option>
             {monthOptions.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
@@ -97,7 +99,7 @@ export default function DashboardPage() {
               onClick={() => setMonthFilter("ALL")}
               className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
-              Clear filter
+              {t("common.clearFilters")}
             </button>
           )}
         </div>
@@ -105,18 +107,18 @@ export default function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard label="Total Wheat" value={`${formatNumber(stats.totalWheat)} Kg`} sub={`${stats.activeDays} active days`} color="blue" icon="🌾" />
-        <KPICard label="Total Rice" value={`${formatNumber(stats.totalRice)} Kg`} sub="PHH + AAY" color="green" icon="🍚" />
-        <KPICard label="PHH Families" value={stats.phhCount} sub="Priority Household" color="blue" icon="🏠" />
-        <KPICard label="AAY Families" value={stats.aayCount} sub="Antyodaya" color="yellow" icon="🎯" />
-        <KPICard label="Unique Customers" value={stats.uniqueCustomers} sub={`of ${customers.length} registered`} color="purple" icon="👥" />
-        <KPICard label="Pending" value={pendingCustomers.length} sub="Not collected" color="red" icon="⚠️" />
+        <KPICard label={t("dashboard.totalWheat")} value={`${formatNumber(stats.totalWheat)} Kg`} sub={`${stats.activeDays} ${t("dashboard.activeDays")}`} color="blue" icon="🌾" />
+        <KPICard label={t("dashboard.totalRice")} value={`${formatNumber(stats.totalRice)} Kg`} sub="PHH + AAY" color="green" icon="🍚" />
+        <KPICard label={t("dashboard.phhFamilies")} value={stats.phhCount} sub={t("dashboard.priorityHousehold")} color="blue" icon="🏠" />
+        <KPICard label={t("dashboard.aayFamilies")} value={stats.aayCount} sub={t("dashboard.antyodaya")} color="yellow" icon="🎯" />
+        <KPICard label={t("dashboard.uniqueCustomers")} value={stats.uniqueCustomers} sub={t("dashboard.ofRegistered", { count: customers.length })} color="purple" icon="👥" />
+        <KPICard label={t("dashboard.pending")} value={pendingCustomers.length} sub={t("dashboard.notCollected")} color="red" icon="⚠️" />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-2 card p-5">
-          <h3 className="text-sm font-semibold mb-4">Daily Distribution (Kgs)</h3>
+          <h3 className="text-sm font-semibold mb-4">{t("dashboard.dailyDistribution")}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -131,7 +133,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="card p-5">
-          <h3 className="text-sm font-semibold mb-4">Scheme Split</h3>
+          <h3 className="text-sm font-semibold mb-4">{t("dashboard.schemeSplit")}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={schemeData} cx="50%" cy="45%" innerRadius={45} outerRadius={75} dataKey="value"
@@ -144,7 +146,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="card p-5">
-          <h3 className="text-sm font-semibold mb-4">Auth Methods</h3>
+          <h3 className="text-sm font-semibold mb-4">{t("dashboard.authMethods")}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={authData} cx="50%" cy="45%" innerRadius={45} outerRadius={75} dataKey="value"
@@ -159,7 +161,7 @@ export default function DashboardPage() {
 
       {/* Trend Line */}
       <div className="card p-5">
-        <h3 className="text-sm font-semibold mb-4">Daily Transactions by Scheme</h3>
+        <h3 className="text-sm font-semibold mb-4">{t("dashboard.dailyTransactionsByScheme")}</h3>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -177,7 +179,7 @@ export default function DashboardPage() {
       {pendingCustomers.length > 0 && (
         <div className="card p-5">
           <h3 className="text-sm font-semibold mb-3 text-red-600">
-            ⚠️ Pending Collection — {pendingCustomers.length} customers
+            ⚠️ {t("dashboard.pendingCollection")} — {pendingCustomers.length}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
             {pendingCustomers.slice(0, 16).map((c) => (

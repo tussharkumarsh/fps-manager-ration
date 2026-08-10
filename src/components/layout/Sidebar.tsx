@@ -4,28 +4,30 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useStore } from "@/store/useStore";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/transactions", label: "Transactions", icon: "📋" },
-  { href: "/customers", label: "Customers", icon: "👥" },
-  { href: "/inventory", label: "Inventory", icon: "📦" },
-  { href: "/reports", label: "Reports", icon: "📑" },
-  { href: "/sync", label: "Sync Data", icon: "🔄" },
-  { href: "/profile", label: "Profile", icon: "👤" },
-];
-
-const adminOnlyNavItems = [
-  { href: "/dealers", label: "Dealers", icon: "🏪" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
-];
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, toggleSidebar, viewingDealer, clearViewingDealer } = useStore();
   const { data: session } = useSession();
+  const { t } = useTranslation();
   const isAdmin = session?.role === "admin";
+
+  const navItems = [
+    { href: "/dashboard", label: t("nav.dashboard"), icon: "📊" },
+    { href: "/transactions", label: t("nav.transactions"), icon: "📋" },
+    { href: "/customers", label: t("nav.customers"), icon: "👥" },
+    { href: "/inventory", label: t("nav.inventory"), icon: "📦" },
+    { href: "/reports", label: t("nav.reports"), icon: "📑" },
+    { href: "/sync", label: t("nav.sync"), icon: "🔄" },
+    { href: "/profile", label: t("nav.profile"), icon: "👤" },
+  ];
+  const adminOnlyNavItems = [
+    { href: "/dealers", label: t("nav.dealers"), icon: "🏪" },
+    { href: "/settings", label: t("nav.settings"), icon: "⚙️" },
+  ];
   const items = isAdmin ? [...navItems, ...adminOnlyNavItems] : navItems;
 
   return (
@@ -46,21 +48,28 @@ export default function Sidebar() {
         </button>
         {sidebarOpen && (
           <span className="text-white font-bold text-sm whitespace-nowrap">
-            FPS Manager
+            {t("sidebar.appName")}
           </span>
         )}
+      </div>
+
+      {/* Language switcher */}
+      <div className="px-2 pt-2">
+        <LanguageSwitcher compact={!sidebarOpen} />
       </div>
 
       {/* Viewing-as-dealer banner */}
       {viewingDealer && sidebarOpen && (
         <div className="mx-2 mt-2 px-2 py-2 rounded-md bg-amber-500/20 text-amber-100 text-[11px] space-y-1">
-          <div className="font-semibold truncate">Viewing: {viewingDealer.displayName}</div>
+          <div className="font-semibold truncate">
+            {t("sidebar.viewing")}: {viewingDealer.displayName}
+          </div>
           <div className="font-mono">{viewingDealer.fpsId}</div>
           <button
             onClick={clearViewingDealer}
             className="w-full mt-1 px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-white text-[11px] font-medium"
           >
-            Exit view
+            {t("sidebar.exitView")}
           </button>
         </div>
       )}
@@ -108,10 +117,10 @@ export default function Sidebar() {
             signOut({ callbackUrl: "/login" });
           }}
           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
-          title="Sign out"
+          title={t("sidebar.signOut")}
         >
           <span>🚪</span>
-          {sidebarOpen && <span>Sign Out</span>}
+          {sidebarOpen && <span>{t("sidebar.signOut")}</span>}
         </button>
       </div>
     </aside>

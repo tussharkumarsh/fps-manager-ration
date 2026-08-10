@@ -7,6 +7,7 @@ import { DataTable, Badge, EmptyState } from "@/components/ui";
 import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
 import { exportRowsToPdf } from "@/lib/pdfExport";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { Transaction } from "@/types";
 
 type TransactionRow = Transaction & { customerName?: string; dealerName?: string };
@@ -14,6 +15,7 @@ type TransactionRow = Transaction & { customerName?: string; dealerName?: string
 export default function TransactionsPage() {
   const { data: session } = useSession();
   const { transactions, customers, settings, viewingDealer } = useStore();
+  const { t } = useTranslation();
   const showDealerColumn = session?.role === "admin" && !viewingDealer;
   useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
@@ -94,11 +96,11 @@ export default function TransactionsPage() {
   if (transactions.length === 0) {
     return (
       <div className="p-6">
-        <h1 className="text-xl font-bold mb-2">📋 Transactions</h1>
+        <h1 className="text-xl font-bold mb-2">📋 {t("transactions.title")}</h1>
         <EmptyState
           icon="📋"
-          title="No transactions loaded"
-          description="Fetch data from the ePOS system via the Sync Data page."
+          title={t("transactions.noDataTitle")}
+          description={t("transactions.noDataDesc")}
         />
       </div>
     );
@@ -108,7 +110,7 @@ export default function TransactionsPage() {
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-start flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold">📋 Transactions</h1>
+          <h1 className="text-xl font-bold">📋 {t("transactions.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
             {getMonthName(parseInt(settings.month))} {settings.year} ·{" "}
             {formatNumber(filtered.length)} of {formatNumber(transactions.length)} records
@@ -125,7 +127,7 @@ export default function TransactionsPage() {
                     ? "bg-blue-600 text-white"
                     : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
                 }`}>
-                {s}
+                {s === "ALL" ? t("common.all") : s}
               </button>
             ))}
           </div>
@@ -133,7 +135,7 @@ export default function TransactionsPage() {
           {/* Auth filter */}
           <select value={authFilter} onChange={(e) => setAuthFilter(e.target.value)}
             className="input-field w-36 text-xs">
-            <option value="ALL">All Auth Types</option>
+            <option value="ALL">{t("transactions.allAuthTypes")}</option>
             <option value="Authenticated">Authenticated</option>
             <option value="OTP">OTP</option>
             <option value="IRIS">IRIS</option>
@@ -142,7 +144,7 @@ export default function TransactionsPage() {
           {/* Month filter */}
           <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}
             className="input-field w-36 text-xs">
-            <option value="ALL">All Months</option>
+            <option value="ALL">{t("transactions.allMonths")}</option>
             {monthOptions.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
@@ -162,43 +164,43 @@ export default function TransactionsPage() {
               onClick={() => { setSchemeFilter("ALL"); setAuthFilter("ALL"); setMonthFilter("ALL"); setFromDate(""); setToDate(""); }}
               className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
-              Clear filters
+              {t("common.clearFilters")}
             </button>
           )}
 
           <button onClick={handleExportPdf} disabled={filtered.length === 0} className="btn-secondary text-xs disabled:opacity-50">
-            🖨️ Export PDF
+            🖨️ {t("common.exportPdf")}
           </button>
         </div>
       </div>
 
       {/* Totals bar */}
       <div className="flex gap-6 text-xs text-gray-600 bg-gray-100 rounded-lg px-4 py-2.5">
-        <span>Wheat: <strong className="font-mono text-gray-900">{formatNumber(totals.wheat)} Kg</strong></span>
-        <span>Rice: <strong className="font-mono text-gray-900">{formatNumber(totals.rice)} Kg</strong></span>
-        <span>Saree: <strong className="font-mono text-gray-900">{formatNumber(totals.saree)} Pkts</strong></span>
+        <span>{t("transactions.wheat")}: <strong className="font-mono text-gray-900">{formatNumber(totals.wheat)} Kg</strong></span>
+        <span>{t("transactions.rice")}: <strong className="font-mono text-gray-900">{formatNumber(totals.rice)} Kg</strong></span>
+        <span>{t("transactions.saree")}: <strong className="font-mono text-gray-900">{formatNumber(totals.saree)} Pkts</strong></span>
       </div>
 
       <DataTable<TransactionRow>
         columns={[
           ...(showDealerColumn
-            ? [{ key: "dealerName" as const, label: "Dealer",
+            ? [{ key: "dealerName" as const, label: t("transactions.dealer"),
                 render: (v: unknown) => <span className="text-gray-700">{String(v || "—")}</span> }]
             : []),
-          { key: "slNo", label: "#", align: "center", width: "50px" },
-          { key: "srcNo", label: "SRC No", mono: true },
-          { key: "customerName", label: "Customer Name",
+          { key: "slNo", label: t("transactions.slNo"), align: "center", width: "50px" },
+          { key: "srcNo", label: t("transactions.srcNo"), mono: true },
+          { key: "customerName", label: t("transactions.customerName"),
             render: (v) => <span className="text-gray-800">{String(v) || "—"}</span> },
-          { key: "scheme", label: "Scheme", render: (v) => <Badge text={String(v)} /> },
-          { key: "availType", label: "Auth Type", render: (v) => <Badge text={String(v)} /> },
-          { key: "date", label: "Date", mono: true,
+          { key: "scheme", label: t("transactions.scheme"), render: (v) => <Badge text={String(v)} /> },
+          { key: "availType", label: t("transactions.authType"), render: (v) => <Badge text={String(v)} /> },
+          { key: "date", label: t("transactions.date"), mono: true,
             render: (v) => <span>{formatDate(dateOnly(String(v)))}</span> },
-          { key: "wheat", label: "Wheat (Kg)", align: "right", mono: true },
-          { key: "rice", label: "Rice (Kg)", align: "right", mono: true },
-          { key: "saree", label: "Saree", align: "right", mono: true },
-          { key: "amount", label: "Amount", align: "right", mono: true,
+          { key: "wheat", label: `${t("transactions.wheat")} (Kg)`, align: "right", mono: true },
+          { key: "rice", label: `${t("transactions.rice")} (Kg)`, align: "right", mono: true },
+          { key: "saree", label: t("transactions.saree"), align: "right", mono: true },
+          { key: "amount", label: t("transactions.amount"), align: "right", mono: true,
             render: (v) => <span>{Number(v) > 0 ? `₹${v}` : "—"}</span> },
-          { key: "portability", label: "Portability",
+          { key: "portability", label: t("transactions.portability"),
             render: (v) =>
               v === "Self" ? <Badge text="Self" /> : (
                 <span className="text-xs font-semibold text-blue-600">{String(v)}</span>

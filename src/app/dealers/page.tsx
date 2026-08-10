@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useStore } from "@/store/useStore";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface DealerProfile {
   fpsId: string;
@@ -19,6 +20,7 @@ interface DealerProfile {
 export default function DealersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { t } = useTranslation();
   const setViewingDealer = useStore((s) => s.setViewingDealer);
 
   const [dealers, setDealers] = useState<DealerProfile[] | null>(null);
@@ -137,7 +139,7 @@ export default function DealersPage() {
     return (
       <div className="p-6">
         <div className="card p-6 max-w-md text-sm text-gray-600">
-          Dealer management is only available to admin accounts.
+          {t("dealers.adminOnly")}
         </div>
       </div>
     );
@@ -147,22 +149,22 @@ export default function DealersPage() {
     <div className="p-6 space-y-6 max-w-4xl">
       <div className="flex justify-between items-start flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold">🏪 Dealers</h1>
+          <h1 className="text-xl font-bold">🏪 {t("dealers.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Every ration dealer (FPS) account. Click &quot;View Data&quot; to browse a dealer&apos;s data read-only.
+            {t("dealers.subtitle")}
           </p>
         </div>
         <button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs">
-          {showAdd ? "Cancel" : "+ Add Dealer"}
+          {showAdd ? t("common.cancel") : t("dealers.addDealer")}
         </button>
       </div>
 
       {showAdd && (
         <div className="card p-6">
-          <h3 className="text-base font-semibold mb-4">Add New Dealer</h3>
+          <h3 className="text-base font-semibold mb-4">{t("dealers.addNewDealer")}</h3>
           <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">FPS ID</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("dealers.fpsId")}</label>
               <input
                 required
                 value={form.fpsId}
@@ -171,7 +173,7 @@ export default function DealersPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">District Code</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("dealers.districtCode")}</label>
               <input
                 required
                 value={form.distCode}
@@ -180,7 +182,7 @@ export default function DealersPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Username</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("dealers.username")}</label>
               <input
                 required
                 value={form.username}
@@ -189,7 +191,7 @@ export default function DealersPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Display Name</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("dealers.displayName")}</label>
               <input
                 required
                 value={form.displayName}
@@ -198,7 +200,7 @@ export default function DealersPage() {
               />
             </div>
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Password</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("dealers.password")}</label>
               <input
                 required
                 type="password"
@@ -214,7 +216,7 @@ export default function DealersPage() {
                 disabled={creating}
                 className="px-4 py-2 bg-brand-700 text-white rounded-lg text-sm font-semibold hover:bg-brand-800 disabled:opacity-50"
               >
-                {creating ? "Creating…" : "Create Dealer"}
+                {creating ? t("dealers.creating") : t("dealers.createDealer")}
               </button>
             </div>
           </form>
@@ -231,18 +233,18 @@ export default function DealersPage() {
       )}
 
       <div className="card p-5">
-        <h3 className="text-sm font-semibold mb-4">All Accounts</h3>
+        <h3 className="text-sm font-semibold mb-4">{t("dealers.allAccounts")}</h3>
         {loadError && <div className="text-xs px-3 py-2 rounded-lg bg-red-50 text-red-700 mb-3">{loadError}</div>}
-        {!dealers && !loadError && <div className="text-sm text-gray-500">Loading…</div>}
+        {!dealers && !loadError && <div className="text-sm text-gray-500">{t("common.loading")}</div>}
         {dealers && (
           <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-brand-700 text-white text-xs font-semibold tracking-wide">
-                  <th className="px-3 py-2.5 text-left">FPS ID</th>
+                  <th className="px-3 py-2.5 text-left">{t("dealers.fpsId")}</th>
                   <th className="px-3 py-2.5 text-left">District</th>
-                  <th className="px-3 py-2.5 text-left">Username</th>
-                  <th className="px-3 py-2.5 text-left">Display Name</th>
+                  <th className="px-3 py-2.5 text-left">{t("dealers.username")}</th>
+                  <th className="px-3 py-2.5 text-left">{t("dealers.displayName")}</th>
                   <th className="px-3 py-2.5 text-left">Role</th>
                   <th className="px-3 py-2.5 text-left">Status</th>
                   <th className="px-3 py-2.5 text-center">Action</th>
@@ -281,17 +283,17 @@ export default function DealersPage() {
                               <label className="flex items-center gap-1.5 text-xs">
                                 <input type="checkbox" checked={editForm.active}
                                   onChange={(e) => setEditForm((f) => ({ ...f, active: e.target.checked }))} />
-                                Active
+                                {t("common.active")}
                               </label>
                             </td>
                             <td className="px-3 py-2 text-center whitespace-nowrap">
                               <button onClick={() => handleSaveEdit(d.fpsId)} disabled={saving}
                                 className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50 mr-1">
-                                {saving ? "Saving…" : "Save"}
+                                {saving ? t("dealers.saving") : t("common.save")}
                               </button>
                               <button onClick={() => setEditingFpsId(null)}
                                 className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold hover:bg-gray-200">
-                                Cancel
+                                {t("common.cancel")}
                               </button>
                             </td>
                           </>
@@ -303,9 +305,9 @@ export default function DealersPage() {
                             <td className="px-3 py-2 capitalize">{d.role}</td>
                             <td className="px-3 py-2">
                               {d.active ? (
-                                <span className="text-emerald-600 text-xs font-medium">Active</span>
+                                <span className="text-emerald-600 text-xs font-medium">{t("common.active")}</span>
                               ) : (
-                                <span className="text-gray-400 text-xs font-medium">Inactive</span>
+                                <span className="text-gray-400 text-xs font-medium">{t("common.inactive")}</span>
                               )}
                             </td>
                             <td className="px-3 py-2 text-center whitespace-nowrap">
@@ -314,7 +316,7 @@ export default function DealersPage() {
                                   onClick={() => handleView(d)}
                                   className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-semibold hover:bg-blue-100 mr-1"
                                 >
-                                  View Data
+                                  {t("dealers.viewData")}
                                 </button>
                               )}
                               {!isSelf && (
@@ -323,14 +325,14 @@ export default function DealersPage() {
                                     onClick={() => startEdit(d)}
                                     className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold hover:bg-gray-200 mr-1"
                                   >
-                                    Edit
+                                    {t("common.edit")}
                                   </button>
                                   <button
                                     onClick={() => handleDelete(d)}
                                     disabled={deletingFpsId === d.fpsId}
                                     className="px-2 py-1 bg-red-50 text-red-600 rounded-md text-xs font-semibold hover:bg-red-100 disabled:opacity-50"
                                   >
-                                    {deletingFpsId === d.fpsId ? "Deleting…" : "Delete"}
+                                    {deletingFpsId === d.fpsId ? t("dealers.deleting") : t("common.delete")}
                                   </button>
                                 </>
                               )}

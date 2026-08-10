@@ -6,6 +6,7 @@ import { useStore } from "@/store/useStore";
 import { KPICard, EmptyState } from "@/components/ui";
 import { apiFetch } from "@/lib/apiFetch";
 import { formatNumber, getMonthName } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { InventoryItem, InventoryLedgerEntry } from "@/types";
 
 interface AggregateRow extends InventoryLedgerEntry {
@@ -16,6 +17,7 @@ interface AggregateRow extends InventoryLedgerEntry {
 
 export default function InventoryPage() {
   const { data: session } = useSession();
+  const { t } = useTranslation();
   const {
     settings,
     inventoryItems,
@@ -148,7 +150,7 @@ export default function InventoryPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-start flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold">📦 Inventory</h1>
+          <h1 className="text-xl font-bold">📦 {t("inventory.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
             FPS {settings.fpsId} · {getMonthName(parseInt(monthFilter))} {yearFilter}
           </p>
@@ -186,30 +188,30 @@ export default function InventoryPage() {
 
       {aggregateMode && (
         <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800">
-          Collective view across all dealers — read only.
+          {t("common.readOnlyCollective")}
         </div>
       )}
 
       {loading ? (
-        <div className="card p-12 text-center text-gray-400">Loading…</div>
+        <div className="card p-12 text-center text-gray-400">{t("common.loading")}</div>
       ) : aggregateMode ? (
         aggregateRows.length === 0 ? (
-          <EmptyState icon="📦" title="No inventory data" description="No dealer has inventory records for this month yet." />
+          <EmptyState icon="📦" title={t("inventory.noDataTitle")} description={t("inventory.noDataDesc")} />
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <KPICard label="Total Received" value={formatNumber(totals.received)} sub="This month, all dealers" color="blue" icon="🚚" />
-              <KPICard label="Total Distributed" value={formatNumber(totals.distributed)} sub="This month, all dealers" color="green" icon="📤" />
-              <KPICard label="Carried Forward" value={formatNumber(totals.closing)} sub="To next month, all dealers" color="purple" icon="➡️" />
+              <KPICard label={t("inventory.totalReceived")} value={formatNumber(totals.received)} sub={`${t("inventory.thisMonth")}, ${t("inventory.allDealers").toLowerCase()}`} color="blue" icon="🚚" />
+              <KPICard label={t("inventory.totalDistributed")} value={formatNumber(totals.distributed)} sub={`${t("inventory.thisMonth")}, ${t("inventory.allDealers").toLowerCase()}`} color="green" icon="📤" />
+              <KPICard label={t("inventory.carriedForward")} value={formatNumber(totals.closing)} sub={`${t("inventory.toNextMonth")}, ${t("inventory.allDealers").toLowerCase()}`} color="purple" icon="➡️" />
             </div>
 
             <div className="card p-5">
-              <h3 className="text-sm font-semibold mb-4">Monthly Stock Ledger — All Dealers</h3>
+              <h3 className="text-sm font-semibold mb-4">{t("inventory.monthlyStockLedger")} — {t("inventory.allDealers")}</h3>
               <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr>
-                      {["Dealer", "Item", "Unit", "Opening", "Received", "Distributed", "Closing"].map((h) => (
+                      {[t("inventory.dealer"), t("inventory.item"), t("inventory.unit"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                         <th
                           key={h}
                           className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
@@ -243,22 +245,22 @@ export default function InventoryPage() {
           </>
         )
       ) : inventoryItems.length === 0 ? (
-        <EmptyState icon="📦" title="No inventory items" description="Add an item below to get started." />
+        <EmptyState icon="📦" title={t("inventory.noItemsTitle")} description={t("inventory.noItemsDesc")} />
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <KPICard label="Total Received" value={formatNumber(totals.received)} sub="This month" color="blue" icon="🚚" />
-            <KPICard label="Total Distributed" value={formatNumber(totals.distributed)} sub="This month" color="green" icon="📤" />
-            <KPICard label="Carried Forward" value={formatNumber(totals.closing)} sub="To next month" color="purple" icon="➡️" />
+            <KPICard label={t("inventory.totalReceived")} value={formatNumber(totals.received)} sub={t("inventory.thisMonth")} color="blue" icon="🚚" />
+            <KPICard label={t("inventory.totalDistributed")} value={formatNumber(totals.distributed)} sub={t("inventory.thisMonth")} color="green" icon="📤" />
+            <KPICard label={t("inventory.carriedForward")} value={formatNumber(totals.closing)} sub={t("inventory.toNextMonth")} color="purple" icon="➡️" />
           </div>
 
           <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-4">Monthly Stock Ledger</h3>
+            <h3 className="text-sm font-semibold mb-4">{t("inventory.monthlyStockLedger")}</h3>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    {["Item", "Unit", "Opening", "Received", "Distributed", "Closing"].map((h) => (
+                    {[t("inventory.item"), t("inventory.unit"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                       <th
                         key={h}
                         className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
@@ -310,17 +312,17 @@ export default function InventoryPage() {
 
       {!readOnly && (
         <div className="card p-5">
-          <h3 className="text-sm font-semibold mb-3">Add Item</h3>
+          <h3 className="text-sm font-semibold mb-3">{t("inventory.addItem")}</h3>
           <div className="flex gap-2 items-center flex-wrap">
             <input
               className="input-field w-48 text-xs"
-              placeholder="Item name (e.g. Sugar)"
+              placeholder={t("inventory.itemNamePlaceholder")}
               value={newItemName}
               onChange={(e) => setNewItemName(e.target.value)}
             />
             <input
               className="input-field w-28 text-xs"
-              placeholder="Unit (e.g. Kg)"
+              placeholder={t("inventory.unitPlaceholder")}
               value={newItemUnit}
               onChange={(e) => setNewItemUnit(e.target.value)}
             />
@@ -329,7 +331,7 @@ export default function InventoryPage() {
               disabled={adding || !newItemName.trim() || !newItemUnit.trim()}
               className="btn-primary text-xs disabled:opacity-50"
             >
-              {adding ? "Adding…" : "Add Item"}
+              {adding ? t("inventory.adding") : t("inventory.addItem")}
             </button>
           </div>
         </div>

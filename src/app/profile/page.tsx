@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface UserProfile {
   fpsId: string;
@@ -14,6 +15,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState("");
 
@@ -72,38 +74,38 @@ export default function ProfilePage() {
   return (
     <div className="p-6 space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold">👤 Profile</h1>
-        <p className="text-sm text-gray-500 mt-1">Your account details</p>
+        <h1 className="text-xl font-bold">👤 {t("profile.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("profile.subtitle")}</p>
       </div>
 
       <div className="card p-6">
-        <h3 className="text-base font-semibold mb-4">Account Details</h3>
+        <h3 className="text-base font-semibold mb-4">{t("profile.accountDetails")}</h3>
         {loadError && <div className="text-xs px-3 py-2 rounded-lg bg-red-50 text-red-700">{loadError}</div>}
-        {!profile && !loadError && <div className="text-sm text-gray-500">Loading…</div>}
+        {!profile && !loadError && <div className="text-sm text-gray-500">{t("common.loading")}</div>}
         {profile && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">FPS ID</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.fpsId")}</label>
               <div className="text-sm font-mono">{profile.fpsId}</div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">District Code</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.districtCode")}</label>
               <div className="text-sm font-mono">{profile.distCode}</div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Username</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.username")}</label>
               <div className="text-sm">{profile.username}</div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Display Name</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.displayName")}</label>
               <div className="text-sm">{profile.displayName}</div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Role</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.role")}</label>
               <div className="text-sm capitalize">{profile.role}</div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Account Created</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.accountCreated")}</label>
               <div className="text-sm">
                 {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString("en-IN") : "—"}
               </div>
@@ -113,10 +115,10 @@ export default function ProfilePage() {
       </div>
 
       <div className="card p-6">
-        <h3 className="text-base font-semibold mb-4">Change Password</h3>
+        <h3 className="text-base font-semibold mb-4">{t("profile.changePassword")}</h3>
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Current Password</label>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.currentPassword")}</label>
             <input
               type="password"
               value={currentPassword}
@@ -126,7 +128,7 @@ export default function ProfilePage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">New Password</label>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.newPassword")}</label>
             <input
               type="password"
               value={newPassword}
@@ -137,7 +139,7 @@ export default function ProfilePage() {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Confirm New Password</label>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">{t("profile.confirmNewPassword")}</label>
             <input
               type="password"
               value={confirmPassword}
@@ -152,7 +154,7 @@ export default function ProfilePage() {
             disabled={changing}
             className="px-4 py-2 bg-brand-700 text-white rounded-lg text-sm font-semibold hover:bg-brand-800 disabled:opacity-50"
           >
-            {changing ? "Changing…" : "Change Password"}
+            {changing ? t("profile.changing") : t("profile.changePassword")}
           </button>
           {changeMessage && (
             <div

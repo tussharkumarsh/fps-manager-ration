@@ -5,9 +5,11 @@ import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { getMonthName } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
+  const { t } = useTranslation();
   const { settings, updateSettings, transactions, customers, syncLogs } = useStore();
   const [dangerMessage, setDangerMessage] = useState("");
   const [dangerBusy, setDangerBusy] = useState<"transactions" | "customers" | "all" | null>(null);
@@ -17,7 +19,7 @@ export default function SettingsPage() {
     return (
       <div className="p-6">
         <div className="card p-6 max-w-md text-sm text-gray-600">
-          Settings is only available to admin accounts.
+          {t("settings.adminOnly")}
         </div>
       </div>
     );
@@ -76,16 +78,16 @@ export default function SettingsPage() {
   return (
     <div className="p-6 space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold">⚙️ Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Configure your FPS details</p>
+        <h1 className="text-xl font-bold">⚙️ {t("settings.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("settings.subtitle")}</p>
       </div>
 
       {/* FPS Config */}
       <div className="card p-6">
-        <h3 className="text-base font-semibold mb-4">FPS Configuration</h3>
+        <h3 className="text-base font-semibold mb-4">{t("settings.fpsConfiguration")}</h3>
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">FPS Name</label>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">{t("settings.fpsName")}</label>
             <input value={settings.fpsName || ""}
               onChange={(e) => updateSettings({ fpsName: e.target.value })}
               placeholder="My Fair Price Shop" className="input-field" />
@@ -93,20 +95,20 @@ export default function SettingsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1">
-                District Code <span className="font-normal text-gray-400">(from your login)</span>
+                {t("sync.districtCodeLabel")} <span className="font-normal text-gray-400">{t("sync.fromLogin")}</span>
               </label>
               <input value={settings.distCode} readOnly disabled
                 className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1">
-                FPS ID <span className="font-normal text-gray-400">(from your login)</span>
+                {t("sync.fpsIdLabel")} <span className="font-normal text-gray-400">{t("sync.fromLogin")}</span>
               </label>
               <input value={settings.fpsId} readOnly disabled
                 className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Default Month</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("settings.defaultMonth")}</label>
               <select value={settings.month}
                 onChange={(e) => updateSettings({ month: e.target.value })}
                 className="input-field">
@@ -116,7 +118,7 @@ export default function SettingsPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">Default Year</label>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">{t("settings.defaultYear")}</label>
               <input value={settings.year}
                 onChange={(e) => updateSettings({ year: e.target.value })}
                 className="input-field" />
@@ -127,15 +129,15 @@ export default function SettingsPage() {
 
       {/* Data Stats */}
       <div className="card p-6">
-        <h3 className="text-base font-semibold mb-4">Data Overview</h3>
+        <h3 className="text-base font-semibold mb-4">{t("settings.dataOverview")}</h3>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="text-2xl font-bold font-mono text-blue-600">{transactions.length}</div>
-            <div className="text-xs text-gray-500 mt-1">Transactions</div>
+            <div className="text-xs text-gray-500 mt-1">{t("nav.transactions")}</div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="text-2xl font-bold font-mono text-emerald-600">{customers.length}</div>
-            <div className="text-xs text-gray-500 mt-1">Customers</div>
+            <div className="text-xs text-gray-500 mt-1">{t("nav.customers")}</div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="text-2xl font-bold font-mono text-violet-600">{syncLogs.length}</div>
@@ -146,7 +148,7 @@ export default function SettingsPage() {
 
       {/* Tech Stack */}
       <div className="card p-6">
-        <h3 className="text-base font-semibold mb-4">Tech Stack</h3>
+        <h3 className="text-base font-semibold mb-4">{t("settings.techStack")}</h3>
         <div className="grid grid-cols-2 gap-2">
           {[
             "Next.js 15 + TypeScript",
@@ -157,9 +159,9 @@ export default function SettingsPage() {
             "SheetJS (Excel Import)",
             "jsPDF (PDF Export)",
             "Vercel (Deploy)",
-          ].map((t) => (
-            <div key={t} className="px-3 py-2 bg-gray-50 rounded-lg text-xs font-medium text-gray-700">
-              {t}
+          ].map((tech) => (
+            <div key={tech} className="px-3 py-2 bg-gray-50 rounded-lg text-xs font-medium text-gray-700">
+              {tech}
             </div>
           ))}
         </div>
@@ -167,42 +169,42 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <div className="card p-6 border-red-200">
-        <h3 className="text-base font-semibold mb-3 text-red-600">Danger Zone</h3>
+        <h3 className="text-base font-semibold mb-3 text-red-600">{t("settings.dangerZone")}</h3>
         <p className="text-xs text-gray-500 mb-3">
-          These delete data permanently from the server (Vercel Blob), scoped only to your own
+          These delete data permanently from the server, scoped only to your own
           login ({settings.fpsId}) — other dealers&apos; data is never affected.
         </p>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium">Clear All Transactions</div>
-              <div className="text-xs text-gray-500">Remove all fetched transaction data from the server</div>
+              <div className="text-sm font-medium">{t("sync.clearAllTransactions")}</div>
+              <div className="text-xs text-gray-500">{t("settings.clearTransactionsDesc")}</div>
             </div>
             <button onClick={clearTransactionsOnServer} disabled={dangerBusy !== null}
               className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
-              {dangerBusy === "transactions" ? "Clearing…" : "Clear"}
+              {dangerBusy === "transactions" ? t("settings.clearing") : t("settings.clear")}
             </button>
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">
             <div>
               <div className="text-sm font-medium">Clear All Customers</div>
-              <div className="text-xs text-gray-500">Remove customer master data from the server</div>
+              <div className="text-xs text-gray-500">{t("settings.clearCustomersDesc")}</div>
             </div>
             <button onClick={clearCustomersOnServer} disabled={dangerBusy !== null}
               className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
-              {dangerBusy === "customers" ? "Clearing…" : "Clear"}
+              {dangerBusy === "customers" ? t("settings.clearing") : t("settings.clear")}
             </button>
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">
             <div>
-              <div className="text-sm font-medium">Factory Reset</div>
+              <div className="text-sm font-medium">{t("settings.factoryReset")}</div>
               <div className="text-xs text-gray-500">
-                Permanently delete ALL transaction data AND ALL customer data from the server, in one go
+                {t("settings.factoryResetDesc")}
               </div>
             </div>
             <button onClick={factoryResetOnServer} disabled={dangerBusy !== null}
               className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
-              {dangerBusy === "all" ? "Resetting…" : "Factory Reset"}
+              {dangerBusy === "all" ? t("settings.resetting") : t("settings.factoryReset")}
             </button>
           </div>
           {dangerMessage && (
