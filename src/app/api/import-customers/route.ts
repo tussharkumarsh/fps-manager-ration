@@ -48,6 +48,52 @@ function parseKgsMaster(workbook: XLSX.WorkBook): { customers: Customer[]; sheet
   return { customers, sheetName };
 }
 
+// Vercel Serverless Functions reject request bodies over ~4.5MB (a fixed
+// platform limit, not something raise-able via config) — a beneficiary
+// drill-down import with hundreds of customers, each carrying a full
+// family-members array, can exceed that in a single request. Splitting by
+// estimated JSON byte size (rather than a fixed customer count) keeps
+// every chunk well under the limit regardless of how much per-customer
+// data a given file happens to carry.
+const MAX_CHUNK_BYTES = 3_000_000;
+
+function chunkBySize(customers: Customer[]): Customer[][] {
+  const chunks: Customer[][] = [];
+  let current: Customer[] = [];
+  let currentBytes = 0;
+
+  for (const c of customers) {
+    const size = JSON.stringify(c).length;
+    if (current.length > 0 && currentBytes + size > MAX_CHUNK_BYTES) {
+      chunks.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(c);
+    currentBytes += size;
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
+/**
+ * Imports in size-bounded chunks, sequentially (not in parallel) so
+ * concurrent writes to the same dealer can't race each other's
+ * upsert-then-verify cycle in TransactionService.importCustomers.
+ */
+async function importInChunks(fpsId: string, customers: Customer[]): Promise<number> {
+  const chunks = chunkBySize(customers);
+  let savedCount = 0;
+  for (const chunk of chunks) {
+    const { savedCount: chunkSaved } = await backendFetch<{ savedCount: number }>("/customers/import", {
+      method: "POST",
+      body: { fpsId, customers: chunk },
+    });
+    savedCount += chunkSaved;
+  }
+  return savedCount;
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.fpsId) {
@@ -87,10 +133,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const { savedCount } = await backendFetch<{ savedCount: number }>("/customers/import", {
-        method: "POST",
-        body: { fpsId: session.fpsId, customers },
-      });
+      const savedCount = await importInChunks(session.fpsId, customers);
       return NextResponse.json({
         success: true,
         customers,
