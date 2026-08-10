@@ -154,6 +154,10 @@ const en = {
     noItemsDesc: "Add an item below to get started.",
     noDataTitle: "No inventory data",
     noDataDesc: "No dealer has inventory records for this month yet.",
+    setOpeningBalances: "Set Opening Balances",
+    setOpeningBalancesDesc: "Set the starting stock for every item for {month}. This overwrites the current opening balance.",
+    monthwiseClosing: "Monthwise Closing Balance",
+    availableStock: "Available Stock",
   },
   reports: {
     title: "Reports",
@@ -396,6 +400,10 @@ const hi: typeof en = {
     noItemsDesc: "शुरू करने के लिए नीचे एक वस्तु जोड़ें।",
     noDataTitle: "कोई इन्वेंटरी डेटा नहीं",
     noDataDesc: "अभी तक किसी डीलर के पास इस महीने का इन्वेंटरी रिकॉर्ड नहीं है।",
+    setOpeningBalances: "प्रारंभिक शेष सेट करें",
+    setOpeningBalancesDesc: "{month} के लिए हर वस्तु का प्रारंभिक स्टॉक सेट करें। यह मौजूदा प्रारंभिक शेष को अधिलेखित कर देगा।",
+    monthwiseClosing: "माह-वार अंतिम शेष",
+    availableStock: "उपलब्ध स्टॉक",
   },
   reports: {
     title: "रिपोर्ट",
@@ -638,6 +646,10 @@ const mr: typeof en = {
     noItemsDesc: "सुरुवात करण्यासाठी खाली एक वस्तू जोडा.",
     noDataTitle: "इन्व्हेंटरी डेटा नाही",
     noDataDesc: "अद्याप कोणत्याही डीलरकडे या महिन्याच्या इन्व्हेंटरी नोंदी नाहीत.",
+    setOpeningBalances: "सुरुवातीचा साठा सेट करा",
+    setOpeningBalancesDesc: "{month} साठी प्रत्येक वस्तूचा सुरुवातीचा साठा सेट करा. हे सध्याचा सुरुवातीचा साठा अधिलिखित करेल.",
+    monthwiseClosing: "महिनावार अंतिम साठा",
+    availableStock: "उपलब्ध साठा",
   },
   reports: {
     title: "अहवाल",

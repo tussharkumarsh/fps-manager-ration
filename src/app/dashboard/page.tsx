@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -11,8 +11,59 @@ import { KPICard, Badge, EmptyState } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, dateOnly } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { apiFetch } from "@/lib/apiFetch";
+import type { InventoryItem, InventoryLedgerEntry } from "@/types";
 
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
+
+interface StockRow {
+  name: string;
+  unit: string;
+  closing: number;
+}
+
+function useAvailableStock(month: string, year: string, viewingFpsId: string | undefined, aggregateMode: boolean) {
+  const [stock, setStock] = useState<StockRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (aggregateMode) {
+          const res = await apiFetch(`/api/inventory?year=${year}&month=${month}`);
+          const data = await res.json();
+          if (!res.ok || cancelled) return;
+          const byItem = new Map<string, StockRow>();
+          for (const row of data.rows as (InventoryLedgerEntry & { itemName: string; unit: string })[]) {
+            const existing = byItem.get(row.itemName);
+            byItem.set(row.itemName, {
+              name: row.itemName,
+              unit: row.unit,
+              closing: (existing?.closing ?? 0) + row.closing,
+            });
+          }
+          setStock(Array.from(byItem.values()));
+          return;
+        }
+        const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
+        const res = await apiFetch(`/api/inventory?year=${year}&month=${month}${viewParam}`);
+        const data = await res.json();
+        if (!res.ok || cancelled) return;
+        const items = data.items as InventoryItem[];
+        const ledger = data.ledger as InventoryLedgerEntry[];
+        const ledgerByItem = new Map(ledger.map((l) => [l.itemId, l]));
+        setStock(items.map((item) => ({ name: item.name, unit: item.unit, closing: ledgerByItem.get(item.id)?.closing ?? 0 })));
+      } catch {
+        // Non-fatal — the dashboard's main content doesn't depend on this.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [month, year, viewingFpsId, aggregateMode]);
+
+  return stock;
+}
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -23,6 +74,7 @@ export default function DashboardPage() {
     ? t("common.allDealersCollective")
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
+  const availableStock = useAvailableStock(settings.month, settings.year, viewingDealer?.fpsId, aggregateMode);
 
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
   const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
@@ -59,13 +111,35 @@ export default function DashboardPage() {
     return customers.filter((c) => !collected.has(c.srcNo));
   }, [scopedTransactions, customers]);
 
+  const stockIcons: Record<string, string> = { Wheat: "🌾", Rice: "🍚" };
+  const availableStockSection = availableStock.length > 0 && (
+    <div className="card p-5">
+      <h3 className="text-sm font-semibold mb-4">📦 {t("inventory.availableStock")}</h3>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {availableStock.map((s) => (
+          <KPICard
+            key={s.name}
+            label={s.name}
+            value={`${formatNumber(s.closing)} ${s.unit}`}
+            sub={t("inventory.closing")}
+            color="blue"
+            icon={stockIcons[s.name] ?? "📦"}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
   if (transactions.length === 0) {
     return (
-      <div className="p-6">
-        <h1 className="text-xl font-bold mb-2">📊 {t("dashboard.title")}</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year}
-        </p>
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-xl font-bold mb-2">📊 {t("dashboard.title")}</h1>
+          <p className="text-sm text-gray-500 mb-6">
+            {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year}
+          </p>
+        </div>
+        {availableStockSection}
         <EmptyState
           icon="📋"
           title={t("dashboard.noTransactionsTitle")}
@@ -114,6 +188,8 @@ export default function DashboardPage() {
         <KPICard label={t("dashboard.uniqueCustomers")} value={stats.uniqueCustomers} sub={t("dashboard.ofRegistered", { count: customers.length })} color="purple" icon="👥" />
         <KPICard label={t("dashboard.pending")} value={pendingCustomers.length} sub={t("dashboard.notCollected")} color="red" icon="⚠️" />
       </div>
+
+      {availableStockSection}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">

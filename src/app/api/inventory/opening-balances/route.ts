@@ -13,17 +13,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { year, month, itemId, received, distributed, opening } = await req.json();
-    if (!year || !month || !itemId) {
-      return NextResponse.json({ error: "year, month and itemId are required" }, { status: 400 });
-    }
-    if (received === undefined && distributed === undefined && opening === undefined) {
-      return NextResponse.json({ error: "received, distributed or opening is required" }, { status: 400 });
+    const { year, month, balances } = await req.json();
+    if (!year || !month || !Array.isArray(balances)) {
+      return NextResponse.json({ error: "year, month and balances[] are required" }, { status: 400 });
     }
 
-    const data = await backendFetch<{ entry: InventoryLedgerEntry }>("/inventory/ledger", {
+    const data = await backendFetch<{ entries: InventoryLedgerEntry[] }>("/inventory/opening-balances", {
       method: "POST",
-      body: { fpsId: session.fpsId, year, month, itemId, received, distributed, opening },
+      body: { fpsId: session.fpsId, year, month, balances },
     });
     return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {
