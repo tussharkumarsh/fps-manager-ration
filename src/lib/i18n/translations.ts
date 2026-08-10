@@ -235,7 +235,7 @@ const en = {
     clearTransactionsDesc: "Remove all fetched transaction data from the server",
     clearCustomersDesc: "Remove customer master data from the server",
     factoryReset: "Factory Reset",
-    factoryResetDesc: "Permanently delete ALL transaction data AND ALL customer data from the server, in one go",
+    factoryResetDesc: "Permanently delete ALL transaction, customer, AND inventory data from the server, in one go",
     clear: "Clear",
     clearing: "Clearing…",
     resetting: "Resetting…",
@@ -260,6 +260,7 @@ const en = {
     clearData: "Clear Data",
     clearDataFor: "Clear data for {name} — for onboarding a real client onto a previously test/setup account.",
     clearAllCustomers: "Clear All Customers",
+    clearInventory: "Clear Inventory",
   },
 };
 
@@ -492,7 +493,7 @@ const hi: typeof en = {
     clearTransactionsDesc: "सर्वर से सभी प्राप्त लेन-देन डेटा हटाएं",
     clearCustomersDesc: "सर्वर से ग्राहक मास्टर डेटा हटाएं",
     factoryReset: "फ़ैक्टरी रीसेट",
-    factoryResetDesc: "सर्वर से सभी लेन-देन डेटा और सभी ग्राहक डेटा एक साथ स्थायी रूप से हटाएं",
+    factoryResetDesc: "सर्वर से सभी लेन-देन, ग्राहक और इन्वेंटरी डेटा एक साथ स्थायी रूप से हटाएं",
     clear: "साफ़ करें",
     clearing: "साफ़ हो रहा है…",
     resetting: "रीसेट हो रहा है…",
@@ -517,6 +518,7 @@ const hi: typeof en = {
     clearData: "डेटा साफ़ करें",
     clearDataFor: "{name} का डेटा साफ़ करें — किसी पूर्व टेस्ट/सेटअप खाते को असली ग्राहक को सौंपते समय उपयोग करें।",
     clearAllCustomers: "सभी ग्राहक साफ़ करें",
+    clearInventory: "इन्वेंटरी साफ़ करें",
   },
 };
 
@@ -749,7 +751,7 @@ const mr: typeof en = {
     clearTransactionsDesc: "सर्व्हरवरून सर्व मिळवलेला व्यवहार डेटा काढा",
     clearCustomersDesc: "सर्व्हरवरून ग्राहक मास्टर डेटा काढा",
     factoryReset: "फॅक्टरी रीसेट",
-    factoryResetDesc: "सर्व्हरवरून सर्व व्यवहार डेटा आणि सर्व ग्राहक डेटा एकाच वेळी कायमचा हटवा",
+    factoryResetDesc: "सर्व्हरवरून सर्व व्यवहार, ग्राहक आणि इन्व्हेंटरी डेटा एकाच वेळी कायमचा हटवा",
     clear: "साफ करा",
     clearing: "साफ होत आहे…",
     resetting: "रीसेट होत आहे…",
@@ -774,6 +776,7 @@ const mr: typeof en = {
     clearData: "डेटा साफ करा",
     clearDataFor: "{name} चा डेटा साफ करा — पूर्वी चाचणी/सेटअपसाठी वापरलेले खाते खऱ्या ग्राहकाला देताना वापरा.",
     clearAllCustomers: "सर्व ग्राहक साफ करा",
+    clearInventory: "इन्व्हेंटरी साफ करा",
   },
 };
 

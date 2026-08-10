@@ -26,17 +26,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ f
   const { searchParams } = new URL(req.url);
   const scope = searchParams.get("scope");
 
-  if (scope !== "transactions" && scope !== "customers" && scope !== "all") {
-    return NextResponse.json({ error: "scope must be 'transactions', 'customers' or 'all'" }, { status: 400 });
+  if (scope !== "transactions" && scope !== "customers" && scope !== "inventory" && scope !== "all") {
+    return NextResponse.json(
+      { error: "scope must be 'transactions', 'customers', 'inventory' or 'all'" },
+      { status: 400 }
+    );
   }
 
   try {
     if (scope === "all") {
+      // reset-all clears transactions, customers, and inventory together.
       await backendFetch("/reset-all", { method: "DELETE", query: { fpsId } });
     } else if (scope === "transactions") {
       await backendFetch("/transactions/all", { method: "DELETE", query: { fpsId } });
-    } else {
+    } else if (scope === "customers") {
       await backendFetch("/customers", { method: "DELETE", query: { fpsId, all: "true" } });
+    } else {
+      await backendFetch("/inventory", { method: "DELETE", query: { fpsId } });
     }
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const { settings, updateSettings, transactions, customers, syncLogs } = useStore();
   const [dangerMessage, setDangerMessage] = useState("");
-  const [dangerBusy, setDangerBusy] = useState<"transactions" | "customers" | "all" | null>(null);
+  const [dangerBusy, setDangerBusy] = useState<"transactions" | "customers" | "inventory" | "all" | null>(null);
 
   if (status === "loading") return null;
   if (session?.role !== "admin") {
@@ -59,8 +59,26 @@ export default function SettingsPage() {
     }
   };
 
+  const clearInventoryOnServer = async () => {
+    if (!confirm("Clear ALL your inventory data (items, opening balances, history) from the server? This cannot be undone.")) return;
+    setDangerBusy("inventory");
+    setDangerMessage("");
+    try {
+      const res = await apiFetch("/api/inventory", { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to clear inventory");
+      useStore.getState().setInventoryItems([]);
+      useStore.getState().setInventoryLedger([]);
+      setDangerMessage("All inventory data deleted from the server.");
+    } catch (err) {
+      setDangerMessage(`Error: ${err instanceof Error ? err.message : "Failed to clear inventory"}`);
+    } finally {
+      setDangerBusy(null);
+    }
+  };
+
   const factoryResetOnServer = async () => {
-    if (!confirm("Factory Reset — permanently delete ALL your transaction data AND ALL your customer data from the server? This cannot be undone.")) return;
+    if (!confirm("Factory Reset — permanently delete ALL your transaction data, customer data, AND inventory data from the server? This cannot be undone.")) return;
     setDangerBusy("all");
     setDangerMessage("");
     try {
@@ -193,6 +211,16 @@ export default function SettingsPage() {
             <button onClick={clearCustomersOnServer} disabled={dangerBusy !== null}
               className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
               {dangerBusy === "customers" ? t("settings.clearing") : t("settings.clear")}
+            </button>
+          </div>
+          <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+            <div>
+              <div className="text-sm font-medium">{t("dealers.clearInventory")}</div>
+              <div className="text-xs text-gray-500">Remove all inventory items, opening balances and history from the server</div>
+            </div>
+            <button onClick={clearInventoryOnServer} disabled={dangerBusy !== null}
+              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50">
+              {dangerBusy === "inventory" ? t("settings.clearing") : t("settings.clear")}
             </button>
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">

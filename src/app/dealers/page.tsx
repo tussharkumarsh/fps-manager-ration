@@ -38,7 +38,7 @@ export default function DealersPage() {
   const [deletingFpsId, setDeletingFpsId] = useState<string | null>(null);
 
   const [clearingFpsId, setClearingFpsId] = useState<string | null>(null);
-  const [clearBusyScope, setClearBusyScope] = useState<"transactions" | "customers" | "all" | null>(null);
+  const [clearBusyScope, setClearBusyScope] = useState<"transactions" | "customers" | "inventory" | "all" | null>(null);
 
   const isAdmin = session?.role === "admin";
 
@@ -137,13 +137,15 @@ export default function DealersPage() {
     }
   };
 
-  const handleClearData = async (dealer: DealerProfile, scope: "transactions" | "customers" | "all") => {
+  const handleClearData = async (dealer: DealerProfile, scope: "transactions" | "customers" | "inventory" | "all") => {
     const confirmText =
       scope === "all"
-        ? `Permanently delete ALL transactions AND ALL customers for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone — use this when handing the account over to a real client so they start from a clean slate.`
+        ? `Permanently delete ALL transactions, customers, AND inventory (items, opening balances, history) for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone — use this when handing the account over to a real client so they start from a clean slate.`
         : scope === "transactions"
           ? `Permanently delete ALL transactions for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone.`
-          : `Permanently delete ALL customers for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone.`;
+          : scope === "customers"
+            ? `Permanently delete ALL customers for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone.`
+            : `Permanently delete ALL inventory data (items, opening balances, history) for ${dealer.displayName} (${dealer.fpsId})? This cannot be undone.`;
     if (!confirm(confirmText)) return;
 
     setClearBusyScope(scope);
@@ -154,7 +156,10 @@ export default function DealersPage() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to clear data");
-      setRowMessage({ fpsId: dealer.fpsId, text: `Cleared ${scope === "all" ? "all data" : scope} for ${dealer.displayName}.` });
+      setRowMessage({
+        fpsId: dealer.fpsId,
+        text: `Cleared ${scope === "all" ? "all data (transactions, customers, inventory)" : scope} for ${dealer.displayName}.`,
+      });
       setClearingFpsId(null);
     } catch (err) {
       setRowMessage({ fpsId: dealer.fpsId, text: `Error: ${err instanceof Error ? err.message : "Failed to clear data"}` });
@@ -397,6 +402,13 @@ export default function DealersPage() {
                                 className="px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
                               >
                                 {clearBusyScope === "customers" ? t("settings.clearing") : t("dealers.clearAllCustomers")}
+                              </button>
+                              <button
+                                onClick={() => handleClearData(d, "inventory")}
+                                disabled={clearBusyScope !== null}
+                                className="px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md text-xs font-semibold hover:bg-amber-100 disabled:opacity-50"
+                              >
+                                {clearBusyScope === "inventory" ? t("settings.clearing") : t("dealers.clearInventory")}
                               </button>
                               <button
                                 onClick={() => handleClearData(d, "all")}
