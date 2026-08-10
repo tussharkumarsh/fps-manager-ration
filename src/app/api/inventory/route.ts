@@ -21,7 +21,18 @@ export async function GET(req: Request) {
   }
 
   try {
-    const dealer = await resolveEffectiveDealer(session, searchParams.get("viewFpsId"));
+    const viewFpsId = searchParams.get("viewFpsId");
+
+    // Admin with no specific dealer selected sees every dealer's inventory
+    // ledger combined for this month — the "collective view".
+    if (session.role === "admin" && !viewFpsId) {
+      const data = await backendFetch<{
+        rows: (InventoryLedgerEntry & { dealerName: string; itemName: string; unit: string })[];
+      }>("/inventory/all-dealers", { query: { year, month } });
+      return NextResponse.json({ success: true, ...data });
+    }
+
+    const dealer = await resolveEffectiveDealer(session, viewFpsId);
     const data = await backendFetch<{ items: InventoryItem[]; ledger: InventoryLedgerEntry[] }>("/inventory", {
       query: { fpsId: dealer.fpsId, year, month },
     });

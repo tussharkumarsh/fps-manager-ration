@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
@@ -13,7 +14,12 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
 
 export default function DashboardPage() {
-  const { transactions, customers, settings } = useStore();
+  const { data: session } = useSession();
+  const { transactions, customers, settings, viewingDealer } = useStore();
+  const aggregateMode = session?.role === "admin" && !viewingDealer;
+  const scopeLabel = aggregateMode
+    ? "All Dealers (Collective)"
+    : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
 
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
@@ -56,7 +62,7 @@ export default function DashboardPage() {
       <div className="p-6">
         <h1 className="text-xl font-bold mb-2">📊 Dashboard</h1>
         <p className="text-sm text-gray-500 mb-6">
-          FPS {settings.fpsId} · {getMonthName(parseInt(settings.month))} {settings.year}
+          {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year}
         </p>
         <EmptyState
           icon="📋"
@@ -73,7 +79,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-xl font-bold">📊 Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            FPS {settings.fpsId} · {getMonthName(parseInt(settings.month))} {settings.year} · {formatNumber(scopedTransactions.length)} record(s)
+            {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year} · {formatNumber(scopedTransactions.length)} record(s)
           </p>
         </div>
 

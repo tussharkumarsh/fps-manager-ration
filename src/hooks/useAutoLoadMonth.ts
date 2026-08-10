@@ -21,14 +21,20 @@ export interface AutoLoadInfo {
  * so pages display it without requiring a manual "Sync" click.
  */
 export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
   const viewingFpsId = useStore((s) => s.viewingDealer?.fpsId);
   const [info, setInfo] = useState<AutoLoadInfo>({ loading: false });
   const lastKey = useRef<string>("");
 
+  // An admin with no specific dealer selected is looking at the collective
+  // view across every dealer — useLoadAllHistory already fetched everything
+  // stored for every dealer, across all months, so there's no single
+  // "current month" to sync here.
+  const isAdminAggregateView = session?.role === "admin" && !viewingFpsId;
+
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated" || isAdminAggregateView) return;
     const key = `${viewingFpsId || "self"}-${year}-${month}`;
     if (lastKey.current === key) return;
     lastKey.current = key;
@@ -61,7 +67,7 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
     return () => {
       cancelled = true;
     };
-  }, [status, month, year, viewingFpsId, addTransactions]);
+  }, [status, month, year, viewingFpsId, isAdminAggregateView, addTransactions]);
 
   return info;
 }

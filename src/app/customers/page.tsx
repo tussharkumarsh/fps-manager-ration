@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useMemo, useRef, Fragment } from "react";
+import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { Badge, KPICard, EmptyState } from "@/components/ui";
 import { formatNumber, dateOnly, getMonthName } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
+import type { Customer } from "@/types";
 
 const PAGE_SIZE = 25;
+
+type CustomerWithDealer = Customer & { dealerName?: string };
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "—" if none. */
 function lastDispatchedMonth(txns: { date: string }[]): string {
@@ -17,8 +21,11 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 }
 
 export default function CustomersPage() {
+  const { data: session } = useSession();
   const { customers, transactions, importCustomers, addCustomer, deleteCustomer, viewingDealer } = useStore();
-  const readOnly = viewingDealer !== null;
+  const isAdmin = session?.role === "admin";
+  const readOnly = isAdmin;
+  const showDealerColumn = isAdmin && !viewingDealer;
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -132,7 +139,9 @@ export default function CustomersPage() {
 
       {readOnly && (
         <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800">
-          You&apos;re viewing {viewingDealer?.displayName}&apos;s data as admin — read only.
+          {viewingDealer
+            ? <>You&apos;re viewing {viewingDealer.displayName}&apos;s data as admin — read only.</>
+            : "Collective view across all dealers — read only."}
         </div>
       )}
 
@@ -205,6 +214,7 @@ export default function CustomersPage() {
               <thead>
                 <tr className="bg-brand-700 text-white text-xs font-semibold tracking-wide">
                   <th className="px-2 py-2.5 w-8"></th>
+                  {showDealerColumn && <th className="px-3 py-2.5 text-left whitespace-nowrap">Dealer</th>}
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">S.No.</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">Ration Card No.</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">Status</th>
@@ -219,10 +229,11 @@ export default function CustomersPage() {
               </thead>
               <tbody>
                 {paged.map((c, i) => {
+                  const dealer = c as CustomerWithDealer;
                   const isOpen = expanded.has(c.srcNo);
                   const hasMembers = (c.members?.length || 0) > 0;
                   return (
-                    <Fragment key={c.srcNo}>
+                    <Fragment key={`${dealer.dealerName || ""}-${c.srcNo}`}>
                       <tr
                         className={`border-b border-gray-100 hover:bg-blue-50/50 transition-colors ${
                           i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
@@ -236,6 +247,9 @@ export default function CustomersPage() {
                             </span>
                           )}
                         </td>
+                        {showDealerColumn && (
+                          <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">{dealer.dealerName || "—"}</td>
+                        )}
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.sNo ?? "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.srcNo}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">{c.status || "—"}</td>
@@ -257,7 +271,7 @@ export default function CustomersPage() {
                       </tr>
                       {isOpen && hasMembers && (
                         <tr key={`${c.srcNo}-members`} className="bg-gray-50">
-                          <td colSpan={11} className="px-6 py-3">
+                          <td colSpan={showDealerColumn ? 12 : 11} className="px-6 py-3">
                             <div className="text-xs font-semibold text-gray-500 mb-2">
                               Family Members ({c.members!.length})
                             </div>
@@ -309,7 +323,7 @@ export default function CustomersPage() {
                 })}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={showDealerColumn ? 12 : 11} className="px-4 py-12 text-center text-gray-400">
                       No records found
                     </td>
                   </tr>

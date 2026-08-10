@@ -12,8 +12,8 @@ import type { SyncLog } from "@/types";
 export default function SyncPage() {
   const { settings, updateSettings, addTransactions, addSyncLog, syncLogs, transactions, viewingDealer } =
     useStore();
-  const readOnly = viewingDealer !== null;
   const { data: session } = useSession();
+  const readOnly = session?.role === "admin";
   const [status, setStatus] = useState<"idle" | "fetching" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [monthYear, setMonthYear] = useState({ month: settings.month, year: settings.year });
@@ -92,7 +92,9 @@ export default function SyncPage() {
 
       {readOnly && (
         <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800 max-w-2xl">
-          You&apos;re viewing {viewingDealer?.displayName}&apos;s data as admin — syncing is disabled in this view.
+          {viewingDealer
+            ? <>You&apos;re viewing {viewingDealer.displayName}&apos;s data as admin — syncing is disabled in this view.</>
+            : "Admins have read-only access — syncing is disabled. Select a dealer from the Dealers page to view their sync status."}
         </div>
       )}
 

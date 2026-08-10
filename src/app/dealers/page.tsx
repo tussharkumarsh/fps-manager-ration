@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/apiFetch";
@@ -28,6 +28,12 @@ export default function DealersPage() {
   const [form, setForm] = useState({ fpsId: "", distCode: "", username: "", password: "", displayName: "" });
   const [creating, setCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState("");
+
+  const [editingFpsId, setEditingFpsId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ distCode: "", username: "", displayName: "", role: "dealer" as "dealer" | "admin", active: true });
+  const [saving, setSaving] = useState(false);
+  const [rowMessage, setRowMessage] = useState<{ fpsId: string; text: string } | null>(null);
+  const [deletingFpsId, setDeletingFpsId] = useState<string | null>(null);
 
   const isAdmin = session?.role === "admin";
 
@@ -74,6 +80,56 @@ export default function DealersPage() {
   const handleView = (dealer: DealerProfile) => {
     setViewingDealer({ fpsId: dealer.fpsId, distCode: dealer.distCode, displayName: dealer.displayName });
     router.push("/dashboard");
+  };
+
+  const startEdit = (dealer: DealerProfile) => {
+    setEditingFpsId(dealer.fpsId);
+    setEditForm({
+      distCode: dealer.distCode,
+      username: dealer.username,
+      displayName: dealer.displayName,
+      role: dealer.role,
+      active: dealer.active,
+    });
+    setRowMessage(null);
+  };
+
+  const handleSaveEdit = async (fpsId: string) => {
+    setSaving(true);
+    setRowMessage(null);
+    try {
+      const res = await apiFetch(`/api/admin/dealers/${encodeURIComponent(fpsId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to save changes");
+      setEditingFpsId(null);
+      loadDealers();
+    } catch (err) {
+      setRowMessage({ fpsId, text: `Error: ${err instanceof Error ? err.message : "Failed to save changes"}` });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (dealer: DealerProfile) => {
+    if (!confirm(`Delete ${dealer.displayName} (${dealer.fpsId})? This also permanently deletes all their customers and transactions. This cannot be undone.`)) {
+      return;
+    }
+    setDeletingFpsId(dealer.fpsId);
+    setRowMessage(null);
+    try {
+      const res = await apiFetch(`/api/admin/dealers/${encodeURIComponent(dealer.fpsId)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to delete");
+      loadDealers();
+    } catch (err) {
+      setRowMessage({ fpsId: dealer.fpsId, text: `Error: ${err instanceof Error ? err.message : "Failed to delete"}` });
+    } finally {
+      setDeletingFpsId(null);
+    }
   };
 
   if (status === "loading") return null;
@@ -193,32 +249,105 @@ export default function DealersPage() {
                 </tr>
               </thead>
               <tbody>
-                {dealers.map((d, i) => (
-                  <tr key={d.fpsId} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                    <td className="px-3 py-2 font-mono text-xs">{d.fpsId}</td>
-                    <td className="px-3 py-2 font-mono text-xs">{d.distCode}</td>
-                    <td className="px-3 py-2">{d.username}</td>
-                    <td className="px-3 py-2">{d.displayName}</td>
-                    <td className="px-3 py-2 capitalize">{d.role}</td>
-                    <td className="px-3 py-2">
-                      {d.active ? (
-                        <span className="text-emerald-600 text-xs font-medium">Active</span>
-                      ) : (
-                        <span className="text-gray-400 text-xs font-medium">Inactive</span>
+                {dealers.map((d, i) => {
+                  const isSelf = d.fpsId === session?.fpsId;
+                  const isEditing = editingFpsId === d.fpsId;
+                  return (
+                    <Fragment key={d.fpsId}>
+                      <tr className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                        <td className="px-3 py-2 font-mono text-xs">{d.fpsId}</td>
+                        {isEditing ? (
+                          <>
+                            <td className="px-3 py-2">
+                              <input className="input-field text-xs" value={editForm.distCode}
+                                onChange={(e) => setEditForm((f) => ({ ...f, distCode: e.target.value }))} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input className="input-field text-xs" value={editForm.username}
+                                onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input className="input-field text-xs" value={editForm.displayName}
+                                onChange={(e) => setEditForm((f) => ({ ...f, displayName: e.target.value }))} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <select className="input-field text-xs" value={editForm.role}
+                                onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value as "dealer" | "admin" }))}>
+                                <option value="dealer">dealer</option>
+                                <option value="admin">admin</option>
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <label className="flex items-center gap-1.5 text-xs">
+                                <input type="checkbox" checked={editForm.active}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, active: e.target.checked }))} />
+                                Active
+                              </label>
+                            </td>
+                            <td className="px-3 py-2 text-center whitespace-nowrap">
+                              <button onClick={() => handleSaveEdit(d.fpsId)} disabled={saving}
+                                className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50 mr-1">
+                                {saving ? "Saving…" : "Save"}
+                              </button>
+                              <button onClick={() => setEditingFpsId(null)}
+                                className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold hover:bg-gray-200">
+                                Cancel
+                              </button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2 font-mono text-xs">{d.distCode}</td>
+                            <td className="px-3 py-2">{d.username}</td>
+                            <td className="px-3 py-2">{d.displayName}</td>
+                            <td className="px-3 py-2 capitalize">{d.role}</td>
+                            <td className="px-3 py-2">
+                              {d.active ? (
+                                <span className="text-emerald-600 text-xs font-medium">Active</span>
+                              ) : (
+                                <span className="text-gray-400 text-xs font-medium">Inactive</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-center whitespace-nowrap">
+                              {d.role === "dealer" && (
+                                <button
+                                  onClick={() => handleView(d)}
+                                  className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-semibold hover:bg-blue-100 mr-1"
+                                >
+                                  View Data
+                                </button>
+                              )}
+                              {!isSelf && (
+                                <>
+                                  <button
+                                    onClick={() => startEdit(d)}
+                                    className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-semibold hover:bg-gray-200 mr-1"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(d)}
+                                    disabled={deletingFpsId === d.fpsId}
+                                    className="px-2 py-1 bg-red-50 text-red-600 rounded-md text-xs font-semibold hover:bg-red-100 disabled:opacity-50"
+                                  >
+                                    {deletingFpsId === d.fpsId ? "Deleting…" : "Delete"}
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                      {rowMessage?.fpsId === d.fpsId && (
+                        <tr>
+                          <td colSpan={7} className="px-3 py-2 bg-red-50 text-red-700 text-xs">
+                            {rowMessage.text}
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {d.role === "dealer" && (
-                        <button
-                          onClick={() => handleView(d)}
-                          className="px-3 py-1 bg-blue-50 text-blue-600 rounded-md text-xs font-semibold hover:bg-blue-100"
-                        >
-                          View Data
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

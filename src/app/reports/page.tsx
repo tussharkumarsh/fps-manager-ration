@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
 import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
@@ -8,7 +9,12 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import type { DailySummary, Transaction, Customer } from "@/types";
 
 export default function ReportsPage() {
-  const { transactions, customers, settings } = useStore();
+  const { data: session } = useSession();
+  const { transactions, customers, settings, viewingDealer } = useStore();
+  const aggregateMode = session?.role === "admin" && !viewingDealer;
+  const scopeLabel = aggregateMode
+    ? "All Dealers (Collective)"
+    : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
   const [reportType, setReportType] = useState("daily");
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
@@ -95,7 +101,7 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-xl font-bold">📑 Reports</h1>
           <p className="text-sm text-gray-500">
-            FPS {settings.fpsId} · {monthLabel} · {formatNumber(scopedTransactions.length)} record(s)
+            {scopeLabel} · {monthLabel} · {formatNumber(scopedTransactions.length)} record(s)
           </p>
         </div>
 

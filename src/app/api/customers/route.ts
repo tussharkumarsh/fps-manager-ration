@@ -15,7 +15,18 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const dealer = await resolveEffectiveDealer(session, searchParams.get("viewFpsId"));
+    const viewFpsId = searchParams.get("viewFpsId");
+
+    // Admin with no specific dealer selected sees every dealer's customers
+    // combined — the "collective view" across all FPS accounts.
+    if (session.role === "admin" && !viewFpsId) {
+      const data = await backendFetch<{ customers: (Customer & { fpsId: string; dealerName: string })[]; count: number }>(
+        "/customers/all-dealers"
+      );
+      return NextResponse.json({ success: true, ...data });
+    }
+
+    const dealer = await resolveEffectiveDealer(session, viewFpsId);
     const data = await backendFetch<{ customers: Customer[]; count: number }>("/customers", {
       query: { fpsId: dealer.fpsId },
     });

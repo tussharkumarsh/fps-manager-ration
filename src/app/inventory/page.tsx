@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { KPICard, EmptyState } from "@/components/ui";
 import { apiFetch } from "@/lib/apiFetch";
 import { formatNumber, getMonthName } from "@/lib/utils";
-import type { InventoryItem } from "@/types";
+import type { InventoryItem, InventoryLedgerEntry } from "@/types";
+
+interface AggregateRow extends InventoryLedgerEntry {
+  dealerName: string;
+  itemName: string;
+  unit: string;
+}
 
 export default function InventoryPage() {
+  const { data: session } = useSession();
   const {
     settings,
     inventoryItems,
@@ -17,7 +25,9 @@ export default function InventoryPage() {
     addInventoryItem,
     viewingDealer,
   } = useStore();
-  const readOnly = viewingDealer !== null;
+  const isAdmin = session?.role === "admin";
+  const readOnly = isAdmin;
+  const aggregateMode = isAdmin && !viewingDealer;
 
   const [monthFilter, setMonthFilter] = useState(settings.month);
   const [yearFilter, setYearFilter] = useState(settings.year);
@@ -27,6 +37,7 @@ export default function InventoryPage() {
   const [newItemUnit, setNewItemUnit] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
+  const [aggregateRows, setAggregateRows] = useState<AggregateRow[]>([]);
 
   const yearOptions = useMemo(() => {
     const y = parseInt(settings.year, 10) || new Date().getFullYear();
@@ -39,6 +50,13 @@ export default function InventoryPage() {
     setLoading(true);
     setError("");
     try {
+      if (aggregateMode) {
+        const res = await apiFetch(`/api/inventory?year=${yearFilter}&month=${monthFilter}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load inventory");
+        setAggregateRows(data.rows);
+        return;
+      }
       const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
       const res = await apiFetch(`/api/inventory?year=${yearFilter}&month=${monthFilter}${viewParam}`);
       const data = await res.json();
@@ -56,7 +74,7 @@ export default function InventoryPage() {
   useEffect(() => {
     loadLedger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthFilter, yearFilter, viewingDealer?.fpsId]);
+  }, [monthFilter, yearFilter, viewingDealer?.fpsId, aggregateMode]);
 
   async function saveReceived(itemId: string) {
     if (readOnly) return;
@@ -114,18 +132,17 @@ export default function InventoryPage() {
     [inventoryLedger]
   );
 
-  const totals = useMemo(
-    () =>
-      inventoryLedger.reduce(
-        (acc, l) => ({
-          received: acc.received + l.received,
-          distributed: acc.distributed + l.distributed,
-          closing: acc.closing + l.closing,
-        }),
-        { received: 0, distributed: 0, closing: 0 }
-      ),
-    [inventoryLedger]
-  );
+  const totals = useMemo(() => {
+    const rows = aggregateMode ? aggregateRows : inventoryLedger;
+    return rows.reduce(
+      (acc, l) => ({
+        received: acc.received + l.received,
+        distributed: acc.distributed + l.distributed,
+        closing: acc.closing + l.closing,
+      }),
+      { received: 0, distributed: 0, closing: 0 }
+    );
+  }, [aggregateMode, aggregateRows, inventoryLedger]);
 
   return (
     <div className="p-6 space-y-6">
@@ -167,8 +184,64 @@ export default function InventoryPage() {
         <div className="px-4 py-2 rounded-lg text-sm bg-red-50 text-red-600">{error}</div>
       )}
 
+      {aggregateMode && (
+        <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800">
+          Collective view across all dealers — read only.
+        </div>
+      )}
+
       {loading ? (
         <div className="card p-12 text-center text-gray-400">Loading…</div>
+      ) : aggregateMode ? (
+        aggregateRows.length === 0 ? (
+          <EmptyState icon="📦" title="No inventory data" description="No dealer has inventory records for this month yet." />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <KPICard label="Total Received" value={formatNumber(totals.received)} sub="This month, all dealers" color="blue" icon="🚚" />
+              <KPICard label="Total Distributed" value={formatNumber(totals.distributed)} sub="This month, all dealers" color="green" icon="📤" />
+              <KPICard label="Carried Forward" value={formatNumber(totals.closing)} sub="To next month, all dealers" color="purple" icon="➡️" />
+            </div>
+
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold mb-4">Monthly Stock Ledger — All Dealers</h3>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      {["Dealer", "Item", "Unit", "Opening", "Received", "Distributed", "Closing"].map((h) => (
+                        <th
+                          key={h}
+                          className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aggregateRows.map((row, i) => (
+                      <tr
+                        key={`${row.fpsId}-${row.itemId}`}
+                        className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
+                      >
+                        <td className="px-3 py-2 font-semibold text-gray-800">{row.dealerName}</td>
+                        <td className="px-3 py-2 text-gray-700">{row.itemName}</td>
+                        <td className="px-3 py-2 text-right text-gray-500">{row.unit}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNumber(row.opening)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNumber(row.received)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNumber(row.distributed)}</td>
+                        <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">
+                          {formatNumber(row.closing)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )
       ) : inventoryItems.length === 0 ? (
         <EmptyState icon="📦" title="No inventory items" description="Add an item below to get started." />
       ) : (

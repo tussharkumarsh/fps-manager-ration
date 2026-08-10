@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, EmptyState } from "@/components/ui";
 import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
@@ -8,8 +9,12 @@ import { exportRowsToPdf } from "@/lib/pdfExport";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import type { Transaction } from "@/types";
 
+type TransactionRow = Transaction & { customerName?: string; dealerName?: string };
+
 export default function TransactionsPage() {
-  const { transactions, customers, settings } = useStore();
+  const { data: session } = useSession();
+  const { transactions, customers, settings, viewingDealer } = useStore();
+  const showDealerColumn = session?.role === "admin" && !viewingDealer;
   useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [authFilter, setAuthFilter] = useState<string>("ALL");
@@ -174,8 +179,12 @@ export default function TransactionsPage() {
         <span>Saree: <strong className="font-mono text-gray-900">{formatNumber(totals.saree)} Pkts</strong></span>
       </div>
 
-      <DataTable<Transaction & { customerName?: string }>
+      <DataTable<TransactionRow>
         columns={[
+          ...(showDealerColumn
+            ? [{ key: "dealerName" as const, label: "Dealer",
+                render: (v: unknown) => <span className="text-gray-700">{String(v || "—")}</span> }]
+            : []),
           { key: "slNo", label: "#", align: "center", width: "50px" },
           { key: "srcNo", label: "SRC No", mono: true },
           { key: "customerName", label: "Customer Name",
