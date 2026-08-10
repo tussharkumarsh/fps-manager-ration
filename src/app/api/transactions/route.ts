@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { backendFetch } from "@/server/backendClient";
+import { resolveEffectiveDealer } from "@/server/resolveEffectiveDealer";
 import type { Transaction } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +31,21 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const dealer = await resolveEffectiveDealer(session, searchParams.get("viewFpsId"));
+    const viewingOther = dealer.fpsId !== session.fpsId;
     const data = await backendFetch<{
       transactions: Transaction[];
       count: number;
       source: string;
       lockStatus: string;
     }>("/transactions", {
-      query: { fpsId: session.fpsId, distCode: session.distCode, year, month },
+      query: {
+        fpsId: dealer.fpsId,
+        distCode: dealer.distCode,
+        year,
+        month,
+        readOnly: viewingOther ? "true" : undefined,
+      },
     });
     return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {

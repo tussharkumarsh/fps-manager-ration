@@ -10,7 +10,9 @@ import { apiFetch } from "@/lib/apiFetch";
 import type { SyncLog } from "@/types";
 
 export default function SyncPage() {
-  const { settings, updateSettings, addTransactions, addSyncLog, syncLogs, transactions } = useStore();
+  const { settings, updateSettings, addTransactions, addSyncLog, syncLogs, transactions, viewingDealer } =
+    useStore();
+  const readOnly = viewingDealer !== null;
   const { data: session } = useSession();
   const [status, setStatus] = useState<"idle" | "fetching" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -25,6 +27,7 @@ export default function SyncPage() {
   const fpsId = session?.fpsId || "—";
 
   const handleFetch = async () => {
+    if (readOnly) return;
     setStatus("fetching");
     setMessage("");
 
@@ -87,6 +90,12 @@ export default function SyncPage() {
         </p>
       </div>
 
+      {readOnly && (
+        <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800 max-w-2xl">
+          You&apos;re viewing {viewingDealer?.displayName}&apos;s data as admin — syncing is disabled in this view.
+        </div>
+      )}
+
       {/* Fetch Form */}
       <div className="card p-6 max-w-2xl">
         <h3 className="text-base font-semibold mb-4">Fetch Transactions</h3>
@@ -138,7 +147,7 @@ export default function SyncPage() {
           </div>
         </div>
 
-        <button onClick={handleFetch} disabled={status === "fetching"} className="btn-primary">
+        <button onClick={handleFetch} disabled={status === "fetching" || readOnly} className="btn-primary disabled:opacity-50">
           {status === "fetching" ? (
             <span className="flex items-center gap-2">
               <span className="animate-spin">⏳</span> Fetching...

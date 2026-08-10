@@ -20,13 +20,18 @@ export function useLoadAllHistory(): void {
   const { status } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
   const setCustomers = useStore((s) => s.setCustomers);
-  const loadedRef = useRef(false);
+  const viewingFpsId = useStore((s) => s.viewingDealer?.fpsId);
+  const loadedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (status !== "authenticated" || loadedRef.current) return;
-    loadedRef.current = true;
+    if (status !== "authenticated") return;
+    const key = viewingFpsId || "self";
+    if (loadedRef.current === key) return;
+    loadedRef.current = key;
 
-    apiFetch("/api/transactions/all")
+    const suffix = viewingFpsId ? `?viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
+
+    apiFetch(`/api/transactions/all${suffix}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) addTransactions(data.transactions);
@@ -34,10 +39,10 @@ export function useLoadAllHistory(): void {
       .catch(() => {
         // Non-fatal — per-month auto-load on individual pages still works,
         // and allow a retry on the next mount.
-        loadedRef.current = false;
+        loadedRef.current = null;
       });
 
-    apiFetch("/api/customers")
+    apiFetch(`/api/customers${suffix}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setCustomers(data.customers);
@@ -45,5 +50,5 @@ export function useLoadAllHistory(): void {
       .catch(() => {
         // Non-fatal — the browser keeps whatever it already had cached.
       });
-  }, [status, addTransactions, setCustomers]);
+  }, [status, viewingFpsId, addTransactions, setCustomers]);
 }

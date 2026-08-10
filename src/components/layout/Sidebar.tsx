@@ -14,13 +14,19 @@ const navItems = [
   { href: "/reports", label: "Reports", icon: "📑" },
   { href: "/sync", label: "Sync Data", icon: "🔄" },
   { href: "/profile", label: "Profile", icon: "👤" },
+];
+
+const adminOnlyNavItems = [
+  { href: "/dealers", label: "Dealers", icon: "🏪" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { sidebarOpen, toggleSidebar } = useStore();
+  const { sidebarOpen, toggleSidebar, viewingDealer, clearViewingDealer } = useStore();
   const { data: session } = useSession();
+  const isAdmin = session?.role === "admin";
+  const items = isAdmin ? [...navItems, ...adminOnlyNavItems] : navItems;
 
   return (
     <aside
@@ -45,9 +51,23 @@ export default function Sidebar() {
         )}
       </div>
 
+      {/* Viewing-as-dealer banner */}
+      {viewingDealer && sidebarOpen && (
+        <div className="mx-2 mt-2 px-2 py-2 rounded-md bg-amber-500/20 text-amber-100 text-[11px] space-y-1">
+          <div className="font-semibold truncate">Viewing: {viewingDealer.displayName}</div>
+          <div className="font-mono">{viewingDealer.fpsId}</div>
+          <button
+            onClick={clearViewingDealer}
+            className="w-full mt-1 px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-white text-[11px] font-medium"
+          >
+            Exit view
+          </button>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
           return (

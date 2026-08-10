@@ -23,19 +23,21 @@ export interface AutoLoadInfo {
 export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
   const { status } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
+  const viewingFpsId = useStore((s) => s.viewingDealer?.fpsId);
   const [info, setInfo] = useState<AutoLoadInfo>({ loading: false });
   const lastKey = useRef<string>("");
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    const key = `${year}-${month}`;
+    const key = `${viewingFpsId || "self"}-${year}-${month}`;
     if (lastKey.current === key) return;
     lastKey.current = key;
 
     let cancelled = false;
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }));
 
-    apiFetch(`/api/transactions?month=${month}&year=${year}`)
+    const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
+    apiFetch(`/api/transactions?month=${month}&year=${year}${viewParam}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -59,7 +61,7 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
     return () => {
       cancelled = true;
     };
-  }, [status, month, year, addTransactions]);
+  }, [status, month, year, viewingFpsId, addTransactions]);
 
   return info;
 }

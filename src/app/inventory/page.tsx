@@ -8,8 +8,16 @@ import { formatNumber, getMonthName } from "@/lib/utils";
 import type { InventoryItem } from "@/types";
 
 export default function InventoryPage() {
-  const { settings, inventoryItems, inventoryLedger, setInventoryItems, setInventoryLedger, addInventoryItem } =
-    useStore();
+  const {
+    settings,
+    inventoryItems,
+    inventoryLedger,
+    setInventoryItems,
+    setInventoryLedger,
+    addInventoryItem,
+    viewingDealer,
+  } = useStore();
+  const readOnly = viewingDealer !== null;
 
   const [monthFilter, setMonthFilter] = useState(settings.month);
   const [yearFilter, setYearFilter] = useState(settings.year);
@@ -31,7 +39,8 @@ export default function InventoryPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch(`/api/inventory?year=${yearFilter}&month=${monthFilter}`);
+      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
+      const res = await apiFetch(`/api/inventory?year=${yearFilter}&month=${monthFilter}${viewParam}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load inventory");
       setInventoryItems(data.items);
@@ -47,9 +56,10 @@ export default function InventoryPage() {
   useEffect(() => {
     loadLedger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthFilter, yearFilter]);
+  }, [monthFilter, yearFilter, viewingDealer?.fpsId]);
 
   async function saveReceived(itemId: string) {
+    if (readOnly) return;
     const raw = receivedDrafts[itemId];
     if (raw === undefined) return;
     const received = Number(raw) || 0;
@@ -77,7 +87,7 @@ export default function InventoryPage() {
   }
 
   async function handleAddItem() {
-    if (!newItemName.trim() || !newItemUnit.trim()) return;
+    if (readOnly || !newItemName.trim() || !newItemUnit.trim()) return;
     setAdding(true);
     setError("");
     try {
@@ -203,6 +213,7 @@ export default function InventoryPage() {
                             className="input-field w-24 text-xs text-right"
                             value={draft ?? entry?.received ?? ""}
                             placeholder="0"
+                            disabled={readOnly}
                             onChange={(e) =>
                               setReceivedDrafts((d) => ({ ...d, [item.id]: e.target.value }))
                             }
@@ -224,30 +235,32 @@ export default function InventoryPage() {
         </>
       )}
 
-      <div className="card p-5">
-        <h3 className="text-sm font-semibold mb-3">Add Item</h3>
-        <div className="flex gap-2 items-center flex-wrap">
-          <input
-            className="input-field w-48 text-xs"
-            placeholder="Item name (e.g. Sugar)"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-          />
-          <input
-            className="input-field w-28 text-xs"
-            placeholder="Unit (e.g. Kg)"
-            value={newItemUnit}
-            onChange={(e) => setNewItemUnit(e.target.value)}
-          />
-          <button
-            onClick={handleAddItem}
-            disabled={adding || !newItemName.trim() || !newItemUnit.trim()}
-            className="btn-primary text-xs disabled:opacity-50"
-          >
-            {adding ? "Adding…" : "Add Item"}
-          </button>
+      {!readOnly && (
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold mb-3">Add Item</h3>
+          <div className="flex gap-2 items-center flex-wrap">
+            <input
+              className="input-field w-48 text-xs"
+              placeholder="Item name (e.g. Sugar)"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+            />
+            <input
+              className="input-field w-28 text-xs"
+              placeholder="Unit (e.g. Kg)"
+              value={newItemUnit}
+              onChange={(e) => setNewItemUnit(e.target.value)}
+            />
+            <button
+              onClick={handleAddItem}
+              disabled={adding || !newItemName.trim() || !newItemUnit.trim()}
+              className="btn-primary text-xs disabled:opacity-50"
+            >
+              {adding ? "Adding…" : "Add Item"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

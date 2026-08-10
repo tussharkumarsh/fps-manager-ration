@@ -37,6 +37,11 @@ interface AppState {
   setInventoryItems: (items: InventoryItem[]) => void;
   setInventoryLedger: (ledger: InventoryLedgerEntry[]) => void;
   addInventoryItem: (item: InventoryItem) => void;
+
+  // Admin: viewing another dealer's data read-only
+  viewingDealer: { fpsId: string; distCode: string; displayName: string } | null;
+  setViewingDealer: (dealer: { fpsId: string; distCode: string; displayName: string }) => void;
+  clearViewingDealer: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -114,6 +119,28 @@ export const useStore = create<AppState>()(
       setInventoryLedger: (inventoryLedger) => set({ inventoryLedger }),
       addInventoryItem: (item) =>
         set((state) => ({ inventoryItems: [...state.inventoryItems, item] })),
+
+      // Admin: viewing another dealer's data read-only. Switching (or
+      // exiting) always clears locally cached data first — otherwise the
+      // previous dealer's customers/transactions/inventory would briefly
+      // (or permanently, if a fetch fails) show mixed with the new one's.
+      viewingDealer: null,
+      setViewingDealer: (dealer) =>
+        set({
+          viewingDealer: dealer,
+          customers: [],
+          transactions: [],
+          inventoryItems: [],
+          inventoryLedger: [],
+        }),
+      clearViewingDealer: () =>
+        set({
+          viewingDealer: null,
+          customers: [],
+          transactions: [],
+          inventoryItems: [],
+          inventoryLedger: [],
+        }),
     }),
     {
       name: "fps-manager-storage",

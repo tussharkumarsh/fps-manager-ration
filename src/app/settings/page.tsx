@@ -1,14 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { getMonthName } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
 
 export default function SettingsPage() {
+  const { data: session, status } = useSession();
   const { settings, updateSettings, transactions, customers, syncLogs } = useStore();
   const [dangerMessage, setDangerMessage] = useState("");
   const [dangerBusy, setDangerBusy] = useState<"transactions" | "customers" | "all" | null>(null);
+
+  if (status === "loading") return null;
+  if (session?.role !== "admin") {
+    return (
+      <div className="p-6">
+        <div className="card p-6 max-w-md text-sm text-gray-600">
+          Settings is only available to admin accounts.
+        </div>
+      </div>
+    );
+  }
 
   const clearTransactionsOnServer = async () => {
     if (!confirm("Clear ALL your transaction data from the server? This cannot be undone.")) return;

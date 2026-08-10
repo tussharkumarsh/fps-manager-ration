@@ -17,7 +17,8 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 }
 
 export default function CustomersPage() {
-  const { customers, transactions, importCustomers, addCustomer, deleteCustomer } = useStore();
+  const { customers, transactions, importCustomers, addCustomer, deleteCustomer, viewingDealer } = useStore();
+  const readOnly = viewingDealer !== null;
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -66,6 +67,7 @@ export default function CustomersPage() {
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -97,7 +99,7 @@ export default function CustomersPage() {
   };
 
   const handleAddCustomer = () => {
-    if (!newSrc || !newName) return;
+    if (readOnly || !newSrc || !newName) return;
     addCustomer({ srcNo: newSrc.trim(), name: newName.trim() });
     setNewSrc("");
     setNewName("");
@@ -114,17 +116,25 @@ export default function CustomersPage() {
             FPS Beneficiary Detail Drill-Down file to enrich records
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowAdd(!showAdd)} className="btn-secondary text-xs">
-            {showAdd ? "Cancel" : "+ Add Customer"}
-          </button>
-          <label className={`btn-primary text-xs cursor-pointer ${importing ? "opacity-50" : ""}`}>
-            {importing ? "Importing..." : "Import Excel"}
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
-              onChange={handleImport} disabled={importing} />
-          </label>
-        </div>
+        {!readOnly && (
+          <div className="flex gap-2">
+            <button onClick={() => setShowAdd(!showAdd)} className="btn-secondary text-xs">
+              {showAdd ? "Cancel" : "+ Add Customer"}
+            </button>
+            <label className={`btn-primary text-xs cursor-pointer ${importing ? "opacity-50" : ""}`}>
+              {importing ? "Importing..." : "Import Excel"}
+              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                onChange={handleImport} disabled={importing} />
+            </label>
+          </div>
+        )}
       </div>
+
+      {readOnly && (
+        <div className="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800">
+          You&apos;re viewing {viewingDealer?.displayName}&apos;s data as admin — read only.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -236,11 +246,13 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalWheat)}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalRice)}</td>
                         <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => {
-                            if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.srcNo);
-                          }} className="text-red-500 hover:text-red-700 text-xs font-medium">
-                            Delete
-                          </button>
+                          {!readOnly && (
+                            <button onClick={() => {
+                              if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.srcNo);
+                            }} className="text-red-500 hover:text-red-700 text-xs font-medium">
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                       {isOpen && hasMembers && (

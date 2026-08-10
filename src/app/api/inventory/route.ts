@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { backendFetch } from "@/server/backendClient";
+import { resolveEffectiveDealer } from "@/server/resolveEffectiveDealer";
 import type { InventoryItem, InventoryLedgerEntry } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,9 @@ export async function GET(req: Request) {
   }
 
   try {
+    const dealer = await resolveEffectiveDealer(session, searchParams.get("viewFpsId"));
     const data = await backendFetch<{ items: InventoryItem[]; ledger: InventoryLedgerEntry[] }>("/inventory", {
-      query: { fpsId: session.fpsId, year, month },
+      query: { fpsId: dealer.fpsId, year, month },
     });
     return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {
