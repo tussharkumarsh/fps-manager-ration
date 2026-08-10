@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
-import { KPICard, EmptyState } from "@/components/ui";
+import { EmptyState } from "@/components/ui";
 import { apiFetch } from "@/lib/apiFetch";
 import { formatNumber, getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -184,17 +184,61 @@ export default function InventoryPage() {
     [inventoryLedger]
   );
 
-  const totals = useMemo(() => {
-    const rows = aggregateMode ? aggregateRows : inventoryLedger;
-    return rows.reduce(
-      (acc, l) => ({
-        received: acc.received + l.received,
-        distributed: acc.distributed + l.distributed,
-        closing: acc.closing + l.closing,
-      }),
-      { received: 0, distributed: 0, closing: 0 }
-    );
-  }, [aggregateMode, aggregateRows, inventoryLedger]);
+  // Per-item summary (never summed across items) — Wheat is Kg, Saree Kit
+  // is Pcs, etc., so a single combined "Total Distributed" number mixing
+  // every item's unit together would be meaningless.
+  const itemSummaries = useMemo(() => {
+    if (aggregateMode) {
+      const byItem = new Map<string, { name: string; unit: string; received: number; distributed: number; closing: number }>();
+      for (const row of aggregateRows) {
+        const existing = byItem.get(row.itemName);
+        byItem.set(row.itemName, {
+          name: row.itemName,
+          unit: row.unit,
+          received: (existing?.received ?? 0) + row.received,
+          distributed: (existing?.distributed ?? 0) + row.distributed,
+          closing: (existing?.closing ?? 0) + row.closing,
+        });
+      }
+      return Array.from(byItem.values());
+    }
+    return inventoryItems.map((item) => {
+      const entry = ledgerByItem.get(item.id);
+      return {
+        name: item.name,
+        unit: item.unit,
+        received: entry?.received ?? 0,
+        distributed: entry?.distributed ?? 0,
+        closing: entry?.closing ?? 0,
+      };
+    });
+  }, [aggregateMode, aggregateRows, inventoryItems, ledgerByItem]);
+
+  const itemSummaryCards = itemSummaries.length > 0 && (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {itemSummaries.map((s) => (
+        <div key={s.name} className="card p-4 border-l-4 border-l-blue-600">
+          <div className="text-xs font-semibold text-gray-500 uppercase mb-3">
+            {s.name} <span className="font-normal normal-case text-gray-400">({s.unit})</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1 text-center">
+            <div>
+              <div className="text-base font-bold font-mono text-blue-600">{formatNumber(s.received)}</div>
+              <div className="text-[10px] text-gray-400">{t("inventory.received")}</div>
+            </div>
+            <div>
+              <div className="text-base font-bold font-mono text-emerald-600">{formatNumber(s.distributed)}</div>
+              <div className="text-[10px] text-gray-400">{t("inventory.distributed")}</div>
+            </div>
+            <div>
+              <div className="text-base font-bold font-mono text-violet-600">{formatNumber(s.closing)}</div>
+              <div className="text-[10px] text-gray-400">{t("inventory.closing")}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -335,11 +379,7 @@ export default function InventoryPage() {
           <EmptyState icon="📦" title={t("inventory.noDataTitle")} description={t("inventory.noDataDesc")} />
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <KPICard label={t("inventory.totalReceived")} value={formatNumber(totals.received)} sub={`${t("inventory.thisMonth")}, ${t("inventory.allDealers").toLowerCase()}`} color="blue" icon="🚚" />
-              <KPICard label={t("inventory.totalDistributed")} value={formatNumber(totals.distributed)} sub={`${t("inventory.thisMonth")}, ${t("inventory.allDealers").toLowerCase()}`} color="green" icon="📤" />
-              <KPICard label={t("inventory.carriedForward")} value={formatNumber(totals.closing)} sub={`${t("inventory.toNextMonth")}, ${t("inventory.allDealers").toLowerCase()}`} color="purple" icon="➡️" />
-            </div>
+            {itemSummaryCards}
 
             <div className="card p-5">
               <h3 className="text-sm font-semibold mb-4">{t("inventory.monthlyStockLedger")} — {t("inventory.allDealers")}</h3>
@@ -384,11 +424,7 @@ export default function InventoryPage() {
         <EmptyState icon="📦" title={t("inventory.noItemsTitle")} description={t("inventory.noItemsDesc")} />
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <KPICard label={t("inventory.totalReceived")} value={formatNumber(totals.received)} sub={t("inventory.thisMonth")} color="blue" icon="🚚" />
-            <KPICard label={t("inventory.totalDistributed")} value={formatNumber(totals.distributed)} sub={t("inventory.thisMonth")} color="green" icon="📤" />
-            <KPICard label={t("inventory.carriedForward")} value={formatNumber(totals.closing)} sub={t("inventory.toNextMonth")} color="purple" icon="➡️" />
-          </div>
+          {itemSummaryCards}
 
           <div className="card p-5">
             <h3 className="text-sm font-semibold mb-4">{t("inventory.monthlyStockLedger")}</h3>
