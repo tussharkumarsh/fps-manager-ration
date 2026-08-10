@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
 } from "recharts";
 import { useStore } from "@/store/useStore";
 import { KPICard, Badge, EmptyState } from "@/components/ui";
-import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber } from "@/lib/utils";
+import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, dateOnly } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
@@ -16,8 +16,16 @@ export default function DashboardPage() {
   const { transactions, customers, settings } = useStore();
   useAutoLoadMonth(settings.month, settings.year);
 
-  const stats = useMemo(() => calculateMonthlyStats(transactions), [transactions]);
-  const chartData = useMemo(() => calculateChartData(transactions), [transactions]);
+  const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
+
+  const scopedTransactions = useMemo(() => {
+    if (monthFilter === "ALL") return transactions;
+    return transactions.filter((t) => dateOnly(t.date).slice(0, 7) === monthFilter);
+  }, [transactions, monthFilter]);
+
+  const stats = useMemo(() => calculateMonthlyStats(scopedTransactions), [scopedTransactions]);
+  const chartData = useMemo(() => calculateChartData(scopedTransactions), [scopedTransactions]);
 
   const schemeData = useMemo(
     () => [
@@ -38,10 +46,10 @@ export default function DashboardPage() {
 
   const pendingCustomers = useMemo(() => {
     const collected = new Set(
-      transactions.filter((t) => t.wheat > 0).map((t) => t.srcNo)
+      scopedTransactions.filter((t) => t.wheat > 0).map((t) => t.srcNo)
     );
     return customers.filter((c) => !collected.has(c.srcNo));
-  }, [transactions, customers]);
+  }, [scopedTransactions, customers]);
 
   if (transactions.length === 0) {
     return (
@@ -61,11 +69,32 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold">📊 Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          FPS {settings.fpsId} · {getMonthName(parseInt(settings.month))} {settings.year}
-        </p>
+      <div className="flex justify-between items-start flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-bold">📊 Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            FPS {settings.fpsId} · {getMonthName(parseInt(settings.month))} {settings.year} · {formatNumber(scopedTransactions.length)} record(s)
+          </p>
+        </div>
+
+        <div className="flex gap-3 items-center flex-wrap">
+          <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}
+            className="input-field w-36 text-xs">
+            <option value="ALL">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          {monthFilter !== "ALL" && (
+            <button
+              onClick={() => setMonthFilter("ALL")}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPIs */}
