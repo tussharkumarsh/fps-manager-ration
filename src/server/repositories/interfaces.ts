@@ -1,4 +1,4 @@
-import type { Customer, Transaction } from "@/types";
+import type { Customer, InventoryItem, InventoryLedgerEntry, Transaction } from "@/types";
 
 export interface AppUser {
   fpsId: string;
@@ -63,4 +63,25 @@ export interface ICustomerRepository {
   add(fpsId: string, customer: Customer): Promise<void>;
   remove(fpsId: string, srcNo: string): Promise<void>;
   clearAll(fpsId: string): Promise<void>;
+}
+
+export interface IInventoryRepository {
+  getItems(fpsId: string): Promise<InventoryItem[]>;
+  addItem(fpsId: string, item: Omit<InventoryItem, "id">): Promise<InventoryItem>;
+  getLedgerForMonth(fpsId: string, year: string, month: string): Promise<InventoryLedgerEntry[]>;
+  setReceived(
+    fpsId: string,
+    year: string,
+    month: string,
+    itemId: string,
+    received: number,
+    distributed: number
+  ): Promise<InventoryLedgerEntry>;
+  setManualDistributed(
+    fpsId: string,
+    year: string,
+    month: string,
+    itemId: string,
+    distributed: number
+  ): Promise<InventoryLedgerEntry>;
 }

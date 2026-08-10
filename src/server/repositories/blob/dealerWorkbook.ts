@@ -54,10 +54,37 @@ export const CUSTOMERS_HEADERS = [
   "members_json",
 ];
 
+export const INVENTORY_ITEMS_SHEET = "InventoryItems";
+export const INVENTORY_LEDGER_SHEET = "InventoryLedger";
+
+export const INVENTORY_ITEMS_HEADERS = [
+  "fps_id",
+  "item_id",
+  "name",
+  "unit",
+  "tx_field",
+  "active",
+  "created_at",
+];
+
+export const INVENTORY_LEDGER_HEADERS = [
+  "fps_id",
+  "year",
+  "month",
+  "item_id",
+  "opening",
+  "received",
+  "distributed_manual",
+  "closing",
+  "updated_at",
+];
+
 export const DEALER_SHEETS = [
   { name: TRANSACTIONS_SHEET, headers: TRANSACTIONS_HEADERS },
   { name: MONTH_LOCKS_SHEET, headers: MONTH_LOCKS_HEADERS },
   { name: CUSTOMERS_SHEET, headers: CUSTOMERS_HEADERS },
+  { name: INVENTORY_ITEMS_SHEET, headers: INVENTORY_ITEMS_HEADERS },
+  { name: INVENTORY_LEDGER_SHEET, headers: INVENTORY_LEDGER_HEADERS },
 ];
 
 export function dealerBlobPath(fpsId: string): string {

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Customer, Transaction, FPSSettings, SyncLog } from "@/types";
+import type { Customer, Transaction, FPSSettings, SyncLog, InventoryItem, InventoryLedgerEntry } from "@/types";
 import { deduplicateTransactions, generateId, isValidReceiptNo } from "@/lib/utils";
 
 interface AppState {
@@ -30,6 +30,13 @@ interface AppState {
   // UI state
   sidebarOpen: boolean;
   toggleSidebar: () => void;
+
+  // Inventory
+  inventoryItems: InventoryItem[];
+  inventoryLedger: InventoryLedgerEntry[];
+  setInventoryItems: (items: InventoryItem[]) => void;
+  setInventoryLedger: (ledger: InventoryLedgerEntry[]) => void;
+  addInventoryItem: (item: InventoryItem) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -99,6 +106,14 @@ export const useStore = create<AppState>()(
       // UI
       sidebarOpen: true,
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+
+      // Inventory
+      inventoryItems: [],
+      inventoryLedger: [],
+      setInventoryItems: (inventoryItems) => set({ inventoryItems }),
+      setInventoryLedger: (inventoryLedger) => set({ inventoryLedger }),
+      addInventoryItem: (item) =>
+        set((state) => ({ inventoryItems: [...state.inventoryItems, item] })),
     }),
     {
       name: "fps-manager-storage",

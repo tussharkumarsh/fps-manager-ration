@@ -101,3 +101,22 @@ export interface ChartDataPoint {
   phh: number;
   aay: number;
 }
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  unit: string;
+  txField: "wheat" | "rice" | "";
+  active: boolean;
+}
+
+export interface InventoryLedgerEntry {
+  fpsId: string;
+  year: string;
+  month: string;
+  itemId: string;
+  opening: number;
+  received: number;
+  distributed: number;
+  closing: number;
+}
