@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { auth } from "@/auth";
-import { TransactionService } from "@/server/services/TransactionService";
+import { backendFetch } from "@/server/backendClient";
 import { isBeneficiaryDrillDownSheet, parseBeneficiaryDrillDown } from "@/lib/beneficiaryParser";
 import type { Customer } from "@/types";
 
-// This route writes Vercel Blob storage and must never see a cached fetch
-// response.
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
-const transactionService = new TransactionService();
 
 function looksLikeBeneficiaryDrillDown(workbook: XLSX.WorkBook): boolean {
   const ws = workbook.Sheets[workbook.SheetNames[0]];
@@ -27,7 +23,6 @@ function parseKgsMaster(workbook: XLSX.WorkBook): { customers: Customer[]; sheet
 
   const customers: Customer[] = [];
   for (const row of rows) {
-    // Flexible column matching
     const srcNo = String(
       row["SRCNo"] || row["SRC No"] || row["srcNo"] || row["SRC_No"] || ""
     ).trim();
@@ -87,10 +82,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Failed to parse Excel: ${message}` }, { status: 400 });
     }
 
-    // Separately caught so a storage failure is reported accurately rather
-    // than being mislabeled as a parsing error.
     try {
-      const savedCount = await transactionService.importCustomers(session.fpsId, customers);
+      const { savedCount } = await backendFetch<{ savedCount: number }>("/customers/import", {
+        method: "POST",
+        body: { fpsId: session.fpsId, customers },
+      });
       return NextResponse.json({
         success: true,
         customers,

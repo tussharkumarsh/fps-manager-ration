@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { SyncService } from "@/server/services/SyncService";
+import { backendFetch } from "@/server/backendClient";
+import type { Transaction } from "@/types";
 
-// Reads Vercel Blob storage and must never be statically cached.
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const syncService = new SyncService();
-
 /**
  * Returns every transaction already stored for the signed-in user, across
- * all months — a pure read from the Excel sheet, never calls the gov API.
- * Used to hydrate a session (any browser/device, e.g. after logging in on
- * a new incognito window) with previously synced data immediately.
+ * all months — a pure read, never calls the gov API. Used to hydrate a
+ * session (any browser/device) with previously synced data immediately.
  */
 export async function GET() {
   const session = await auth();
@@ -21,12 +18,10 @@ export async function GET() {
   }
 
   try {
-    const transactions = await syncService.getAllStoredTransactions(session.fpsId);
-    return NextResponse.json({
-      success: true,
-      transactions,
-      count: transactions.length,
+    const data = await backendFetch<{ transactions: Transaction[]; count: number }>("/transactions/all", {
+      query: { fpsId: session.fpsId },
     });
+    return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -35,8 +30,7 @@ export async function GET() {
 
 /**
  * Deletes every transaction (and their month locks) stored for the
- * signed-in user. Always scoped to session.fpsId — never accepts an fps_id
- * from the request, so this can only ever affect the caller's own data.
+ * signed-in user. Always scoped to session.fpsId.
  */
 export async function DELETE() {
   const session = await auth();
@@ -45,7 +39,10 @@ export async function DELETE() {
   }
 
   try {
-    await syncService.clearAllTransactions(session.fpsId);
+    await backendFetch("/transactions/all", {
+      method: "DELETE",
+      query: { fpsId: session.fpsId },
+    });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

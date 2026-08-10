@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { DataResetService } from "@/server/services/DataResetService";
+import { backendFetch } from "@/server/backendClient";
 
-// Writes Vercel Blob storage and must never see a cached fetch response.
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const dataResetService = new DataResetService();
-
 /**
  * Deletes every transaction, month lock, and customer stored for the
- * signed-in user. Always scoped to session.fpsId — never accepts an fps_id
- * from the request, so this can only ever affect the caller's own data,
- * never another dealer's (each has their own blob file).
+ * signed-in user. Always scoped to session.fpsId.
  */
 export async function DELETE() {
   const session = await auth();
@@ -21,7 +16,10 @@ export async function DELETE() {
   }
 
   try {
-    await dataResetService.resetAll(session.fpsId);
+    await backendFetch("/reset-all", {
+      method: "DELETE",
+      query: { fpsId: session.fpsId },
+    });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

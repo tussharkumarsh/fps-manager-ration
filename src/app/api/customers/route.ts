@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { TransactionService } from "@/server/services/TransactionService";
+import { backendFetch } from "@/server/backendClient";
+import type { Customer } from "@/types";
 
-// This route reads/writes Vercel Blob storage and must never be statically
-// cached or see a cached fetch response.
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
-const transactionService = new TransactionService();
 
 export async function GET() {
   const session = await auth();
@@ -16,8 +13,10 @@ export async function GET() {
   }
 
   try {
-    const customers = await transactionService.getCustomers(session.fpsId);
-    return NextResponse.json({ success: true, customers, count: customers.length });
+    const data = await backendFetch<{ customers: Customer[]; count: number }>("/customers", {
+      query: { fpsId: session.fpsId },
+    });
+    return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -35,7 +34,10 @@ export async function POST(req: NextRequest) {
     if (!srcNo || !name) {
       return NextResponse.json({ error: "srcNo and name are required" }, { status: 400 });
     }
-    await transactionService.addCustomer(session.fpsId, { srcNo, name, lastDispatched });
+    await backendFetch("/customers", {
+      method: "POST",
+      body: { fpsId: session.fpsId, srcNo, name, lastDispatched },
+    });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -58,11 +60,10 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    if (all) {
-      await transactionService.clearAllCustomers(session.fpsId);
-    } else {
-      await transactionService.deleteCustomer(session.fpsId, srcNo as string);
-    }
+    await backendFetch("/customers", {
+      method: "DELETE",
+      query: { fpsId: session.fpsId, srcNo: srcNo || undefined, all: all ? "true" : undefined },
+    });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";

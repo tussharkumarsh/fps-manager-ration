@@ -1,9 +1,10 @@
 /**
- * CLI onboarding helper: hashes a password and writes/updates the
- * corresponding row directly in the `data/users.xlsx` blob (via
- * AuthService), so there is no manual spreadsheet editing needed.
+ * CLI onboarding helper: creates/updates a user via the
+ * fps-manager-ration-backend service (Supabase-backed), so there is no
+ * manual DB editing needed.
  *
- * Requires BLOB_READ_WRITE_TOKEN to be set — loaded from `.env.local`.
+ * Requires BACKEND_URL and INTERNAL_API_KEY to be set — loaded from
+ * `.env.local`, and must match the backend's own INTERNAL_API_KEY.
  *
  * Usage:
  *   npx tsx scripts/create-user.ts <fps_id> <dist_code> <username> <password> <display_name> [role]
@@ -14,8 +15,6 @@ import { config } from "dotenv";
 import path from "path";
 
 config({ path: path.resolve(process.cwd(), ".env.local") });
-
-import { AuthService } from "../src/server/services/AuthService";
 
 async function main() {
   const [fpsId, distCode, username, password, displayName, role] = process.argv.slice(2);
@@ -28,21 +27,31 @@ async function main() {
     process.exit(1);
   }
 
-  const svc = new AuthService();
-  await svc.createOrUpdateUser({
-    fpsId,
-    distCode,
-    username,
-    password,
-    displayName,
-    role: role === "admin" ? "admin" : "dealer",
-  });
+  const backendUrl = process.env.BACKEND_URL || "http://localhost:4000";
+  const internalKey = process.env.INTERNAL_API_KEY || "";
 
-  console.log(`User "${username}" (fps_id=${fpsId}) written to data/users.xlsx.`);
+  const res = await fetch(new URL("/auth/users", backendUrl), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-key": internalKey },
+    body: JSON.stringify({
+      fpsId,
+      distCode,
+      username,
+      password,
+      displayName,
+      role: role === "admin" ? "admin" : "dealer",
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error || `Backend request failed with status ${res.status}`);
+  }
+
+  console.log(`User "${username}" (fps_id=${fpsId}) written to Supabase.`);
   console.log("You can now log in with that fps_id (or username) and password.");
 }
 
 main().catch((err) => {
-  console.error("Failed to write user:", err);
+  console.error("Failed to create user:", err);
   process.exit(1);
 });

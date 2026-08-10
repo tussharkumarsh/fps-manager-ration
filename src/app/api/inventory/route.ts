@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { InventoryService } from "@/server/services/InventoryService";
+import { backendFetch } from "@/server/backendClient";
+import type { InventoryItem, InventoryLedgerEntry } from "@/types";
 
-// Reads/writes Vercel Blob storage and must never be statically cached.
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
-const inventoryService = new InventoryService();
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -22,8 +20,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { items, ledger } = await inventoryService.getMonthLedger(session.fpsId, year, month);
-    return NextResponse.json({ success: true, items, ledger });
+    const data = await backendFetch<{ items: InventoryItem[]; ledger: InventoryLedgerEntry[] }>("/inventory", {
+      query: { fpsId: session.fpsId, year, month },
+    });
+    return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
