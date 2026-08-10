@@ -98,3 +98,4 @@ Currently uses browser localStorage via Zustand persist middleware. For producti
 - Google Sheets via Apps Script
 - Supabase / PostgreSQL
 - MongoDB Atlas
+
