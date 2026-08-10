@@ -91,6 +91,9 @@ export default function Sidebar() {
       <div className="px-2 py-3 border-t border-white/10 space-y-2">
         {sidebarOpen && session?.fpsId && (
           <div className="px-2 text-[11px] text-white/50 space-y-0.5">
+            {session.displayName && (
+              <div className="text-white/80 font-medium truncate">{session.displayName}</div>
+            )}
             <div>FPS: {session.fpsId}</div>
             <div>{new Date().toLocaleDateString("en-IN")}</div>
           </div>
