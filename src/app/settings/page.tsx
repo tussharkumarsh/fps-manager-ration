@@ -92,16 +92,18 @@ export default function SettingsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">District Code</label>
-              <input value={settings.distCode}
-                onChange={(e) => updateSettings({ distCode: e.target.value })}
-                className="input-field" />
+              <label className="text-xs font-semibold text-gray-500 block mb-1">
+                District Code <span className="font-normal text-gray-400">(from your login)</span>
+              </label>
+              <input value={settings.distCode} readOnly disabled
+                className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">FPS ID</label>
-              <input value={settings.fpsId}
-                onChange={(e) => updateSettings({ fpsId: e.target.value })}
-                className="input-field" />
+              <label className="text-xs font-semibold text-gray-500 block mb-1">
+                FPS ID <span className="font-normal text-gray-400">(from your login)</span>
+              </label>
+              <input value={settings.fpsId} readOnly disabled
+                className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1">Default Month</label>

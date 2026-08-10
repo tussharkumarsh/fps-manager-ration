@@ -25,8 +25,22 @@ export function useLoadAllHistory(): void {
   const { status, data: session } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
   const setCustomers = useStore((s) => s.setCustomers);
-  const viewingFpsId = useStore((s) => s.viewingDealer?.fpsId);
+  const viewingDealer = useStore((s) => s.viewingDealer);
+  const viewingFpsId = viewingDealer?.fpsId;
+  const updateSettings = useStore((s) => s.updateSettings);
   const loadedRef = useRef<string | null>(null);
+
+  // `settings.fpsId`/`distCode` are what every page's "FPS ..." header
+  // displays — they must always reflect whichever account's data is
+  // actually on screen (the dealer being viewed, or the signed-in
+  // account itself), never a stale leftover value from a previous
+  // session or an old default.
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.fpsId) return;
+    const effectiveFpsId = viewingDealer?.fpsId ?? session.fpsId;
+    const effectiveDistCode = viewingDealer?.distCode ?? session.distCode;
+    updateSettings({ fpsId: effectiveFpsId, distCode: effectiveDistCode });
+  }, [status, session?.fpsId, session?.distCode, viewingDealer?.fpsId, viewingDealer?.distCode, updateSettings]);
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.fpsId) return;
