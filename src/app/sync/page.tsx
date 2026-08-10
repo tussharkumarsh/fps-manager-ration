@@ -47,8 +47,8 @@ export default function SyncPage() {
         const added = data.count;
         const storedNote =
           data.source === "sheet_cache"
-            ? "Loaded from the stored Excel sheet (already synced — no API call made)."
-            : "Fetched from the government API and saved to the Excel sheet on Vercel.";
+            ? t("sync.loadedFromStorage")
+            : t("sync.fetchedAndSaved");
 
         setStatus("success");
         setMessage(`${storedNote} ${added} record(s) for this month.`);
@@ -179,15 +179,15 @@ export default function SyncPage() {
           <div>{t("sync.uniqueDates")}: <strong className="font-mono">{new Set(transactions.map((t) => t.date.split(" ")[0])).size}</strong></div>
           <div className="flex items-center gap-2 pt-1">
             <span>{t("sync.serverStatus")} {getMonthName(Number(settings.month))} {settings.year}:</span>
-            {autoLoad.loading && <span className="text-xs text-gray-400">checking sheet…</span>}
+            {autoLoad.loading && <span className="text-xs text-gray-400">{t("sync.checkingStorage")}</span>}
             {!autoLoad.loading && autoLoad.source === "sheet_cache" && (
-              <Badge text="Loaded from stored sheet" variant="success" />
+              <Badge text={t("sync.loadedFromDb")} variant="success" />
             )}
             {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "live" && (
-              <Badge text="Live (current month, re-synced)" variant="info" />
+              <Badge text={t("sync.liveResynced")} variant="info" />
             )}
             {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "synced_locked" && (
-              <Badge text="Fetched & saved to sheet just now" variant="success" />
+              <Badge text={t("sync.fetchedAndSavedShort")} variant="success" />
             )}
             {!autoLoad.loading && autoLoad.error && (
               <Badge text={`Error: ${autoLoad.error}`} variant="error" />

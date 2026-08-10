@@ -16,7 +16,7 @@ export interface AutoLoadInfo {
 /**
  * On login (and whenever month/year changes), loads that month's data for
  * the signed-in user: reads from the server, which itself reads from the
- * stored Excel sheet if that month is already locked, or fetches once from
+ * stored database if that month is already locked, or fetches once from
  * the gov API and stores it if not. Merges the result into the local store
  * so pages display it without requiring a manual "Sync" click.
  */

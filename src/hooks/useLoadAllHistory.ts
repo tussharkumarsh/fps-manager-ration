@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/apiFetch";
 /**
  * On login (from any browser/device), loads every transaction already
  * synced and every customer already imported for this user — a pure read
- * from the stored Excel sheet, never calls the gov API. Runs once per
+ * from the stored database, never calls the gov API. Runs once per
  * authenticated session.
  *
  * Customers are replaced wholesale (not merged) with the server's data:
