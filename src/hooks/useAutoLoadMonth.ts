@@ -34,8 +34,14 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
   const isAdminAggregateView = session?.role === "admin" && !viewingFpsId;
 
   useEffect(() => {
-    if (status !== "authenticated" || isAdminAggregateView) return;
-    const key = `${viewingFpsId || "self"}-${year}-${month}`;
+    if (status !== "authenticated" || !session?.fpsId || isAdminAggregateView) return;
+    // Idempotent — see useLoadAllHistory. Called here too since this hook's
+    // effect can run before useLoadAllHistory's (child effects run before
+    // parent effects), and this fetch merges into the store rather than
+    // replacing it, so it must never merge onto another account's data.
+    useStore.getState().syncSessionIdentity(`${session.role}:${session.fpsId}`);
+
+    const key = `${useStore.getState().sessionEpoch}:${viewingFpsId || "self"}-${year}-${month}`;
     if (lastKey.current === key) return;
     lastKey.current = key;
 
@@ -67,7 +73,7 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
     return () => {
       cancelled = true;
     };
-  }, [status, month, year, viewingFpsId, isAdminAggregateView, addTransactions]);
+  }, [status, session?.fpsId, session?.role, month, year, viewingFpsId, isAdminAggregateView, addTransactions]);
 
   return info;
 }

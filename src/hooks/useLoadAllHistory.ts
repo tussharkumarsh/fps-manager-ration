@@ -15,17 +15,24 @@ import { apiFetch } from "@/lib/apiFetch";
  * the server is the source of truth, and a browser's locally-cached copy
  * can be stale (e.g. from before a parser bug fix was re-imported), so on
  * load the server's current data should always win.
+ *
+ * The persisted store survives across logins in the same browser — if a
+ * different account signs in, syncSessionIdentity wipes whatever's cached
+ * from the previous one before this hook loads anything, so one dealer's
+ * (or admin's collective) data can never bleed into another's session.
  */
 export function useLoadAllHistory(): void {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
   const setCustomers = useStore((s) => s.setCustomers);
   const viewingFpsId = useStore((s) => s.viewingDealer?.fpsId);
   const loadedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
-    const key = viewingFpsId || "self";
+    if (status !== "authenticated" || !session?.fpsId) return;
+    useStore.getState().syncSessionIdentity(`${session.role}:${session.fpsId}`);
+
+    const key = `${useStore.getState().sessionEpoch}:${viewingFpsId || "self"}`;
     if (loadedRef.current === key) return;
     loadedRef.current = key;
 
@@ -50,5 +57,5 @@ export function useLoadAllHistory(): void {
       .catch(() => {
         // Non-fatal — the browser keeps whatever it already had cached.
       });
-  }, [status, viewingFpsId, addTransactions, setCustomers]);
+  }, [status, session?.fpsId, session?.role, viewingFpsId, addTransactions, setCustomers]);
 }

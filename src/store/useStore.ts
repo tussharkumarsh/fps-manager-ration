@@ -42,6 +42,25 @@ interface AppState {
   viewingDealer: { fpsId: string; distCode: string; displayName: string } | null;
   setViewingDealer: (dealer: { fpsId: string; distCode: string; displayName: string }) => void;
   clearViewingDealer: () => void;
+
+  // Identifies which logged-in account the cached data below belongs to
+  // (`${role}:${fpsId}`) — see syncSessionIdentity.
+  lastSessionKey: string | null;
+  // Bumped every time syncSessionIdentity wipes the cache. Data-loading
+  // hooks fold this into their "already loaded" cache key so an identity
+  // switch always busts it — even if the new account happens to load the
+  // same viewFpsId/month/year combination the previous one already had
+  // marked as loaded.
+  sessionEpoch: number;
+  /**
+   * Call on every render where a session is known. If the signed-in
+   * account differs from whoever's data is currently cached (a different
+   * user logged in on this same browser — the persisted store survives
+   * across logins), wipes every per-account cache before anything reads
+   * it, then records the new identity. Returns true when a wipe happened,
+   * so callers know to force a fresh fetch.
+   */
+  syncSessionIdentity: (key: string) => boolean;
 }
 
 export const useStore = create<AppState>()(
@@ -141,6 +160,23 @@ export const useStore = create<AppState>()(
           inventoryItems: [],
           inventoryLedger: [],
         }),
+
+      lastSessionKey: null,
+      sessionEpoch: 0,
+      syncSessionIdentity: (key) => {
+        if (get().lastSessionKey === key) return false;
+        set((state) => ({
+          lastSessionKey: key,
+          sessionEpoch: state.sessionEpoch + 1,
+          customers: [],
+          transactions: [],
+          syncLogs: [],
+          inventoryItems: [],
+          inventoryLedger: [],
+          viewingDealer: null,
+        }));
+        return true;
+      },
     }),
     {
       name: "fps-manager-storage",
@@ -149,6 +185,7 @@ export const useStore = create<AppState>()(
         customers: state.customers,
         transactions: state.transactions,
         syncLogs: state.syncLogs,
+        lastSessionKey: state.lastSessionKey,
       }),
     }
   )

@@ -96,7 +96,14 @@ export default function Sidebar() {
           </div>
         )}
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => {
+            // Belt-and-suspenders alongside syncSessionIdentity: wipes
+            // this account's cached data immediately on sign-out rather
+            // than waiting for the next login to detect the identity
+            // change — matters most on a shared computer.
+            useStore.getState().syncSessionIdentity("");
+            signOut({ callbackUrl: "/login" });
+          }}
           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
           title="Sign out"
         >
