@@ -159,7 +159,7 @@ export default function SettingsPage() {
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="text-2xl font-bold font-mono text-violet-600">{syncLogs.length}</div>
-            <div className="text-xs text-gray-500 mt-1">Sync Logs</div>
+            <div className="text-xs text-gray-500 mt-1">{t("settings.syncLogs")}</div>
           </div>
         </div>
       </div>
@@ -167,15 +167,19 @@ export default function SettingsPage() {
       {/* Tech Stack */}
       <div className="card p-6">
         <h3 className="text-base font-semibold mb-4">{t("settings.techStack")}</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {[
             "Next.js 15 + TypeScript",
+            "Express + Node.js (Backend API)",
+            "Supabase (PostgreSQL Database)",
+            "NextAuth.js (Authentication)",
             "Tailwind CSS",
-            "Cheerio (HTML Parser)",
             "Recharts (Charts)",
             "Zustand (State)",
             "SheetJS (Excel Import)",
             "jsPDF (PDF Export)",
+            "Cheerio (Gov Portal Parser)",
+            "i18n — English / हिंदी / मराठी",
             "Vercel (Deploy)",
           ].map((tech) => (
             <div key={tech} className="px-3 py-2 bg-gray-50 rounded-lg text-xs font-medium text-gray-700">
@@ -189,8 +193,7 @@ export default function SettingsPage() {
       <div className="card p-6 border-red-200">
         <h3 className="text-base font-semibold mb-3 text-red-600">{t("settings.dangerZone")}</h3>
         <p className="text-xs text-gray-500 mb-3">
-          These delete data permanently from the server, scoped only to your own
-          login ({settings.fpsId}) — other dealers&apos; data is never affected.
+          {t("settings.dangerZoneDesc", { fpsId: settings.fpsId })}
         </p>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -205,7 +208,7 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center justify-between border-t border-gray-100 pt-3">
             <div>
-              <div className="text-sm font-medium">Clear All Customers</div>
+              <div className="text-sm font-medium">{t("dealers.clearAllCustomers")}</div>
               <div className="text-xs text-gray-500">{t("settings.clearCustomersDesc")}</div>
             </div>
             <button onClick={clearCustomersOnServer} disabled={dangerBusy !== null}
