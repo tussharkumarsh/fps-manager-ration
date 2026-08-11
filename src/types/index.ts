@@ -120,3 +120,19 @@ export interface InventoryLedgerEntry {
   distributed: number;
   closing: number;
 }
+
+export interface GovStockRegisterEntry {
+  fpsId: string;
+  year: string;
+  month: string;
+  commodity: string;
+  unit: string;
+  alloted: number;
+  opening: number;
+  receivedRegular: number;
+  receivedExtra: number;
+  receivedMoved: number;
+  issued: number;
+  closing: number;
+  fetchedAt: string;
+}
