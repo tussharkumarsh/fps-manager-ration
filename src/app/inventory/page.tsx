@@ -290,7 +290,7 @@ export default function InventoryPage() {
   // every item's unit together would be meaningless.
   const itemSummaries = useMemo(() => {
     if (aggregateMode) {
-      const byItem = new Map<string, { name: string; unit: string; received: number; distributed: number; closing: number }>();
+      const byItem = new Map<string, { name: string; unit: string; received: number; distributed: number; closing: number; }>();
       for (const row of aggregateRows) {
         const existing = byItem.get(row.itemName);
         byItem.set(row.itemName, {
