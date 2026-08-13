@@ -53,6 +53,11 @@ export default function InventoryPage() {
   const [govSyncing, setGovSyncing] = useState(false);
   const [govError, setGovError] = useState("");
 
+  const [scmSummary, setScmSummary] = useState<any[]>([]);
+  const [scmLoading, setScmLoading] = useState(false);
+  const [scmSyncing, setScmSyncing] = useState(false);
+  const [scmError, setScmError] = useState("");
+
   const yearOptions = useMemo(() => {
     const y = parseInt(settings.year, 10) || new Date().getFullYear();
     return [String(y - 1), String(y), String(y + 1)];
@@ -121,6 +126,28 @@ export default function InventoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthFilter, yearFilter, viewingDealer?.fpsId, aggregateMode]);
 
+  async function loadScmSummary() {
+    if (aggregateMode || isAllMonths) return;
+    setScmLoading(true);
+    setScmError("");
+    try {
+      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
+      const res = await apiFetch(`/api/inventory/scm?year=${yearFilter}&month=${monthFilter}${viewParam}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load SCM inventory summary");
+      setScmSummary(data.rows || []);
+    } catch (e) {
+      setScmError(e instanceof Error ? e.message : "Failed to load SCM inventory summary");
+    } finally {
+      setScmLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadScmSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthFilter, yearFilter, viewingDealer?.fpsId, aggregateMode]);
+
   async function syncGovStock() {
     setGovSyncing(true);
     setGovError("");
@@ -141,6 +168,30 @@ export default function InventoryPage() {
       setGovError(e instanceof Error ? e.message : "Failed to sync from government portal");
     } finally {
       setGovSyncing(false);
+    }
+  }
+
+  async function syncScmStock() {
+    setScmSyncing(true);
+    setScmError("");
+    try {
+      const res = await apiFetch("/api/inventory/scm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year: yearFilter,
+          month: monthFilter,
+          viewFpsId: viewingDealer?.fpsId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to sync SCM inventory");
+      setScmSummary(data.summary || []);
+      await loadScmSummary();
+    } catch (e) {
+      setScmError(e instanceof Error ? e.message : "Failed to sync SCM inventory");
+    } finally {
+      setScmSyncing(false);
     }
   }
 
@@ -533,80 +584,133 @@ export default function InventoryPage() {
       )}
 
       {!isAllMonths && (
-        <div className="card p-5">
-          <div className="flex justify-between items-start flex-wrap gap-3 mb-1">
-            <div>
-              <h3 className="text-sm font-semibold">{t("inventory.govStockRegister")}</h3>
-              <p className="text-xs text-gray-500 mt-1 max-w-2xl">{t("inventory.govStockRegisterDesc")}</p>
+        <>
+          <div className="card p-5">
+            <div className="flex justify-between items-start flex-wrap gap-3 mb-1">
+              <div>
+                <h3 className="text-sm font-semibold">SCM inventory summary</h3>
+                <p className="text-xs text-gray-500 mt-1 max-w-2xl">Month-wise stock from Maharashtra SCM data, with scheme- and commodity-wise carry-forward.</p>
+              </div>
+              {!readOnly && (
+                <button onClick={syncScmStock} disabled={scmSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
+                  {scmSyncing ? "Syncing..." : "🔄 Sync SCM"}
+                </button>
+              )}
             </div>
-            {!readOnly && (
-              <button onClick={syncGovStock} disabled={govSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
-                {govSyncing ? t("inventory.syncing") : `🔄 ${t("inventory.syncFromGov")}`}
-              </button>
-            )}
-          </div>
 
-          {govError && (
-            <div className="mt-3 px-4 py-2 rounded-lg text-sm bg-red-50 text-red-600">{govError}</div>
-          )}
+            {scmError && <div className="mt-3 px-4 py-2 rounded-lg text-sm bg-red-50 text-red-600">{scmError}</div>}
 
-          <div className="mt-4">
-            {govLoading ? (
-              <div className="text-center text-gray-400 text-sm py-6">{t("common.loading")}</div>
-            ) : govStock.length === 0 ? (
-              <EmptyState icon="🏛️" title={t("inventory.noGovDataTitle")} description={t("inventory.noGovDataDesc")} />
-            ) : (
-              <>
+            <div className="mt-4">
+              {scmLoading ? (
+                <div className="text-center text-gray-400 text-sm py-6">{t("common.loading")}</div>
+              ) : scmSummary.length === 0 ? (
+                <EmptyState icon="📦" title="No SCM stock data" description="Run the SCM sync to import this month’s records." />
+              ) : (
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr>
-                        {[
-                          t("inventory.commodity"),
-                          t("inventory.unit"),
-                          t("inventory.alloted"),
-                          t("inventory.opening"),
-                          t("inventory.regular"),
-                          t("inventory.extra"),
-                          t("inventory.moved"),
-                          t("inventory.issued"),
-                          t("inventory.closing"),
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-gray-700 whitespace-nowrap text-right first:text-left"
-                          >
+                        {['Scheme', 'Commodity', 'Opening', 'Received', 'Distributed', 'Closing', 'Carry Forward'].map((h) => (
+                          <th key={h} className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left">
                             {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {govStock.map((e, i) => (
-                        <tr key={e.commodity} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                          <td className="px-3 py-2 font-semibold text-gray-800">{e.commodity}</td>
-                          <td className="px-3 py-2 text-right text-gray-500">{e.unit}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(e.alloted)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(e.opening)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(e.receivedRegular)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(e.receivedExtra)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(e.receivedMoved)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(e.issued)}</td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-gray-800">
-                            {formatNumber(e.closing)}
-                          </td>
+                      {scmSummary.map((row, i) => (
+                        <tr key={`${row.scheme}-${row.commodity}`} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                          <td className="px-3 py-2 font-semibold text-gray-800">{row.scheme}</td>
+                          <td className="px-3 py-2 text-gray-700">{row.commodity}</td>
+                          <td className="px-3 py-2 text-right font-mono">{formatNumber(row.openingStock)}</td>
+                          <td className="px-3 py-2 text-right font-mono">{formatNumber(row.receivedQty)}</td>
+                          <td className="px-3 py-2 text-right font-mono">{formatNumber(row.distributedQty)}</td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{formatNumber(row.closingStock)}</td>
+                          <td className="px-3 py-2 text-right font-mono">{formatNumber(row.carriedForwardQty)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-2">
-                  {t("inventory.lastSynced")}: {new Date(govStock[0].fetchedAt).toLocaleString()}
-                </p>
-              </>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="card p-5">
+            <div className="flex justify-between items-start flex-wrap gap-3 mb-1">
+              <div>
+                <h3 className="text-sm font-semibold">{t("inventory.govStockRegister")}</h3>
+                <p className="text-xs text-gray-500 mt-1 max-w-2xl">{t("inventory.govStockRegisterDesc")}</p>
+              </div>
+              {!readOnly && (
+                <button onClick={syncGovStock} disabled={govSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
+                  {govSyncing ? t("inventory.syncing") : `🔄 ${t("inventory.syncFromGov")}`}
+                </button>
+              )}
+            </div>
+
+            {govError && (
+              <div className="mt-3 px-4 py-2 rounded-lg text-sm bg-red-50 text-red-600">{govError}</div>
+            )}
+
+            <div className="mt-4">
+              {govLoading ? (
+                <div className="text-center text-gray-400 text-sm py-6">{t("common.loading")}</div>
+              ) : govStock.length === 0 ? (
+                <EmptyState icon="🏛️" title={t("inventory.noGovDataTitle")} description={t("inventory.noGovDataDesc")} />
+              ) : (
+                <>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr>
+                          {[
+                            t("inventory.commodity"),
+                            t("inventory.unit"),
+                            t("inventory.alloted"),
+                            t("inventory.opening"),
+                            t("inventory.regular"),
+                            t("inventory.extra"),
+                            t("inventory.moved"),
+                            t("inventory.issued"),
+                            t("inventory.closing"),
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-gray-700 whitespace-nowrap text-right first:text-left"
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {govStock.map((e, i) => (
+                          <tr key={e.commodity} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                            <td className="px-3 py-2 font-semibold text-gray-800">{e.commodity}</td>
+                            <td className="px-3 py-2 text-right text-gray-500">{e.unit}</td>
+                            <td className="px-3 py-2 text-right font-mono">{formatNumber(e.alloted)}</td>
+                            <td className="px-3 py-2 text-right font-mono">{formatNumber(e.opening)}</td>
+                            <td className="px-3 py-2 text-right font-mono">{formatNumber(e.receivedRegular)}</td>
+                            <td className="px-3 py-2 text-right font-mono">{formatNumber(e.receivedExtra)}</td>
+                            <td className="px-3 py-2 text-right font-mono">{formatNumber(e.receivedMoved)}</td>
+                            <td className="px-3 py-2 text-right font-mono">{formatNumber(e.issued)}</td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-gray-800">
+                              {formatNumber(e.closing)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    {t("inventory.lastSynced")}: {new Date(govStock[0].fetchedAt).toLocaleString()}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {!readOnly && !isAllMonths && (
