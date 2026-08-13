@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { year, month, viewFpsId, shopNo, districtCode, districtName } = await req.json();
+        const { year, month, viewFpsId, shopNo, districtCode, districtName, batchNo } = await req.json();
         if (!year || !month) {
             return NextResponse.json({ error: "year and month are required" }, { status: 400 });
         }
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
                 shopNo,
                 districtCode: districtCode || dealer.distCode,
                 districtName,
+                batchNo,
             },
         });
         return NextResponse.json({
