@@ -31,7 +31,11 @@ export default function SyncPage() {
   const [scmStatus, setScmStatus] = useState<"idle" | "fetching" | "success" | "error">("idle");
   const [scmMessage, setScmMessage] = useState("");
   const [scmMonthYear, setScmMonthYear] = useState({ month: settings.month, year: settings.year });
-  const [scmBatchNo, setScmBatchNo] = useState("1");
+  // Blank means "all batches" - the backend only filters by batch when this
+  // is non-empty (ScmInventoryService.syncMonth), so leaving it blank is
+  // the only way to pull a full month's receipts in one sync instead of
+  // one truck-chit batch at a time.
+  const [scmBatchNo, setScmBatchNo] = useState("");
   const autoLoad = useAutoLoadMonth(settings.month, settings.year);
 
   // The FPS ID / district code used in the actual government API call is
@@ -247,11 +251,14 @@ export default function SyncPage() {
           </div>
           <div className="text-gray-500 mt-2">Query built from selected month/year</div>
           <div className="text-gray-700">
-            tr=TC-REG-{distCode}-{session?.fpsId || "SHOPNO"}-{scmMonthYear.month.padStart(2, "0")}-{scmMonthYear.year}-{scmBatchNo}
+            tr=TC-REG-{distCode}-{session?.fpsId || "SHOPNO"}-{scmMonthYear.month.padStart(2, "0")}-{scmMonthYear.year}-{scmBatchNo || "*"}
           </div>
           <div className="text-gray-700">
-            tdro=RO/REG/{distCode}/{session?.fpsId || "SHOPNO"}/{scmMonthYear.month.padStart(2, "0")}/{scmMonthYear.year}/{scmBatchNo}
+            tdro=RO/REG/{distCode}/{session?.fpsId || "SHOPNO"}/{scmMonthYear.month.padStart(2, "0")}/{scmMonthYear.year}/{scmBatchNo || "*"}
           </div>
+          {!scmBatchNo && (
+            <div className="text-blue-600 mt-1">* = every batch this month will be fetched</div>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-5">
@@ -274,10 +281,12 @@ export default function SyncPage() {
               className="input-field" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">Batch No</label>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">
+              Batch No <span className="font-normal text-gray-400">(blank = all)</span>
+            </label>
             <input value={scmBatchNo}
               onChange={(e) => setScmBatchNo(e.target.value.replace(/[^0-9]/g, ""))}
-              className="input-field" placeholder="1" />
+              className="input-field" placeholder="All batches" />
           </div>
         </div>
 
