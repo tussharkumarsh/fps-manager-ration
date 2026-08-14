@@ -8,11 +8,20 @@ import { getMonthName } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslation } from "@/lib/i18n/useTranslation";
-import type { SyncLog } from "@/types";
+import type { SyncLog, ScmSyncLog } from "@/types";
 
 export default function SyncPage() {
-  const { settings, updateSettings, addTransactions, addSyncLog, syncLogs, transactions, viewingDealer } =
-    useStore();
+  const {
+    settings,
+    updateSettings,
+    addTransactions,
+    addSyncLog,
+    syncLogs,
+    addScmSyncLog,
+    scmSyncLogs,
+    transactions,
+    viewingDealer,
+  } = useStore();
   const { data: session } = useSession();
   const { t } = useTranslation();
   const readOnly = session?.role === "admin";
@@ -113,10 +122,30 @@ export default function SyncPage() {
       setScmStatus("success");
       setScmMessage(`SCM inventory synced for ${getMonthName(Number(scmMonthYear.month))} ${scmMonthYear.year}: ${data.roCount ?? 0} RO(s), ${data.truckChitCount ?? 0} truck chit(s).`);
       updateSettings(scmMonthYear);
+
+      addScmSyncLog({
+        timestamp: new Date().toISOString(),
+        month: scmMonthYear.month,
+        year: scmMonthYear.year,
+        roCount: data.roCount ?? 0,
+        truckChitCount: data.truckChitCount ?? 0,
+        status: "success",
+        message: `Synced ${data.roCount ?? 0} RO(s), ${data.truckChitCount ?? 0} truck chit(s)`,
+      });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Failed to fetch SCM inventory";
       setScmStatus("error");
       setScmMessage(errMsg);
+
+      addScmSyncLog({
+        timestamp: new Date().toISOString(),
+        month: scmMonthYear.month,
+        year: scmMonthYear.year,
+        roCount: 0,
+        truckChitCount: 0,
+        status: "error",
+        message: errMsg,
+      });
     }
   };
 
@@ -271,70 +300,131 @@ export default function SyncPage() {
       </div>
       </div>
 
-      {/* Current data info */}
-      <div className="card p-5 max-w-2xl">
-        <h3 className="text-sm font-semibold mb-2">{t("sync.currentData")}</h3>
-        <div className="text-sm text-gray-600 space-y-1">
-          <div>{t("sync.transactionsLoaded")}: <strong className="font-mono">{transactions.length}</strong></div>
-          <div>{t("sync.uniqueDates")}: <strong className="font-mono">{new Set(transactions.map((t) => t.date.split(" ")[0])).size}</strong></div>
-          <div className="flex items-center gap-2 pt-1">
-            <span>{t("sync.serverStatus")} {getMonthName(Number(settings.month))} {settings.year}:</span>
-            {autoLoad.loading && <span className="text-xs text-gray-400">{t("sync.checkingStorage")}</span>}
-            {!autoLoad.loading && autoLoad.source === "sheet_cache" && (
-              <Badge text={t("sync.loadedFromDb")} variant="success" />
+      {/* Current data info — transaction sync and SCM inventory sync tracked separately */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold mb-2">{t("sync.currentData")}</h3>
+          <div className="text-sm text-gray-600 space-y-1">
+            <div>{t("sync.transactionsLoaded")}: <strong className="font-mono">{transactions.length}</strong></div>
+            <div>{t("sync.uniqueDates")}: <strong className="font-mono">{new Set(transactions.map((t) => t.date.split(" ")[0])).size}</strong></div>
+            <div className="flex items-center gap-2 pt-1">
+              <span>{t("sync.serverStatus")} {getMonthName(Number(settings.month))} {settings.year}:</span>
+              {autoLoad.loading && <span className="text-xs text-gray-400">{t("sync.checkingStorage")}</span>}
+              {!autoLoad.loading && autoLoad.source === "sheet_cache" && (
+                <Badge text={t("sync.loadedFromDb")} variant="success" />
+              )}
+              {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "live" && (
+                <Badge text={t("sync.liveResynced")} variant="info" />
+              )}
+              {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "synced_locked" && (
+                <Badge text={t("sync.fetchedAndSavedShort")} variant="success" />
+              )}
+              {!autoLoad.loading && autoLoad.error && (
+                <Badge text={`Error: ${autoLoad.error}`} variant="error" />
+              )}
+            </div>
+            {syncLogs[0] && (
+              <div className="text-xs text-gray-400 pt-1">
+                Last updated: {new Date(syncLogs[0].timestamp).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+              </div>
             )}
-            {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "live" && (
-              <Badge text={t("sync.liveResynced")} variant="info" />
-            )}
-            {!autoLoad.loading && autoLoad.source === "gov_api" && autoLoad.lockStatus === "synced_locked" && (
-              <Badge text={t("sync.fetchedAndSavedShort")} variant="success" />
-            )}
-            {!autoLoad.loading && autoLoad.error && (
-              <Badge text={`Error: ${autoLoad.error}`} variant="error" />
+            {transactions.length > 0 && (
+              <button onClick={() => {
+                if (confirm("Clear all transactions? This cannot be undone.")) {
+                  useStore.getState().clearTransactions();
+                }
+              }} className="text-xs text-red-500 hover:text-red-700 font-medium mt-2">
+                {t("sync.clearAllTransactions")}
+              </button>
             )}
           </div>
-          {transactions.length > 0 && (
-            <button onClick={() => {
-              if (confirm("Clear all transactions? This cannot be undone.")) {
-                useStore.getState().clearTransactions();
-              }
-            }} className="text-xs text-red-500 hover:text-red-700 font-medium mt-2">
-              {t("sync.clearAllTransactions")}
-            </button>
-          )}
+        </div>
+
+        <div className="card p-5">
+          <h3 className="text-sm font-semibold mb-2">📦 SCM Inventory Data</h3>
+          <div className="text-sm text-gray-600 space-y-1">
+            {scmSyncLogs[0] ? (
+              <>
+                <div>RO(s) synced: <strong className="font-mono">{scmSyncLogs[0].roCount}</strong></div>
+                <div>Truck chit(s) synced: <strong className="font-mono">{scmSyncLogs[0].truckChitCount}</strong></div>
+                <div className="flex items-center gap-2 pt-1">
+                  <span>Last sync ({getMonthName(Number(scmSyncLogs[0].month))} {scmSyncLogs[0].year}):</span>
+                  <Badge text={scmSyncLogs[0].status} variant={scmSyncLogs[0].status} />
+                </div>
+                <div className="text-xs text-gray-400 pt-1">
+                  Last updated: {new Date(scmSyncLogs[0].timestamp).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                </div>
+              </>
+            ) : (
+              <div className="text-xs text-gray-400">No SCM inventory sync yet.</div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Sync Logs */}
-      {syncLogs.length > 0 && (
-        <div className="card p-5 max-w-2xl">
-          <h3 className="text-sm font-semibold mb-3">{t("sync.syncHistory")}</h3>
-          <DataTable<SyncLog>
-            columns={[
-              {
-                key: "timestamp", label: "Time", mono: true,
-                render: (v) => new Date(String(v)).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })
-              },
-              {
-                key: "month", label: t("sync.month"),
-                render: (v, row) => `${getMonthName(Number(v))} ${row.year}`
-              },
-              { key: "transactionCount", label: "Records", align: "right", mono: true },
-              {
-                key: "status", label: t("customers.status"),
-                render: (v) => <Badge text={String(v)} variant={String(v)} />
-              },
-              {
-                key: "message", label: "Details",
-                render: (v) => <span className="text-xs text-gray-500">{String(v)}</span>
-              },
-            ]}
-            data={syncLogs}
-            maxHeight={300}
-            searchable={false}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+        {syncLogs.length > 0 && (
+          <div className="card p-5">
+            <h3 className="text-sm font-semibold mb-3">{t("sync.syncHistory")}</h3>
+            <DataTable<SyncLog>
+              columns={[
+                {
+                  key: "timestamp", label: "Time", mono: true,
+                  render: (v) => new Date(String(v)).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })
+                },
+                {
+                  key: "month", label: t("sync.month"),
+                  render: (v, row) => `${getMonthName(Number(v))} ${row.year}`
+                },
+                { key: "transactionCount", label: "Records", align: "right", mono: true },
+                {
+                  key: "status", label: t("customers.status"),
+                  render: (v) => <Badge text={String(v)} variant={String(v)} />
+                },
+                {
+                  key: "message", label: "Details",
+                  render: (v) => <span className="text-xs text-gray-500">{String(v)}</span>
+                },
+              ]}
+              data={syncLogs}
+              maxHeight={300}
+              searchable={false}
+            />
+          </div>
+        )}
+
+        {scmSyncLogs.length > 0 && (
+          <div className="card p-5">
+            <h3 className="text-sm font-semibold mb-3">SCM Inventory Sync History</h3>
+            <DataTable<ScmSyncLog>
+              columns={[
+                {
+                  key: "timestamp", label: "Time", mono: true,
+                  render: (v) => new Date(String(v)).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })
+                },
+                {
+                  key: "month", label: t("sync.month"),
+                  render: (v, row) => `${getMonthName(Number(v))} ${row.year}`
+                },
+                { key: "roCount", label: "RO(s)", align: "right", mono: true },
+                { key: "truckChitCount", label: "Truck Chit(s)", align: "right", mono: true },
+                {
+                  key: "status", label: t("customers.status"),
+                  render: (v) => <Badge text={String(v)} variant={String(v)} />
+                },
+                {
+                  key: "message", label: "Details",
+                  render: (v) => <span className="text-xs text-gray-500">{String(v)}</span>
+                },
+              ]}
+              data={scmSyncLogs}
+              maxHeight={300}
+              searchable={false}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Customer, Transaction, FPSSettings, SyncLog, InventoryItem, InventoryLedgerEntry } from "@/types";
+import type { Customer, Transaction, FPSSettings, SyncLog, ScmSyncLog, InventoryItem, InventoryLedgerEntry } from "@/types";
 import { deduplicateTransactions, generateId, isValidReceiptNo } from "@/lib/utils";
 
 interface AppState {
@@ -26,6 +26,10 @@ interface AppState {
   // Sync logs
   syncLogs: SyncLog[];
   addSyncLog: (log: Omit<SyncLog, "id">) => void;
+
+  // SCM inventory sync logs (tracked separately from transaction syncs)
+  scmSyncLogs: ScmSyncLog[];
+  addScmSyncLog: (log: Omit<ScmSyncLog, "id">) => void;
 
   // UI state
   sidebarOpen: boolean;
@@ -127,6 +131,13 @@ export const useStore = create<AppState>()(
           syncLogs: [{ ...log, id: generateId() }, ...state.syncLogs].slice(0, 100),
         })),
 
+      // SCM inventory sync logs
+      scmSyncLogs: [],
+      addScmSyncLog: (log) =>
+        set((state) => ({
+          scmSyncLogs: [{ ...log, id: generateId() }, ...state.scmSyncLogs].slice(0, 100),
+        })),
+
       // UI
       sidebarOpen: true,
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -171,6 +182,7 @@ export const useStore = create<AppState>()(
           customers: [],
           transactions: [],
           syncLogs: [],
+          scmSyncLogs: [],
           inventoryItems: [],
           inventoryLedger: [],
           viewingDealer: null,
@@ -185,6 +197,7 @@ export const useStore = create<AppState>()(
         customers: state.customers,
         transactions: state.transactions,
         syncLogs: state.syncLogs,
+        scmSyncLogs: state.scmSyncLogs,
         lastSessionKey: state.lastSessionKey,
       }),
     }

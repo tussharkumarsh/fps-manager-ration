@@ -65,6 +65,17 @@ export interface SyncLog {
   message?: string;
 }
 
+export interface ScmSyncLog {
+  id: string;
+  timestamp: string;
+  month: string;
+  year: string;
+  roCount: number;
+  truckChitCount: number;
+  status: "success" | "error";
+  message?: string;
+}
+
 export interface DailySummary {
   date: string;
   phhFamilies: number;
