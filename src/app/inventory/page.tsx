@@ -145,6 +145,25 @@ export default function InventoryPage() {
     }
   }
 
+  async function recomputeScmSummary() {
+    setScmSyncing(true);
+    setScmError("");
+    try {
+      const res = await apiFetch("/api/inventory/scm/recompute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: yearFilter, viewFpsId: viewingDealer?.fpsId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to recalculate SCM inventory");
+      await loadScmSummary();
+    } catch (e) {
+      setScmError(e instanceof Error ? e.message : "Failed to recalculate SCM inventory");
+    } finally {
+      setScmSyncing(false);
+    }
+  }
+
   async function saveReceived(itemId: string) {
     if (readOnly) return;
     const raw = receivedDrafts[itemId];
@@ -542,9 +561,14 @@ export default function InventoryPage() {
                 <p className="text-xs text-gray-500 mt-1 max-w-2xl">Month-wise stock from Maharashtra SCM data, with scheme- and commodity-wise carry-forward.</p>
               </div>
               {!readOnly && (
-                <button onClick={syncScmStock} disabled={scmSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
-                  {scmSyncing ? "Syncing..." : "🔄 Sync SCM"}
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={recomputeScmSummary} disabled={scmSyncing} title="Recalculate distributed quantities from your transaction ledger for every synced month this year, without re-fetching from the SCM portal" className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
+                    {scmSyncing ? "Working..." : "🧮 Recalculate"}
+                  </button>
+                  <button onClick={syncScmStock} disabled={scmSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
+                    {scmSyncing ? "Syncing..." : "🔄 Sync SCM"}
+                  </button>
+                </div>
               )}
             </div>
 
