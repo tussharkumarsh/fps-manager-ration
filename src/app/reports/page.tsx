@@ -22,6 +22,8 @@ export default function ReportsPage() {
   const [monthFilter, setMonthFilter] = useState<string>("ALL");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [pivotScheme, setPivotScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
+  const [pivotMonths, setPivotMonths] = useState<string[]>(["", "", ""]);
 
   const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
 
@@ -80,6 +82,34 @@ export default function ReportsPage() {
       { label: t("reports.activeDays"), phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
     ];
   }, [enriched, t]);
+
+  const effectivePivotMonths = useMemo(() => {
+    const filled = pivotMonths.filter(Boolean);
+    if (filled.length > 0) return pivotMonths;
+    return monthOptions.slice(0, 3).map((m) => m.value);
+  }, [pivotMonths, monthOptions]);
+
+  const pivotDatesByCustomer = useMemo(() => {
+    const map: Record<string, Record<string, string>> = {};
+    transactions.forEach((tx) => {
+      if (pivotScheme !== "ALL" && tx.scheme !== pivotScheme) return;
+      const day = dateOnly(tx.date);
+      const ym = day.slice(0, 7);
+      if (!map[tx.srcNo]) map[tx.srcNo] = {};
+      map[tx.srcNo][ym] = day;
+    });
+    return map;
+  }, [transactions, pivotScheme]);
+
+  const pivotRows = useMemo(() => {
+    return customers
+      .filter((c) => pivotScheme === "ALL" || c.scheme === pivotScheme)
+      .map((c) => ({
+        srcNo: c.srcNo,
+        name: c.name,
+        dates: effectivePivotMonths.map((ym) => (ym ? pivotDatesByCustomer[c.srcNo]?.[ym] || "" : "")),
+      }));
+  }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths]);
 
   const monthLabel =
     monthFilter !== "ALL"
@@ -143,6 +173,7 @@ export default function ReportsPage() {
           { id: "scheme", label: t("reports.schemeWise") },
           { id: "pending", label: t("reports.pendingList") },
           { id: "goshwara", label: t("reports.goshwara") },
+          { id: "monthlyDates", label: t("reports.monthlyDates") },
         ]}
         active={reportType}
         onChange={setReportType}
@@ -261,6 +292,79 @@ export default function ReportsPage() {
             <button onClick={() => window.print()} className="btn-secondary text-xs">
               🖨️ {t("reports.printReport")}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Monthly Dates (Customer x Month pivot) */}
+      {reportType === "monthlyDates" && (
+        <div className="card p-6">
+          <div className="no-print flex flex-wrap items-center gap-3 mb-4">
+            <select
+              value={pivotScheme}
+              onChange={(e) => setPivotScheme(e.target.value as "ALL" | "PHH" | "AAY")}
+              className="input-field w-36 text-xs"
+            >
+              <option value="ALL">{t("reports.schemeAll")}</option>
+              <option value="PHH">PHH</option>
+              <option value="AAY">AAY</option>
+            </select>
+
+            {[0, 1, 2].map((idx) => (
+              <select
+                key={idx}
+                value={effectivePivotMonths[idx] || ""}
+                onChange={(e) => {
+                  const next = [...effectivePivotMonths];
+                  next[idx] = e.target.value;
+                  setPivotMonths(next);
+                }}
+                className="input-field w-36 text-xs"
+                aria-label={`${t("reports.selectMonth")} ${idx + 1}`}
+              >
+                <option value="">{t("reports.selectMonth")} {idx + 1}</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            ))}
+
+            <button onClick={() => window.print()} className="btn-secondary text-xs">
+              🖨️ {t("reports.printReport")}
+            </button>
+          </div>
+
+          <h3 className="text-base font-bold text-center text-brand-700 mb-5">
+            {t("reports.monthlyDates")} — {pivotScheme === "ALL" ? t("reports.schemeAll") : pivotScheme}
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-brand-700 text-white">
+                  <th className="px-4 py-3 text-left font-semibold">{t("reports.customerId")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("reports.customerName")}</th>
+                  {effectivePivotMonths.map((ym, idx) => (
+                    <th key={idx} className="px-4 py-3 text-right font-semibold">
+                      {ym ? monthOptions.find((m) => m.value === ym)?.label || ym : "—"}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pivotRows.map((row, i) => (
+                  <tr key={row.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                    <td className="px-4 py-3 font-mono">{row.srcNo}</td>
+                    <td className="px-4 py-3">{row.name}</td>
+                    {row.dates.map((d, idx) => (
+                      <td key={idx} className="px-4 py-3 text-right font-mono">
+                        {d ? formatDate(d) : "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
