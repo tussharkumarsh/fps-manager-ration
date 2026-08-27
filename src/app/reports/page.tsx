@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
-import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
+import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { DailySummary, Transaction, Customer } from "@/types";
@@ -12,7 +12,8 @@ import type { DailySummary, Transaction, Customer } from "@/types";
 export default function ReportsPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { transactions, customers, settings, viewingDealer } = useStore();
+  const { transactions, customers: allCustomers, settings, viewingDealer } = useStore();
+  const customers = useMemo(() => activeCustomers(allCustomers), [allCustomers]);
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const scopeLabel = aggregateMode
     ? t("common.allDealersCollective")

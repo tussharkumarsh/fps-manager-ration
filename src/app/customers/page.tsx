@@ -24,7 +24,7 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 export default function CustomersPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { customers, transactions, importCustomers, addCustomer, deleteCustomer, viewingDealer } = useStore();
+  const { customers: allCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer } = useStore();
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
   const showDealerColumn = isAdmin && !viewingDealer;
@@ -36,7 +36,21 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showDisabled, setShowDisabled] = useState(false);
+  const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
+  const [disableReason, setDisableReason] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const customers = useMemo(
+    () => (showDisabled ? allCustomers : allCustomers.filter((c) => !c.disabled)),
+    [allCustomers, showDisabled]
+  );
+  const disabledCount = useMemo(() => allCustomers.filter((c) => c.disabled).length, [allCustomers]);
+  const activeCount = allCustomers.length - disabledCount;
+  const activeCollectedCount = useMemo(() => {
+    const collected = new Set(transactions.filter((t) => t.wheat > 0).map((t) => t.srcNo));
+    return allCustomers.filter((c) => !c.disabled && collected.has(c.srcNo)).length;
+  }, [allCustomers, transactions]);
 
   const customerStats = useMemo(() => {
     return customers.map((c) => {
@@ -115,6 +129,17 @@ export default function CustomersPage() {
     setShowAdd(false);
   };
 
+  const handleConfirmDisable = () => {
+    if (!disableTarget || !disableReason.trim()) return;
+    updateCustomer(disableTarget.srcNo, {
+      disabled: true,
+      disabledReason: disableReason.trim(),
+      disabledAt: new Date().toISOString(),
+    });
+    setDisableTarget(null);
+    setDisableReason("");
+  };
+
   return (
     <div className="p-6 space-y-5">
       <div className="flex justify-between items-start">
@@ -146,14 +171,14 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* KPIs */}
+      {/* KPIs (always based on active/non-disabled customers) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label={t("customers.registered")} value={customers.length} color="blue" icon="👥" />
-        <KPICard label={t("customers.collected")} value={collectedCount} color="green" icon="✅" />
-        <KPICard label={t("customers.pending")} value={customers.length - collectedCount} color="red" icon="⚠️" />
+        <KPICard label={t("customers.registered")} value={activeCount} color="blue" icon="👥" />
+        <KPICard label={t("customers.collected")} value={activeCollectedCount} color="green" icon="✅" />
+        <KPICard label={t("customers.pending")} value={activeCount - activeCollectedCount} color="red" icon="⚠️" />
         <KPICard
           label={t("customers.coverage")}
-          value={customers.length > 0 ? `${((collectedCount / customers.length) * 100).toFixed(1)}%` : "—"}
+          value={activeCount > 0 ? `${((activeCollectedCount / activeCount) * 100).toFixed(1)}%` : "—"}
           color="purple" icon="📈"
         />
       </div>
@@ -200,13 +225,25 @@ export default function CustomersPage() {
         />
       ) : (
         <div>
-          <div className="flex justify-between items-center mb-3">
-            <input
-              placeholder={t("customers.searchPlaceholder")}
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="input-field w-72"
-            />
+          <div className="flex justify-between items-center mb-3 gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <input
+                placeholder={t("customers.searchPlaceholder")}
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                className="input-field w-72"
+              />
+              {disabledCount > 0 && (
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showDisabled}
+                    onChange={(e) => { setShowDisabled(e.target.checked); setPage(0); }}
+                  />
+                  {t("customers.showDisabled")} ({disabledCount})
+                </label>
+              )}
+            </div>
             <span className="text-xs text-gray-500">{formatNumber(filtered.length)} {t("customers.records")}</span>
           </div>
 
@@ -253,20 +290,37 @@ export default function CustomersPage() {
                         )}
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.sNo ?? "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.srcNo}</td>
-                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">{c.status || "—"}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs">
+                          {c.disabled
+                            ? <span title={c.disabledReason || ""}><Badge text={t("customers.disabled")} variant="error" /></span>
+                            : (c.status || "—")}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{c.areaType || "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-800">{c.name}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{c.lastDispatched}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{c.txnCount}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalWheat)}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalRice)}</td>
-                        <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-3 py-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           {!readOnly && (
-                            <button onClick={() => {
-                              if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.srcNo);
-                            }} className="text-red-500 hover:text-red-700 text-xs font-medium">
-                              {t("common.delete")}
-                            </button>
+                            <div className="flex items-center justify-center gap-2">
+                              {c.disabled ? (
+                                <button onClick={() => updateCustomer(c.srcNo, { disabled: false, disabledReason: undefined, disabledAt: undefined })}
+                                  className="text-emerald-600 hover:text-emerald-800 text-xs font-medium">
+                                  {t("customers.enable")}
+                                </button>
+                              ) : (
+                                <button onClick={() => { setDisableTarget(c); setDisableReason(""); }}
+                                  className="text-amber-600 hover:text-amber-800 text-xs font-medium">
+                                  {t("customers.disable")}
+                                </button>
+                              )}
+                              <button onClick={() => {
+                                if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.srcNo);
+                              }} className="text-red-500 hover:text-red-700 text-xs font-medium">
+                                {t("common.delete")}
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -346,6 +400,37 @@ export default function CustomersPage() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Disable customer — reason prompt */}
+      {disableTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => setDisableTarget(null)}>
+          <div className="card p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-1">{t("customers.disableCustomer")}</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              {disableTarget.name} ({disableTarget.srcNo})
+            </p>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t("customers.disableReasonLabel")}</label>
+            <textarea
+              value={disableReason}
+              onChange={(e) => setDisableReason(e.target.value)}
+              placeholder={t("customers.disableReasonPlaceholder")}
+              className="input-field w-full mb-4"
+              rows={3}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDisableTarget(null)} className="btn-secondary text-xs">
+                {t("common.cancel")}
+              </button>
+              <button onClick={handleConfirmDisable} disabled={!disableReason.trim()}
+                className="btn-primary text-xs disabled:opacity-40">
+                {t("customers.disable")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

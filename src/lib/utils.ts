@@ -1,8 +1,13 @@
 import { clsx, type ClassValue } from "clsx";
-import type { Transaction, DailySummary, MonthlyStats, ChartDataPoint } from "@/types";
+import type { Transaction, DailySummary, MonthlyStats, ChartDataPoint, Customer } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
+}
+
+/** Customers excluding those manually disabled (moved shop, deceased, etc.) — the default view everywhere except Customer Master's "show disabled" toggle. */
+export function activeCustomers(customers: Customer[]): Customer[] {
+  return customers.filter((c) => !c.disabled);
 }
 
 export function formatNumber(n: number): string {

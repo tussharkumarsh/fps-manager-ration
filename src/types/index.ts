@@ -27,6 +27,11 @@ export interface Customer {
   mobile?: string;
   familyHead?: string;
   members?: FamilyMember[];
+  // Manually disabled (moved to another shop, deceased, stopped collecting, etc.)
+  // — hidden everywhere by default; only Customer Master can opt to show them.
+  disabled?: boolean;
+  disabledReason?: string;
+  disabledAt?: string;
 }
 
 export interface Transaction {

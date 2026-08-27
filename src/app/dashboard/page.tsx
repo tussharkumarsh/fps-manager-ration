@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { useStore } from "@/store/useStore";
 import { KPICard, Badge, EmptyState } from "@/components/ui";
-import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, dateOnly } from "@/lib/utils";
+import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, dateOnly, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
@@ -76,7 +76,8 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { transactions, customers, settings, viewingDealer } = useStore();
+  const { transactions, customers: allCustomers, settings, viewingDealer } = useStore();
+  const customers = useMemo(() => activeCustomers(allCustomers), [allCustomers]);
   const { t } = useTranslation();
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const scopeLabel = aggregateMode
