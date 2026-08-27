@@ -36,15 +36,16 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [showDisabled, setShowDisabled] = useState(false);
+  const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled">("all");
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const customers = useMemo(
-    () => (showDisabled ? allCustomers : allCustomers.filter((c) => !c.disabled)),
-    [allCustomers, showDisabled]
-  );
+  const customers = useMemo(() => {
+    if (cardFilter === "active") return allCustomers.filter((c) => !c.disabled);
+    if (cardFilter === "disabled") return allCustomers.filter((c) => c.disabled);
+    return allCustomers;
+  }, [allCustomers, cardFilter]);
   const disabledCount = useMemo(() => allCustomers.filter((c) => c.disabled).length, [allCustomers]);
   const activeCount = allCustomers.length - disabledCount;
   const activeCollectedCount = useMemo(() => {
@@ -171,14 +172,33 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* KPIs (always based on active/non-disabled customers) */}
+      {/* KPIs — click a card to filter the list below; Registered (all) is the default */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard label={t("customers.registered")} value={activeCount} color="blue" icon="👥" />
-        <KPICard label={t("customers.collected")} value={activeCollectedCount} color="green" icon="✅" />
-        <KPICard label={t("customers.pending")} value={activeCount - activeCollectedCount} color="red" icon="⚠️" />
+        <KPICard
+          label={t("customers.registered")}
+          value={allCustomers.length}
+          color="blue" icon="👥"
+          onClick={() => { setCardFilter("all"); setPage(0); }}
+          active={cardFilter === "all"}
+        />
+        <KPICard
+          label={t("customers.active")}
+          value={activeCount}
+          color="green" icon="✅"
+          onClick={() => { setCardFilter("active"); setPage(0); }}
+          active={cardFilter === "active"}
+        />
+        <KPICard
+          label={t("customers.disabledCustomers")}
+          value={disabledCount}
+          color="red" icon="🚫"
+          onClick={() => { setCardFilter("disabled"); setPage(0); }}
+          active={cardFilter === "disabled"}
+        />
         <KPICard
           label={t("customers.coverage")}
           value={activeCount > 0 ? `${((activeCollectedCount / activeCount) * 100).toFixed(1)}%` : "—"}
+          sub={t("customers.coverageSub")}
           color="purple" icon="📈"
         />
       </div>
@@ -233,15 +253,13 @@ export default function CustomersPage() {
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                 className="input-field w-72"
               />
-              {disabledCount > 0 && (
-                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showDisabled}
-                    onChange={(e) => { setShowDisabled(e.target.checked); setPage(0); }}
-                  />
-                  {t("customers.showDisabled")} ({disabledCount})
-                </label>
+              {cardFilter !== "all" && (
+                <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : t("customers.disabledCustomers")}</strong>
+                  <button onClick={() => { setCardFilter("all"); setPage(0); }} className="text-brand-600 hover:underline">
+                    {t("common.clearFilters")}
+                  </button>
+                </span>
               )}
             </div>
             <span className="text-xs text-gray-500">{formatNumber(filtered.length)} {t("customers.records")}</span>

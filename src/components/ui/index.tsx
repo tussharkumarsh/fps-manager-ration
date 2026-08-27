@@ -10,12 +10,16 @@ export function KPICard({
   sub,
   color = "blue",
   icon,
+  onClick,
+  active,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   color?: string;
   icon?: string;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const colorMap: Record<string, string> = {
     blue: "border-l-blue-600",
@@ -27,7 +31,15 @@ export function KPICard({
   };
 
   return (
-    <div className={cn("card border-l-4 p-5", colorMap[color] || "border-l-blue-600")}>
+    <div
+      onClick={onClick}
+      className={cn(
+        "card border-l-4 p-5",
+        colorMap[color] || "border-l-blue-600",
+        onClick && "cursor-pointer transition-shadow hover:shadow-md",
+        active && "ring-2 ring-offset-1 ring-brand-600"
+      )}
+    >
       <div className="text-xs font-medium text-gray-500 tracking-wide uppercase">
         {icon && <span className="mr-1">{icon}</span>}
         {label}
