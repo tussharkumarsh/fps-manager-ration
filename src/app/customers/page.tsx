@@ -63,6 +63,7 @@ export default function CustomersPage() {
         txnCount: txns.length,
         totalWheat: txns.reduce((s, t) => s + t.wheat, 0),
         totalRice: txns.reduce((s, t) => s + t.rice, 0),
+        totalSaree: txns.reduce((s, t) => s + t.saree, 0),
         lastDispatched: lastDispatchedMonth(txns),
       };
     });
@@ -273,6 +274,7 @@ export default function CustomersPage() {
                   {showDealerColumn && <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.dealer")}</th>}
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.sNo")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.rationCardNo")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.scheme")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.status")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.areaType")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.familyHead")}</th>
@@ -280,6 +282,7 @@ export default function CustomersPage() {
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.txns")}</th>
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.wheatKg")}</th>
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.riceKg")}</th>
+                  <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.sareePkts")}</th>
                   <th className="px-3 py-2.5 text-center whitespace-nowrap">{t("customers.action")}</th>
                 </tr>
               </thead>
@@ -308,6 +311,9 @@ export default function CustomersPage() {
                         )}
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.sNo ?? "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.srcNo}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {c.scheme ? <Badge text={c.scheme} /> : <span className="text-gray-400">{t("customers.otherScheme")}</span>}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs">
                           {c.disabled
                             ? <span title={c.disabledReason || ""}><Badge text={t("customers.disabled")} variant="error" /></span>
@@ -319,6 +325,7 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 text-right font-mono text-xs">{c.txnCount}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalWheat)}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalRice)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalSaree)}</td>
                         <td className="px-3 py-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           {!readOnly && (
                             <div className="flex items-center justify-center gap-2">
@@ -344,7 +351,7 @@ export default function CustomersPage() {
                       </tr>
                       {isOpen && hasMembers && (
                         <tr key={`${c.srcNo}-members`} className="bg-gray-50">
-                          <td colSpan={showDealerColumn ? 12 : 11} className="px-6 py-3">
+                          <td colSpan={showDealerColumn ? 14 : 13} className="px-6 py-3">
                             <div className="text-xs font-semibold text-gray-500 mb-2">
                               {t("customers.familyMembers")} ({c.members!.length})
                             </div>
@@ -396,7 +403,7 @@ export default function CustomersPage() {
                 })}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={showDealerColumn ? 12 : 11} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={showDealerColumn ? 14 : 13} className="px-4 py-12 text-center text-gray-400">
                       {t("customers.noRecordsFound")}
                     </td>
                   </tr>
