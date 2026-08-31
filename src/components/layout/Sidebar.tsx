@@ -33,7 +33,7 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex flex-col bg-brand-700 transition-all duration-200 flex-shrink-0",
+        "no-print flex flex-col bg-brand-700 transition-all duration-200 flex-shrink-0",
         sidebarOpen ? "w-56" : "w-14"
       )}
     >

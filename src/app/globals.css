@@ -58,4 +58,18 @@
   .print-only {
     display: block !important;
   }
+  body {
+    background: white;
+  }
+  main {
+    overflow: visible !important;
+  }
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
 }

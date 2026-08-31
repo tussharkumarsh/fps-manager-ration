@@ -130,7 +130,7 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex justify-between items-start flex-wrap gap-3">
+      <div className="no-print flex justify-between items-start flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold">📑 {t("reports.title")}</h1>
           <p className="text-sm text-gray-500">
@@ -168,17 +168,19 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <TabGroup
-        tabs={[
-          { id: "daily", label: t("reports.dailySummary") },
-          { id: "scheme", label: t("reports.schemeWise") },
-          { id: "pending", label: t("reports.pendingList") },
-          { id: "goshwara", label: t("reports.goshwara") },
-          { id: "monthlyDates", label: t("reports.monthlyDates") },
-        ]}
-        active={reportType}
-        onChange={setReportType}
-      />
+      <div className="no-print">
+        <TabGroup
+          tabs={[
+            { id: "daily", label: t("reports.dailySummary") },
+            { id: "scheme", label: t("reports.schemeWise") },
+            { id: "pending", label: t("reports.pendingList") },
+            { id: "goshwara", label: t("reports.goshwara") },
+            { id: "monthlyDates", label: t("reports.monthlyDates") },
+          ]}
+          active={reportType}
+          onChange={setReportType}
+        />
+      </div>
 
       {/* Daily Summary */}
       {reportType === "daily" && (
