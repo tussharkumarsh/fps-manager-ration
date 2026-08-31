@@ -106,7 +106,28 @@ export const useStore = create<AppState>()(
         set((state) => {
           const existing = new Map(state.customers.map((c) => [c.srcNo, c]));
           newCustomers.forEach((c) => {
-            existing.set(c.srcNo, { ...existing.get(c.srcNo), ...c });
+            const prior = existing.get(c.srcNo);
+            if (!prior) {
+              existing.set(c.srcNo, c);
+              return;
+            }
+            // Field-level merge, not a blind overwrite: an imported row
+            // often carries `undefined`/"" for fields this particular sheet
+            // doesn't capture (e.g. a KGS Master row has no scheme/mobile at
+            // all) — only overwrite a field the incoming row actually has a
+            // value for, so older enrichment data (from a previous import)
+            // never gets silently blanked out. Mirrors the backend's
+            // upsertMany merge semantics.
+            const merged = { ...prior };
+            (Object.keys(c) as (keyof Customer)[]).forEach((key) => {
+              const value = c[key];
+              const isEmpty =
+                value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+              if (!isEmpty) {
+                (merged as Record<string, unknown>)[key] = value;
+              }
+            });
+            existing.set(c.srcNo, merged);
           });
           return { customers: Array.from(existing.values()) };
         }),

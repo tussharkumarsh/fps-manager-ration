@@ -66,13 +66,13 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    const { srcNo, mobile, disabled, disabledReason, disabledAt } = await req.json();
+    const { srcNo, mobile, scheme, disabled, disabledReason, disabledAt } = await req.json();
     if (!srcNo) {
       return NextResponse.json({ error: "srcNo is required" }, { status: 400 });
     }
     await backendFetch("/customers", {
       method: "PATCH",
-      body: { fpsId: session.fpsId, srcNo, mobile, disabled, disabledReason, disabledAt },
+      body: { fpsId: session.fpsId, srcNo, mobile, scheme, disabled, disabledReason, disabledAt },
     });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

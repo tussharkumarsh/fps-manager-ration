@@ -351,8 +351,20 @@ export default function CustomersPage() {
                         )}
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.sNo ?? "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.srcNo}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          {c.scheme ? <Badge text={c.scheme} /> : <span className="text-gray-400">{t("customers.otherScheme")}</span>}
+                        <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          {readOnly ? (
+                            c.scheme ? <Badge text={c.scheme} /> : <span className="text-gray-400">{t("customers.otherScheme")}</span>
+                          ) : (
+                            <select
+                              value={c.scheme || ""}
+                              onChange={(e) => patchCustomer(c.srcNo, { scheme: e.target.value } as Partial<Customer>)}
+                              className="input-field text-xs py-1 w-24"
+                            >
+                              <option value="">{t("customers.otherScheme")}</option>
+                              <option value="PHH">PHH</option>
+                              <option value="AAY">AAY</option>
+                            </select>
+                          )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs">
                           {c.disabled
