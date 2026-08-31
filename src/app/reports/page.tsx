@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
-import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, activeCustomers } from "@/lib/utils";
+import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
@@ -31,7 +31,7 @@ export default function ReportsPage() {
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
   const [reportType, setReportType] = useState("daily");
-  const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const [monthFilter, setMonthFilter] = useState<string>(getCurrentMonth());
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [pivotScheme, setPivotScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");

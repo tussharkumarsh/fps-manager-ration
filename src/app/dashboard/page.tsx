@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { useStore } from "@/store/useStore";
 import { KPICard, Badge, EmptyState } from "@/components/ui";
-import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, dateOnly, activeCustomers } from "@/lib/utils";
+import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, dateOnly, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
@@ -85,7 +85,7 @@ export default function DashboardPage() {
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
   useAutoLoadMonth(settings.month, settings.year);
 
-  const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const [monthFilter, setMonthFilter] = useState<string>(getCurrentMonth());
   const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
 
   // "All Months" has no single closing balance to show (each month's

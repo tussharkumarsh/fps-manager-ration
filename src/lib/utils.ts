@@ -155,9 +155,20 @@ export function dateOnly(dateStr: string): string {
   return dateStr.split(" ")[0];
 }
 
-/** Distinct "YYYY-MM" values present in a transaction list, newest first, with a display label. */
+/** Current "YYYY-MM" per local device time. */
+export function getCurrentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Distinct "YYYY-MM" values present in a transaction list, newest first, with a display label.
+ * Always includes the current month so month-filter defaults can select it even before any
+ * transaction exists for it yet.
+ */
 export function getDistinctMonths(transactions: Transaction[]): { value: string; label: string }[] {
   const set = new Set(transactions.map((t) => dateOnly(t.date).slice(0, 7)));
+  set.add(getCurrentMonth());
   return Array.from(set)
     .sort((a, b) => b.localeCompare(a))
     .map((ym) => {

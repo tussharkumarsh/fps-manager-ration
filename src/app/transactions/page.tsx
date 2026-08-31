@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, EmptyState } from "@/components/ui";
-import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths } from "@/lib/utils";
+import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth } from "@/lib/utils";
 import { exportRowsToPdf } from "@/lib/pdfExport";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -20,7 +20,7 @@ export default function TransactionsPage() {
   useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [authFilter, setAuthFilter] = useState<string>("ALL");
-  const [monthFilter, setMonthFilter] = useState<string>("ALL");
+  const [monthFilter, setMonthFilter] = useState<string>(getCurrentMonth());
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
