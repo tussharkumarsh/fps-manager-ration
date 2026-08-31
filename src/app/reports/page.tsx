@@ -122,6 +122,8 @@ export default function ReportsPage() {
       { label: t("reports.familiesServed"), phh: phh.length, aay: aay.filter((t) => t.wheat > 0).length },
       { label: t("reports.wheatDistributed"), phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
       { label: t("reports.riceDistributed"), phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
+      { label: `${t("transactions.sugar")} (Kg)`, phh: phh.reduce((s, t) => s + t.sugar, 0), aay: aay.reduce((s, t) => s + t.sugar, 0) },
+      { label: `${t("transactions.jowar")} (Kg)`, phh: phh.reduce((s, t) => s + t.jowar, 0), aay: aay.reduce((s, t) => s + t.jowar, 0) },
       { label: `${t("transactions.saree")} (Pkts)`, phh: 0, aay: aay.reduce((s, t) => s + t.saree, 0) },
       { label: t("reports.portabilityTxns"), phh: phh.filter((t) => t.portability !== "Self").length, aay: aay.filter((t) => t.portability !== "Self").length },
       { label: t("reports.activeDays"), phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
