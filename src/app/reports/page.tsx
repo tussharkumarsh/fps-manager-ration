@@ -9,12 +9,22 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { DailySummary, Transaction, Customer } from "@/types";
 
+/** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
+function lastDispatchedMonth(txns: { date: string }[]): string {
+  if (txns.length === 0) return "";
+  const latest = txns.reduce((max, t) => (dateOnly(t.date) > dateOnly(max.date) ? t : max));
+  const [year, month] = dateOnly(latest.date).split("-");
+  return `${getMonthName(parseInt(month, 10))} ${year}`;
+}
+
 export default function ReportsPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { transactions, customers: allCustomers, settings, viewingDealer } = useStore();
+  const { transactions, customers: allCustomers, settings, viewingDealer, updateCustomer } = useStore();
   const customers = useMemo(() => activeCustomers(allCustomers), [allCustomers]);
-  const aggregateMode = session?.role === "admin" && !viewingDealer;
+  const isAdmin = session?.role === "admin";
+  const readOnly = isAdmin;
+  const aggregateMode = isAdmin && !viewingDealer;
   const scopeLabel = aggregateMode
     ? t("common.allDealersCollective")
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
@@ -25,6 +35,8 @@ export default function ReportsPage() {
   const [toDate, setToDate] = useState<string>("");
   const [pivotScheme, setPivotScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [pivotMonths, setPivotMonths] = useState<string[]>(["", "", ""]);
+  const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
+  const [disableReason, setDisableReason] = useState("");
 
   const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
 
@@ -66,10 +78,27 @@ export default function ReportsPage() {
     return [...dailySummary, totals];
   }, [dailySummary]);
 
+  const monthLabel =
+    monthFilter !== "ALL"
+      ? monthOptions.find((m) => m.value === monthFilter)?.label || monthFilter
+      : `${getMonthName(parseInt(settings.month))} ${settings.year}`;
+
   const pendingCustomers = useMemo(() => {
     const collected = new Set(scopedTransactions.filter((t) => t.wheat > 0).map((t) => t.srcNo));
-    return customers.filter((c) => !collected.has(c.srcNo));
-  }, [scopedTransactions, customers]);
+    return customers
+      .filter((c) => !collected.has(c.srcNo))
+      .map((c) => {
+        const txns = transactions.filter((tr) => tr.srcNo === c.srcNo);
+        const lastDispatched = lastDispatchedMonth(txns);
+        return {
+          ...c,
+          lastDispatched,
+          remark: lastDispatched
+            ? t("reports.pendingThisMonth", { month: monthLabel })
+            : t("reports.neverCollected"),
+        };
+      });
+  }, [scopedTransactions, customers, transactions, monthLabel, t]);
 
   const goshwaraRows = useMemo(() => {
     const phh = enriched.filter((t) => t.scheme === "PHH");
@@ -111,11 +140,6 @@ export default function ReportsPage() {
         dates: effectivePivotMonths.map((ym) => (ym ? pivotDatesByCustomer[c.srcNo]?.[ym] || "" : "")),
       }));
   }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths]);
-
-  const monthLabel =
-    monthFilter !== "ALL"
-      ? monthOptions.find((m) => m.value === monthFilter)?.label || monthFilter
-      : `${getMonthName(parseInt(settings.month))} ${settings.year}`;
 
   const hasActiveFilter = monthFilter !== "ALL" || !!fromDate || !!toDate;
 
@@ -247,21 +271,117 @@ export default function ReportsPage() {
 
       {/* Pending */}
       {reportType === "pending" && (
-        <div>
-          <div className="bg-red-50 rounded-xl p-4 mb-4">
-            <p className="text-sm font-semibold text-red-700">
-              {pendingCustomers.length} customers have not collected ration for {monthLabel}
-            </p>
+        <div className="card p-6">
+          <div className="no-print flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div className="bg-red-50 rounded-xl px-4 py-3">
+              <p className="text-sm font-semibold text-red-700">
+                {pendingCustomers.length} customers have not collected ration for {monthLabel}
+              </p>
+            </div>
+            <button onClick={() => window.print()} className="btn-secondary text-xs">
+              🖨️ {t("reports.printReport")}
+            </button>
           </div>
-          <DataTable<Customer>
-            columns={[
-              { key: "srcNo", label: t("transactions.srcNo"), mono: true },
-              { key: "name", label: t("transactions.customerName") },
-              { key: "lastDispatched", label: t("customers.lastDispatched"),
-                render: (v) => <span className="text-gray-500">{String(v) || "—"}</span> },
-            ]}
-            data={pendingCustomers}
-          />
+
+          <h3 className="text-base font-bold text-center text-brand-700 mb-5">
+            {t("reports.pendingList")} — {monthLabel}
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-brand-700 text-white">
+                  <th className="px-4 py-3 text-left font-semibold">{t("reports.srNo")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("transactions.srcNo")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("transactions.customerName")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("customers.lastDispatched")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("reports.remark")}</th>
+                  {!readOnly && (
+                    <th className="no-print px-4 py-3 text-center font-semibold">{t("common.actions")}</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {pendingCustomers.map((c, i) => (
+                  <tr key={c.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                    <td className="px-4 py-3 font-mono">{i + 1}</td>
+                    <td className="px-4 py-3 font-mono">{c.srcNo}</td>
+                    <td className="px-4 py-3">{c.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{c.lastDispatched || "—"}</td>
+                    <td className="px-4 py-3 text-gray-600">{c.remark}</td>
+                    {!readOnly && (
+                      <td className="no-print px-4 py-3 text-center">
+                        {c.disabled ? (
+                          <button
+                            onClick={() => updateCustomer(c.srcNo, { disabled: false, disabledReason: undefined, disabledAt: undefined })}
+                            className="text-emerald-600 hover:text-emerald-800 text-xs font-medium"
+                          >
+                            {t("customers.enable")}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setDisableTarget(c); setDisableReason(""); }}
+                            className="text-amber-600 hover:text-amber-800 text-xs font-medium"
+                          >
+                            {t("customers.disable")}
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {pendingCustomers.length === 0 && (
+                  <tr>
+                    <td colSpan={readOnly ? 5 : 6} className="px-4 py-12 text-center text-gray-400">
+                      {t("customers.noRecordsFound")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {disableTarget && (
+            <div className="no-print fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+              onClick={() => setDisableTarget(null)}>
+              <div className="card p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-sm font-semibold mb-1">{t("customers.disableCustomer")}</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  {disableTarget.name} ({disableTarget.srcNo})
+                </p>
+                <label className="text-xs font-medium text-gray-500 block mb-1">{t("customers.disableReasonLabel")}</label>
+                <textarea
+                  value={disableReason}
+                  onChange={(e) => setDisableReason(e.target.value)}
+                  placeholder={t("customers.disableReasonPlaceholder")}
+                  className="input-field w-full mb-4"
+                  rows={3}
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setDisableTarget(null)} className="btn-secondary text-xs">
+                    {t("common.cancel")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!disableTarget || !disableReason.trim()) return;
+                      updateCustomer(disableTarget.srcNo, {
+                        disabled: true,
+                        disabledReason: disableReason.trim(),
+                        disabledAt: new Date().toISOString(),
+                      });
+                      setDisableTarget(null);
+                      setDisableReason("");
+                    }}
+                    disabled={!disableReason.trim()}
+                    className="btn-primary text-xs disabled:opacity-40"
+                  >
+                    {t("customers.disable")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
