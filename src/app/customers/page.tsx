@@ -39,6 +39,8 @@ export default function CustomersPage() {
   const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled">("all");
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
+  const [mobileTarget, setMobileTarget] = useState<Customer | null>(null);
+  const [mobileValue, setMobileValue] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const customers = useMemo(() => {
@@ -125,23 +127,56 @@ export default function CustomersPage() {
     }
   };
 
-  const handleAddCustomer = () => {
+  const handleAddCustomer = async () => {
     if (readOnly || !newSrc || !newName) return;
-    addCustomer({ srcNo: newSrc.trim(), name: newName.trim() });
-    setNewSrc("");
-    setNewName("");
-    setShowAdd(false);
+    const srcNo = newSrc.trim();
+    const name = newName.trim();
+    try {
+      const res = await apiFetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ srcNo, name }),
+      });
+      if (!res.ok) return;
+      addCustomer({ srcNo, name });
+      setNewSrc("");
+      setNewName("");
+      setShowAdd(false);
+    } catch {
+      // Non-fatal — local state stays unchanged so the form can be retried.
+    }
   };
 
-  const handleConfirmDisable = () => {
+  const patchCustomer = async (srcNo: string, patch: Partial<Customer>) => {
+    try {
+      const res = await apiFetch("/api/customers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ srcNo, ...patch }),
+      });
+      if (!res.ok) return;
+      updateCustomer(srcNo, patch);
+    } catch {
+      // Non-fatal — local state stays unchanged, matching what's actually stored.
+    }
+  };
+
+  const handleConfirmDisable = async () => {
     if (!disableTarget || !disableReason.trim()) return;
-    updateCustomer(disableTarget.srcNo, {
+    await patchCustomer(disableTarget.srcNo, {
       disabled: true,
       disabledReason: disableReason.trim(),
       disabledAt: new Date().toISOString(),
     });
     setDisableTarget(null);
     setDisableReason("");
+  };
+
+  const handleConfirmMobile = async () => {
+    if (!mobileTarget) return;
+    await patchCustomer(mobileTarget.srcNo, { mobile: mobileValue.trim() });
+    setMobileTarget(null);
+    setMobileValue("");
   };
 
   return (
@@ -280,6 +315,7 @@ export default function CustomersPage() {
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.status")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.areaType")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.familyHead")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.mobile")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.lastDispatched")}</th>
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.txns")}</th>
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.wheatKg")}</th>
@@ -325,6 +361,20 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{c.areaType || "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-800">{c.name}</td>
+                        <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs text-gray-600">{c.mobile || "—"}</span>
+                            {!readOnly && (
+                              <button
+                                onClick={() => { setMobileTarget(c); setMobileValue(c.mobile || ""); }}
+                                className="text-blue-600 hover:text-blue-800 text-xs"
+                                title={t("customers.editMobile")}
+                              >
+                                ✏️
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{c.lastDispatched}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{c.txnCount}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalWheat)}</td>
@@ -336,7 +386,7 @@ export default function CustomersPage() {
                           {!readOnly && (
                             <div className="flex items-center justify-center gap-2">
                               {c.disabled ? (
-                                <button onClick={() => updateCustomer(c.srcNo, { disabled: false, disabledReason: undefined, disabledAt: undefined })}
+                                <button onClick={() => patchCustomer(c.srcNo, { disabled: false, disabledReason: "", disabledAt: "" })}
                                   className="text-emerald-600 hover:text-emerald-800 text-xs font-medium">
                                   {t("customers.enable")}
                                 </button>
@@ -346,8 +396,10 @@ export default function CustomersPage() {
                                   {t("customers.disable")}
                                 </button>
                               )}
-                              <button onClick={() => {
-                                if (confirm(`Delete ${c.name}?`)) deleteCustomer(c.srcNo);
+                              <button onClick={async () => {
+                                if (!confirm(`Delete ${c.name}?`)) return;
+                                const res = await apiFetch(`/api/customers?srcNo=${encodeURIComponent(c.srcNo)}`, { method: "DELETE" });
+                                if (res.ok) deleteCustomer(c.srcNo);
                               }} className="text-red-500 hover:text-red-700 text-xs font-medium">
                                 {t("common.delete")}
                               </button>
@@ -357,7 +409,7 @@ export default function CustomersPage() {
                       </tr>
                       {isOpen && hasMembers && (
                         <tr key={`${c.srcNo}-members`} className="bg-gray-50">
-                          <td colSpan={showDealerColumn ? 16 : 15} className="px-6 py-3">
+                          <td colSpan={showDealerColumn ? 17 : 16} className="px-6 py-3">
                             <div className="text-xs font-semibold text-gray-500 mb-2">
                               {t("customers.familyMembers")} ({c.members!.length})
                             </div>
@@ -409,7 +461,7 @@ export default function CustomersPage() {
                 })}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={showDealerColumn ? 16 : 15} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={showDealerColumn ? 17 : 16} className="px-4 py-12 text-center text-gray-400">
                       {t("customers.noRecordsFound")}
                     </td>
                   </tr>
@@ -459,6 +511,36 @@ export default function CustomersPage() {
               <button onClick={handleConfirmDisable} disabled={!disableReason.trim()}
                 className="btn-primary text-xs disabled:opacity-40">
                 {t("customers.disable")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit mobile number */}
+      {mobileTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => setMobileTarget(null)}>
+          <div className="card p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-1">{t("customers.editMobile")}</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              {mobileTarget.name} ({mobileTarget.srcNo})
+            </p>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t("customers.mobile")}</label>
+            <input
+              type="tel"
+              value={mobileValue}
+              onChange={(e) => setMobileValue(e.target.value)}
+              placeholder={t("customers.mobilePlaceholder")}
+              className="input-field w-full mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setMobileTarget(null)} className="btn-secondary text-xs">
+                {t("common.cancel")}
+              </button>
+              <button onClick={handleConfirmMobile} className="btn-primary text-xs">
+                {t("common.save")}
               </button>
             </div>
           </div>

@@ -151,6 +151,8 @@ const en = {
     disableCustomer: "Disable Customer",
     disableReasonLabel: "Reason for disabling",
     disableReasonPlaceholder: "e.g. moved to another shop, deceased, not collecting ration",
+    editMobile: "Edit Mobile Number",
+    mobilePlaceholder: "Enter mobile number",
   },
   inventory: {
     title: "Inventory",
@@ -452,6 +454,8 @@ const hi: typeof en = {
     disableCustomer: "ग्राहक निष्क्रिय करें",
     disableReasonLabel: "निष्क्रिय करने का कारण",
     disableReasonPlaceholder: "जैसे दूसरी दुकान पर गया, मृत्यु, राशन नहीं ले रहा",
+    editMobile: "मोबाइल नंबर संपादित करें",
+    mobilePlaceholder: "मोबाइल नंबर दर्ज करें",
   },
   inventory: {
     title: "इन्वेंटरी",
@@ -753,6 +757,8 @@ const mr: typeof en = {
     disableCustomer: "ग्राहक निष्क्रिय करा",
     disableReasonLabel: "निष्क्रिय करण्याचे कारण",
     disableReasonPlaceholder: "उदा. दुसऱ्या दुकानात गेला, मृत्यू, रेशन घेत नाही",
+    editMobile: "मोबाइल नंबर संपादित करा",
+    mobilePlaceholder: "मोबाइल नंबर टाका",
   },
   inventory: {
     title: "इन्व्हेंटरी",

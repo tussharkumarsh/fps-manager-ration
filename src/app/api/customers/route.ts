@@ -59,6 +59,28 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.fpsId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  try {
+    const { srcNo, mobile, disabled, disabledReason, disabledAt } = await req.json();
+    if (!srcNo) {
+      return NextResponse.json({ error: "srcNo is required" }, { status: 400 });
+    }
+    await backendFetch("/customers", {
+      method: "PATCH",
+      body: { fpsId: session.fpsId, srcNo, mobile, disabled, disabledReason, disabledAt },
+    });
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.fpsId) {

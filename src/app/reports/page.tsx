@@ -7,6 +7,7 @@ import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
 import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { apiFetch } from "@/lib/apiFetch";
 import type { DailySummary, Transaction, Customer } from "@/types";
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
@@ -37,6 +38,20 @@ export default function ReportsPage() {
   const [pivotMonths, setPivotMonths] = useState<string[]>(["", "", ""]);
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
+
+  const patchCustomer = async (srcNo: string, patch: Partial<Customer>) => {
+    try {
+      const res = await apiFetch("/api/customers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ srcNo, ...patch }),
+      });
+      if (!res.ok) return;
+      updateCustomer(srcNo, patch);
+    } catch {
+      // Non-fatal — local state stays unchanged, matching what's actually stored.
+    }
+  };
 
   const monthOptions = useMemo(() => getDistinctMonths(transactions), [transactions]);
 
@@ -323,7 +338,7 @@ export default function ReportsPage() {
                       <td className="no-print px-4 py-3 text-center">
                         {c.disabled ? (
                           <button
-                            onClick={() => updateCustomer(c.srcNo, { disabled: false, disabledReason: undefined, disabledAt: undefined })}
+                            onClick={() => patchCustomer(c.srcNo, { disabled: false, disabledReason: "", disabledAt: "" })}
                             className="text-emerald-600 hover:text-emerald-800 text-xs font-medium"
                           >
                             {t("customers.enable")}
@@ -373,9 +388,9 @@ export default function ReportsPage() {
                     {t("common.cancel")}
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!disableTarget || !disableReason.trim()) return;
-                      updateCustomer(disableTarget.srcNo, {
+                      await patchCustomer(disableTarget.srcNo, {
                         disabled: true,
                         disabledReason: disableReason.trim(),
                         disabledAt: new Date().toISOString(),
