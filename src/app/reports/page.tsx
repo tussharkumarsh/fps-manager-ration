@@ -152,6 +152,7 @@ export default function ReportsPage() {
       .map((c) => ({
         srcNo: c.srcNo,
         name: c.name,
+        memberCount: c.memberCount,
         dates: effectivePivotMonths.map((ym) => (ym ? pivotDatesByCustomer[c.srcNo]?.[ym] || "" : "")),
       }));
   }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths]);
@@ -492,6 +493,7 @@ export default function ReportsPage() {
                 <tr className="bg-brand-700 text-white">
                   <th className="px-4 py-3 text-left font-semibold">{t("reports.customerId")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("reports.customerName")}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{t("reports.units")}</th>
                   {effectivePivotMonths.map((ym, idx) => (
                     <th key={idx} className="px-4 py-3 text-right font-semibold">
                       {ym ? monthOptions.find((m) => m.value === ym)?.label || ym : "—"}
@@ -504,6 +506,7 @@ export default function ReportsPage() {
                   <tr key={row.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
                     <td className="px-4 py-3 font-mono">{row.srcNo}</td>
                     <td className="px-4 py-3">{row.name}</td>
+                    <td className="px-4 py-3 text-right font-mono">{row.memberCount ?? "—"}</td>
                     {row.dates.map((d, idx) => (
                       <td key={idx} className="px-4 py-3 text-right font-mono">
                         {d ? formatDate(d) : "—"}
