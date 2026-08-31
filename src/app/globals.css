@@ -72,4 +72,11 @@
     border: none !important;
     padding: 0 !important;
   }
+  table {
+    border-collapse: collapse !important;
+  }
+  table th,
+  table td {
+    border: 1px solid #000 !important;
+  }
 }
