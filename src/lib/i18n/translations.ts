@@ -213,8 +213,6 @@ const en = {
     selectMonth: "Select Month",
     schemeAll: "All Schemes",
     srNo: "Sr. No.",
-    remark: "Remark",
-    neverCollected: "No transaction found",
   },
   sync: {
     title: "Sync Data",
@@ -508,8 +506,6 @@ const hi: typeof en = {
     selectMonth: "महीना चुनें",
     schemeAll: "सभी योजनाएं",
     srNo: "अ. क्र.",
-    remark: "टिप्पणी",
-    neverCollected: "कोई लेन-देन नहीं मिला",
     monthlySummary: "मासिक सारांश",
     particulars: "विवरण",
   },
@@ -807,8 +803,6 @@ const mr: typeof en = {
     selectMonth: "महिना निवडा",
     schemeAll: "सर्व योजना",
     srNo: "अ. क्र.",
-    remark: "शेरा",
-    neverCollected: "कोणताही व्यवहार आढळला नाही",
   },
   sync: {
     title: "डेटा सिंक करा",
