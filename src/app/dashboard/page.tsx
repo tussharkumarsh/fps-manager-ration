@@ -129,7 +129,7 @@ export default function DashboardPage() {
     return customers.filter((c) => !collected.has(c.srcNo));
   }, [scopedTransactions, customers]);
 
-  const stockIcons: Record<string, string> = { Wheat: "🌾", Rice: "🍚" };
+  const stockIcons: Record<string, string> = { Wheat: "🌾", Rice: "🍚", Sugar: "🧂", Jowar: "🌽" };
   const stockAsOfLabel =
     monthFilter === "ALL"
       ? t("inventory.asOfNow")
@@ -208,6 +208,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard label={t("dashboard.totalWheat")} value={`${formatNumber(stats.totalWheat)} Kg`} sub={`${stats.activeDays} ${t("dashboard.activeDays")}`} color="blue" icon="🌾" />
         <KPICard label={t("dashboard.totalRice")} value={`${formatNumber(stats.totalRice)} Kg`} sub="PHH + AAY" color="green" icon="🍚" />
+        <KPICard label={t("dashboard.totalSugar")} value={`${formatNumber(stats.totalSugar)} Kg`} sub="PHH + AAY" color="yellow" icon="🧂" />
+        <KPICard label={t("dashboard.totalJowar")} value={`${formatNumber(stats.totalJowar)} Kg`} sub="PHH + AAY" color="purple" icon="🌽" />
         <KPICard label={t("dashboard.phhFamilies")} value={stats.phhCount} sub={t("dashboard.priorityHousehold")} color="blue" icon="🏠" />
         <KPICard label={t("dashboard.aayFamilies")} value={stats.aayCount} sub={t("dashboard.antyodaya")} color="yellow" icon="🎯" />
         <KPICard label={t("dashboard.uniqueCustomers")} value={stats.uniqueCustomers} sub={t("dashboard.ofRegistered", { count: customers.length })} color="purple" icon="👥" />
@@ -229,6 +231,8 @@ export default function DashboardPage() {
               <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="wheat" fill="#2563eb" name="Wheat" radius={[4, 4, 0, 0]} />
               <Bar dataKey="rice" fill="#059669" name="Rice" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="sugar" fill="#d97706" name="Sugar" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="jowar" fill="#7c3aed" name="Jowar" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

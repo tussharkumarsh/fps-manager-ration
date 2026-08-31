@@ -106,7 +106,9 @@ export interface DailySummary {
 export interface MonthlyStats {
   totalWheat: number;
   totalRice: number;
+  totalSugar: number;
   totalSaree: number;
+  totalJowar: number;
   phhCount: number;
   aayCount: number;
   uniqueCustomers: number;
@@ -122,6 +124,8 @@ export interface ChartDataPoint {
   date: string;
   wheat: number;
   rice: number;
+  sugar: number;
+  jowar: number;
   phh: number;
   aay: number;
 }
@@ -130,7 +134,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   unit: string;
-  txField: "wheat" | "rice" | "";
+  txField: "wheat" | "rice" | "sugar" | "jowar" | "";
   active: boolean;
 }
 

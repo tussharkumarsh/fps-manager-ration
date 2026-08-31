@@ -30,7 +30,9 @@ export function getMonthName(month: number): string {
 export function calculateMonthlyStats(transactions: Transaction[]): MonthlyStats {
   const totalWheat = transactions.reduce((s, t) => s + t.wheat, 0);
   const totalRice = transactions.reduce((s, t) => s + t.rice, 0);
+  const totalSugar = transactions.reduce((s, t) => s + t.sugar, 0);
   const totalSaree = transactions.reduce((s, t) => s + t.saree, 0);
+  const totalJowar = transactions.reduce((s, t) => s + t.jowar, 0);
   const phhCount = transactions.filter((t) => t.scheme === "PHH").length;
   const aayCount = transactions.filter((t) => t.scheme === "AAY" && t.wheat > 0).length;
   const uniqueCustomers = new Set(transactions.map((t) => t.srcNo)).size;
@@ -43,7 +45,9 @@ export function calculateMonthlyStats(transactions: Transaction[]): MonthlyStats
   return {
     totalWheat,
     totalRice,
+    totalSugar,
     totalSaree,
+    totalJowar,
     phhCount,
     aayCount,
     uniqueCustomers,
@@ -113,9 +117,11 @@ export function calculateChartData(transactions: Transaction[]): ChartDataPoint[
 
   transactions.forEach((t) => {
     const d = t.date.split(" ")[0];
-    if (!byDate[d]) byDate[d] = { date: d, wheat: 0, rice: 0, phh: 0, aay: 0 };
+    if (!byDate[d]) byDate[d] = { date: d, wheat: 0, rice: 0, sugar: 0, jowar: 0, phh: 0, aay: 0 };
     byDate[d].wheat += t.wheat;
     byDate[d].rice += t.rice;
+    byDate[d].sugar += t.sugar;
+    byDate[d].jowar += t.jowar;
     if (t.scheme === "PHH") byDate[d].phh++;
     else if (t.wheat > 0) byDate[d].aay++;
   });
