@@ -44,7 +44,9 @@ export interface Transaction {
   date: string;
   wheat: number;
   rice: number;
+  sugar: number;
   saree: number;
+  jowar: number;
   amount: number;
   portability: string;
   authTransTime?: string;
@@ -86,12 +88,18 @@ export interface DailySummary {
   phhFamilies: number;
   phhWheat: number;
   phhRice: number;
+  phhSugar: number;
+  phhJowar: number;
   aayFamilies: number;
   aayWheat: number;
   aayRice: number;
+  aaySugar: number;
   aaySaree: number;
+  aayJowar: number;
   totalWheat: number;
   totalRice: number;
+  totalSugar: number;
+  totalJowar: number;
   totalTransactions: number;
 }
 

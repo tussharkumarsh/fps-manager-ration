@@ -67,12 +67,18 @@ export default function ReportsPage() {
       phhFamilies: dailySummary.reduce((s, r) => s + r.phhFamilies, 0),
       phhWheat: dailySummary.reduce((s, r) => s + r.phhWheat, 0),
       phhRice: dailySummary.reduce((s, r) => s + r.phhRice, 0),
+      phhSugar: dailySummary.reduce((s, r) => s + r.phhSugar, 0),
+      phhJowar: dailySummary.reduce((s, r) => s + r.phhJowar, 0),
       aayFamilies: dailySummary.reduce((s, r) => s + r.aayFamilies, 0),
       aayWheat: dailySummary.reduce((s, r) => s + r.aayWheat, 0),
       aayRice: dailySummary.reduce((s, r) => s + r.aayRice, 0),
+      aaySugar: dailySummary.reduce((s, r) => s + r.aaySugar, 0),
       aaySaree: dailySummary.reduce((s, r) => s + r.aaySaree, 0),
+      aayJowar: dailySummary.reduce((s, r) => s + r.aayJowar, 0),
       totalWheat: dailySummary.reduce((s, r) => s + r.totalWheat, 0),
       totalRice: dailySummary.reduce((s, r) => s + r.totalRice, 0),
+      totalSugar: dailySummary.reduce((s, r) => s + r.totalSugar, 0),
+      totalJowar: dailySummary.reduce((s, r) => s + r.totalJowar, 0),
       totalTransactions: dailySummary.reduce((s, r) => s + r.totalTransactions, 0),
     };
     return [...dailySummary, totals];
@@ -212,12 +218,18 @@ export default function ReportsPage() {
             { key: "phhFamilies", label: "PHH #", align: "right", mono: true },
             { key: "phhWheat", label: "PHH Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
             { key: "phhRice", label: "PHH Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+            { key: "phhSugar", label: "PHH Sugar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+            { key: "phhJowar", label: "PHH Jowar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
             { key: "aayFamilies", label: "AAY #", align: "right", mono: true },
             { key: "aayWheat", label: "AAY Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
             { key: "aayRice", label: "AAY Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+            { key: "aaySugar", label: "AAY Sugar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
             { key: "aaySaree", label: t("transactions.saree"), align: "right", mono: true },
+            { key: "aayJowar", label: "AAY Jowar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
             { key: "totalWheat", label: `${t("reports.total")} ${t("transactions.wheat")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
             { key: "totalRice", label: `${t("reports.total")} ${t("transactions.rice")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+            { key: "totalSugar", label: `${t("reports.total")} ${t("transactions.sugar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+            { key: "totalJowar", label: `${t("reports.total")} ${t("transactions.jowar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
             { key: "totalTransactions", label: "Total Txns", align: "right", mono: true },
           ]}
           data={dailyWithTotals}
@@ -239,6 +251,8 @@ export default function ReportsPage() {
                 { key: "availType", label: t("transactions.authType"), render: (v) => <Badge text={String(v)} /> },
                 { key: "wheat", label: t("transactions.wheat"), align: "right", mono: true },
                 { key: "rice", label: t("transactions.rice"), align: "right", mono: true },
+                { key: "sugar", label: t("transactions.sugar"), align: "right", mono: true },
+                { key: "jowar", label: t("transactions.jowar"), align: "right", mono: true },
               ]}
               data={enriched.filter((t) => t.scheme === "PHH")}
               maxHeight={450}
@@ -254,7 +268,9 @@ export default function ReportsPage() {
                 { key: "availType", label: t("transactions.authType"), render: (v) => <Badge text={String(v)} /> },
                 { key: "wheat", label: t("transactions.wheat"), align: "right", mono: true },
                 { key: "rice", label: t("transactions.rice"), align: "right", mono: true },
+                { key: "sugar", label: t("transactions.sugar"), align: "right", mono: true },
                 { key: "saree", label: t("transactions.saree"), align: "right", mono: true },
+                { key: "jowar", label: t("transactions.jowar"), align: "right", mono: true },
               ]}
               data={enriched.filter((t) => t.scheme === "AAY")}
               maxHeight={450}

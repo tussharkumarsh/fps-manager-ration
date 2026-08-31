@@ -54,7 +54,9 @@ export default function TransactionsPage() {
   const totals = useMemo(() => ({
     wheat: filtered.reduce((s, t) => s + t.wheat, 0),
     rice: filtered.reduce((s, t) => s + t.rice, 0),
+    sugar: filtered.reduce((s, t) => s + t.sugar, 0),
     saree: filtered.reduce((s, t) => s + t.saree, 0),
+    jowar: filtered.reduce((s, t) => s + t.jowar, 0),
   }), [filtered]);
 
   const handleExportPdf = () => {
@@ -72,7 +74,9 @@ export default function TransactionsPage() {
         { header: "Date", key: "date" },
         { header: "Wheat (Kg)", key: "wheat" },
         { header: "Rice (Kg)", key: "rice" },
+        { header: "Sugar (Kg)", key: "sugar" },
         { header: "Saree", key: "saree" },
+        { header: "Jowar (Kg)", key: "jowar" },
         { header: "Amount", key: "amount" },
         { header: "Portability", key: "portability" },
       ],
@@ -85,7 +89,9 @@ export default function TransactionsPage() {
         date: formatDate(dateOnly(t.date)),
         wheat: t.wheat,
         rice: t.rice,
+        sugar: t.sugar,
         saree: t.saree,
+        jowar: t.jowar,
         amount: t.amount,
         portability: t.portability,
       })),
@@ -178,7 +184,9 @@ export default function TransactionsPage() {
       <div className="flex gap-6 text-xs text-gray-600 bg-gray-100 rounded-lg px-4 py-2.5">
         <span>{t("transactions.wheat")}: <strong className="font-mono text-gray-900">{formatNumber(totals.wheat)} Kg</strong></span>
         <span>{t("transactions.rice")}: <strong className="font-mono text-gray-900">{formatNumber(totals.rice)} Kg</strong></span>
+        <span>{t("transactions.sugar")}: <strong className="font-mono text-gray-900">{formatNumber(totals.sugar)} Kg</strong></span>
         <span>{t("transactions.saree")}: <strong className="font-mono text-gray-900">{formatNumber(totals.saree)} Pkts</strong></span>
+        <span>{t("transactions.jowar")}: <strong className="font-mono text-gray-900">{formatNumber(totals.jowar)} Kg</strong></span>
       </div>
 
       <DataTable<TransactionRow>
@@ -197,7 +205,9 @@ export default function TransactionsPage() {
             render: (v) => <span>{formatDate(dateOnly(String(v)))}</span> },
           { key: "wheat", label: `${t("transactions.wheat")} (Kg)`, align: "right", mono: true },
           { key: "rice", label: `${t("transactions.rice")} (Kg)`, align: "right", mono: true },
+          { key: "sugar", label: `${t("transactions.sugar")} (Kg)`, align: "right", mono: true },
           { key: "saree", label: t("transactions.saree"), align: "right", mono: true },
+          { key: "jowar", label: `${t("transactions.jowar")} (Kg)`, align: "right", mono: true },
           { key: "amount", label: t("transactions.amount"), align: "right", mono: true,
             render: (v) => <span>{Number(v) > 0 ? `₹${v}` : "—"}</span> },
           { key: "portability", label: t("transactions.portability"),

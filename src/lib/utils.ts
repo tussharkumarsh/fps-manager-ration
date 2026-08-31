@@ -67,28 +67,40 @@ export function calculateDailySummary(transactions: Transaction[]): DailySummary
         phhFamilies: 0,
         phhWheat: 0,
         phhRice: 0,
+        phhSugar: 0,
+        phhJowar: 0,
         aayFamilies: 0,
         aayWheat: 0,
         aayRice: 0,
+        aaySugar: 0,
         aaySaree: 0,
+        aayJowar: 0,
         totalWheat: 0,
         totalRice: 0,
+        totalSugar: 0,
+        totalJowar: 0,
         totalTransactions: 0,
       };
     }
 
     byDate[d].totalWheat += t.wheat;
     byDate[d].totalRice += t.rice;
+    byDate[d].totalSugar += t.sugar;
+    byDate[d].totalJowar += t.jowar;
     byDate[d].totalTransactions += 1;
 
     if (t.scheme === "PHH") {
       byDate[d].phhWheat += t.wheat;
       byDate[d].phhRice += t.rice;
+      byDate[d].phhSugar += t.sugar;
+      byDate[d].phhJowar += t.jowar;
       byDate[d].phhFamilies += 1;
     } else {
       byDate[d].aayWheat += t.wheat;
       byDate[d].aayRice += t.rice;
+      byDate[d].aaySugar += t.sugar;
       byDate[d].aaySaree += t.saree;
+      byDate[d].aayJowar += t.jowar;
       if (t.wheat > 0) byDate[d].aayFamilies += 1;
     }
   });
