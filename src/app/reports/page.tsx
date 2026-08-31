@@ -93,12 +93,10 @@ export default function ReportsPage() {
         return {
           ...c,
           lastDispatched,
-          remark: lastDispatched
-            ? t("reports.pendingThisMonth", { month: monthLabel })
-            : t("reports.neverCollected"),
+          remark: lastDispatched ? "" : t("reports.neverCollected"),
         };
       });
-  }, [scopedTransactions, customers, transactions, monthLabel, t]);
+  }, [scopedTransactions, customers, transactions, t]);
 
   const goshwaraRows = useMemo(() => {
     const phh = enriched.filter((t) => t.scheme === "PHH");
@@ -294,6 +292,7 @@ export default function ReportsPage() {
                   <th className="px-4 py-3 text-left font-semibold">{t("reports.srNo")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("transactions.srcNo")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("transactions.customerName")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("customers.mobile")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("customers.lastDispatched")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("reports.remark")}</th>
                   {!readOnly && (
@@ -307,6 +306,7 @@ export default function ReportsPage() {
                     <td className="px-4 py-3 font-mono">{i + 1}</td>
                     <td className="px-4 py-3 font-mono">{c.srcNo}</td>
                     <td className="px-4 py-3">{c.name}</td>
+                    <td className="px-4 py-3 font-mono text-gray-500">{c.mobile || "—"}</td>
                     <td className="px-4 py-3 text-gray-500">{c.lastDispatched || "—"}</td>
                     <td className="px-4 py-3 text-gray-600">{c.remark}</td>
                     {!readOnly && (
@@ -332,7 +332,7 @@ export default function ReportsPage() {
                 ))}
                 {pendingCustomers.length === 0 && (
                   <tr>
-                    <td colSpan={readOnly ? 5 : 6} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={readOnly ? 6 : 7} className="px-4 py-12 text-center text-gray-400">
                       {t("customers.noRecordsFound")}
                     </td>
                   </tr>
