@@ -33,7 +33,17 @@ export async function POST(req: NextRequest) {
       source: string;
       lockStatus: string;
     }>("/transactions", {
-      query: { fpsId: session.fpsId, distCode: session.distCode, year: String(year), month: String(month) },
+      // An explicit "Fetch and Parse" click is a deliberate request for the
+      // latest data — always hit the gov API for the current (live) month
+      // rather than serving the short-lived cache (which auto-load relies
+      // on for silent background loads).
+      query: {
+        fpsId: session.fpsId,
+        distCode: session.distCode,
+        year: String(year),
+        month: String(month),
+        forceRefresh: "true",
+      },
     });
 
     return NextResponse.json({
