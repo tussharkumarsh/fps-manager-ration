@@ -33,7 +33,7 @@ export function calculateMonthlyStats(transactions: Transaction[]): MonthlyStats
   const totalSugar = transactions.reduce((s, t) => s + t.sugar, 0);
   const totalSaree = transactions.reduce((s, t) => s + t.saree, 0);
   const totalJowar = transactions.reduce((s, t) => s + t.jowar, 0);
-  const phhCount = transactions.filter((t) => t.scheme === "PHH").length;
+  const phhCount = transactions.filter((t) => t.scheme === "PHH" && t.wheat > 0).length;
   const aayCount = transactions.filter((t) => t.scheme === "AAY" && t.wheat > 0).length;
   const uniqueCustomers = new Set(transactions.map((t) => t.srcNo)).size;
   const authCount = transactions.filter((t) => t.availType === "Authenticated").length;
@@ -98,7 +98,7 @@ export function calculateDailySummary(transactions: Transaction[]): DailySummary
       byDate[d].phhRice += t.rice;
       byDate[d].phhSugar += t.sugar;
       byDate[d].phhJowar += t.jowar;
-      byDate[d].phhFamilies += 1;
+      if (t.wheat > 0) byDate[d].phhFamilies += 1;
     } else {
       byDate[d].aayWheat += t.wheat;
       byDate[d].aayRice += t.rice;
@@ -122,8 +122,10 @@ export function calculateChartData(transactions: Transaction[]): ChartDataPoint[
     byDate[d].rice += t.rice;
     byDate[d].sugar += t.sugar;
     byDate[d].jowar += t.jowar;
-    if (t.scheme === "PHH") byDate[d].phh++;
-    else if (t.wheat > 0) byDate[d].aay++;
+    if (t.wheat > 0) {
+      if (t.scheme === "PHH") byDate[d].phh++;
+      else byDate[d].aay++;
+    }
   });
 
   return Object.values(byDate)

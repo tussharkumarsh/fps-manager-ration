@@ -119,7 +119,7 @@ export default function ReportsPage() {
     const phh = enriched.filter((t) => t.scheme === "PHH");
     const aay = enriched.filter((t) => t.scheme === "AAY");
     return [
-      { label: t("reports.familiesServed"), phh: phh.length, aay: aay.filter((t) => t.wheat > 0).length },
+      { label: t("reports.familiesServed"), phh: phh.filter((t) => t.wheat > 0).length, aay: aay.filter((t) => t.wheat > 0).length },
       { label: t("reports.wheatDistributed"), phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
       { label: t("reports.riceDistributed"), phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
       { label: `${t("transactions.sugar")} (Kg)`, phh: phh.reduce((s, t) => s + t.sugar, 0), aay: aay.reduce((s, t) => s + t.sugar, 0) },
