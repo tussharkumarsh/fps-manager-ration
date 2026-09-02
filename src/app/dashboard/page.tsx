@@ -19,7 +19,6 @@ const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"
 interface StockRow {
   name: string;
   unit: string;
-  opening: number;
   closing: number;
 }
 
@@ -40,7 +39,6 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
             byItem.set(row.itemName, {
               name: row.itemName,
               unit: row.unit,
-              opening: (existing?.opening ?? 0) + row.opening,
               closing: (existing?.closing ?? 0) + row.closing,
             });
           }
@@ -58,7 +56,6 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
           items.map((item) => ({
             name: item.name,
             unit: item.unit,
-            opening: ledgerByItem.get(item.id)?.opening ?? 0,
             closing: ledgerByItem.get(item.id)?.closing ?? 0,
           }))
         );
@@ -146,7 +143,6 @@ export default function DashboardPage() {
             key={s.name}
             label={s.name}
             value={`${formatNumber(s.closing)} ${s.unit}`}
-            sub={`${t("inventory.carriedForward")}: ${formatNumber(s.opening)} ${s.unit}`}
             color="blue"
             icon={stockIcons[s.name] ?? "📦"}
           />

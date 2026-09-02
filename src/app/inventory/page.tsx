@@ -43,11 +43,6 @@ export default function InventoryPage() {
   const [aggregateRows, setAggregateRows] = useState<AggregateRow[]>([]);
   const [yearlyMonthly, setYearlyMonthly] = useState<Record<string, InventoryLedgerEntry[]>>({});
 
-  const [showOpeningForm, setShowOpeningForm] = useState(false);
-  const [openingDrafts, setOpeningDrafts] = useState<Record<string, string>>({});
-  const [savingOpening, setSavingOpening] = useState(false);
-  const [openingMessage, setOpeningMessage] = useState("");
-
   const [scmSummary, setScmSummary] = useState<any[]>([]);
   const [scmLoading, setScmLoading] = useState(false);
   const [scmSyncing, setScmSyncing] = useState(false);
@@ -215,40 +210,6 @@ export default function InventoryPage() {
     }
   }
 
-  function openOpeningForm() {
-    const drafts: Record<string, string> = {};
-    for (const item of inventoryItems) {
-      drafts[item.id] = String(ledgerByItem.get(item.id)?.opening ?? 0);
-    }
-    setOpeningDrafts(drafts);
-    setOpeningMessage("");
-    setShowOpeningForm(true);
-  }
-
-  async function saveOpeningBalances() {
-    setSavingOpening(true);
-    setOpeningMessage("");
-    try {
-      const balances = Object.entries(openingDrafts).map(([itemId, value]) => ({
-        itemId,
-        opening: Number(value) || 0,
-      }));
-      const res = await apiFetch("/api/inventory/opening-balances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ year: yearFilter, month: monthFilter, balances }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save opening balances");
-      await loadLedger();
-      setShowOpeningForm(false);
-    } catch (e) {
-      setOpeningMessage(`Error: ${e instanceof Error ? e.message : "Failed to save opening balances"}`);
-    } finally {
-      setSavingOpening(false);
-    }
-  }
-
   const ledgerByItem = useMemo(
     () => new Map(inventoryLedger.map((l) => [l.itemId, l])),
     [inventoryLedger]
@@ -321,11 +282,6 @@ export default function InventoryPage() {
         </div>
 
         <div className="flex gap-2 items-center flex-wrap">
-          {!readOnly && !isAllMonths && (
-            <button onClick={openOpeningForm} className="btn-secondary text-xs">
-              {t("inventory.setOpeningBalances")}
-            </button>
-          )}
           <select
             value={monthFilter}
             onChange={(e) => setMonthFilter(e.target.value)}
@@ -354,41 +310,6 @@ export default function InventoryPage() {
 
       {error && (
         <div className="px-4 py-2 rounded-lg text-sm bg-red-50 text-red-600">{error}</div>
-      )}
-
-      {showOpeningForm && !isAllMonths && (
-        <div className="card p-5 border-blue-200">
-          <h3 className="text-sm font-semibold mb-1">{t("inventory.setOpeningBalances")}</h3>
-          <p className="text-xs text-gray-500 mb-3">
-            {t("inventory.setOpeningBalancesDesc", { month: `${getMonthName(parseInt(monthFilter))} ${yearFilter}` })}
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {inventoryItems.map((item) => (
-              <div key={item.id}>
-                <label className="text-xs font-medium text-gray-500 block mb-1">
-                  {item.name} ({item.unit})
-                </label>
-                <input
-                  type="number"
-                  className="input-field text-xs"
-                  value={openingDrafts[item.id] ?? "0"}
-                  onChange={(e) => setOpeningDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={saveOpeningBalances} disabled={savingOpening} className="btn-primary text-xs disabled:opacity-50">
-              {savingOpening ? t("common.loading") : t("common.save")}
-            </button>
-            <button onClick={() => setShowOpeningForm(false)} className="btn-secondary text-xs">
-              {t("common.cancel")}
-            </button>
-          </div>
-          {openingMessage && (
-            <div className="mt-3 text-xs px-3 py-2 rounded-lg bg-red-50 text-red-700">{openingMessage}</div>
-          )}
-        </div>
       )}
 
       {aggregateMode && (
@@ -457,7 +378,7 @@ export default function InventoryPage() {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr>
-                      {[t("inventory.dealer"), t("inventory.item"), t("inventory.unit"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
+                      {[t("inventory.dealer"), t("inventory.item"), t("inventory.unit"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                         <th
                           key={h}
                           className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
@@ -476,7 +397,6 @@ export default function InventoryPage() {
                         <td className="px-3 py-2 font-semibold text-gray-800">{row.dealerName}</td>
                         <td className="px-3 py-2 text-gray-700">{row.itemName}</td>
                         <td className="px-3 py-2 text-right text-gray-500">{row.unit}</td>
-                        <td className="px-3 py-2 text-right font-mono">{formatNumber(row.opening)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNumber(row.received)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNumber(row.distributed)}</td>
                         <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">
@@ -502,7 +422,7 @@ export default function InventoryPage() {
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    {[t("inventory.item"), t("inventory.unit"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
+                    {[t("inventory.item"), t("inventory.unit"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                       <th
                         key={h}
                         className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
@@ -523,7 +443,6 @@ export default function InventoryPage() {
                       >
                         <td className="px-3 py-2 font-semibold text-gray-800">{item.name}</td>
                         <td className="px-3 py-2 text-right text-gray-500">{item.unit}</td>
-                        <td className="px-3 py-2 text-right font-mono">{formatNumber(entry?.opening ?? 0)}</td>
                         <td className="px-3 py-2 text-right">
                           <input
                             type="number"
@@ -558,7 +477,7 @@ export default function InventoryPage() {
             <div className="flex justify-between items-start flex-wrap gap-3 mb-1">
               <div>
                 <h3 className="text-sm font-semibold">SCM inventory summary</h3>
-                <p className="text-xs text-gray-500 mt-1 max-w-2xl">Month-wise stock from Maharashtra SCM data, with scheme- and commodity-wise carry-forward.</p>
+                <p className="text-xs text-gray-500 mt-1 max-w-2xl">Month-wise stock from Maharashtra SCM data, scheme- and commodity-wise.</p>
               </div>
               {!readOnly && (
                 <div className="flex gap-2">
@@ -584,7 +503,7 @@ export default function InventoryPage() {
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr>
-                        {['Scheme', 'Commodity', 'Opening', 'Received', 'Distributed', 'Closing', 'Carry Forward'].map((h) => (
+                        {['Scheme', 'Commodity', 'Received', 'Distributed', 'Closing'].map((h) => (
                           <th key={h} className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left">
                             {h}
                           </th>
@@ -596,11 +515,9 @@ export default function InventoryPage() {
                         <tr key={`${row.scheme}-${row.commodity}`} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
                           <td className="px-3 py-2 font-semibold text-gray-800">{row.scheme}</td>
                           <td className="px-3 py-2 text-gray-700">{row.commodity}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(row.openingStock)}</td>
                           <td className="px-3 py-2 text-right font-mono">{formatNumber(row.receivedQty)}</td>
                           <td className="px-3 py-2 text-right font-mono">{formatNumber(row.distributedQty)}</td>
                           <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{formatNumber(row.closingStock)}</td>
-                          <td className="px-3 py-2 text-right font-mono">{formatNumber(row.carriedForwardQty)}</td>
                         </tr>
                       ))}
                     </tbody>

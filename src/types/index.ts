@@ -143,7 +143,6 @@ export interface InventoryLedgerEntry {
   year: string;
   month: string;
   itemId: string;
-  opening: number;
   received: number;
   distributed: number;
   closing: number;
