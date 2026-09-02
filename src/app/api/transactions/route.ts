@@ -9,9 +9,10 @@ export const fetchCache = "force-no-store";
 
 /**
  * Reads transactions for a given month/year, scoped to the authenticated
- * user's FPS ID. Uses the same month-lock logic as fetch-transactions:
- * current month always re-syncs from the gov API, past months are served
- * from Supabase (cached) once locked.
+ * user's FPS ID — always served from Supabase, never the gov API. The gov
+ * API is only ever called by the Sync page's explicit "Fetch and Parse"
+ * (see /api/fetch-transactions), so viewing data here never triggers a
+ * live fetch, no matter how many times it's read.
  */
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -22,7 +23,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month");
   const year = searchParams.get("year");
-  const forceRefresh = searchParams.get("forceRefresh") === "true";
 
   if (!month || !year) {
     return NextResponse.json(
@@ -46,7 +46,6 @@ export async function GET(req: NextRequest) {
         year,
         month,
         readOnly: viewingOther ? "true" : undefined,
-        forceRefresh: forceRefresh ? "true" : undefined,
       },
     });
     return NextResponse.json({ success: true, ...data });

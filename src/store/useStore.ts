@@ -213,10 +213,14 @@ export const useStore = create<AppState>()(
     }),
     {
       name: "fps-manager-storage",
+      // Transactions are intentionally NOT persisted to localStorage — the
+      // database is the only source of truth for them. Every page load
+      // re-reads the current month's transactions fresh from the DB via
+      // useAutoLoadMonth, so this always starts empty rather than showing
+      // stale cached data before that fetch resolves.
       partialize: (state) => ({
         settings: state.settings,
         customers: state.customers,
-        transactions: state.transactions,
         syncLogs: state.syncLogs,
         scmSyncLogs: state.scmSyncLogs,
         lastSessionKey: state.lastSessionKey,

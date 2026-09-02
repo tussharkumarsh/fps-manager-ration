@@ -15,34 +15,13 @@ export interface AutoLoadInfo {
 
 /**
  * On login (and whenever month/year changes), loads that month's data for
- * the signed-in user: reads from the server, which itself reads from the
- * stored database if that month is already locked, or fetches once from
- * the gov API and stores it if not. Merges the result into the local store
- * so pages display it without requiring a manual "Sync" click.
- *
- * The current (live) month is a special case: its data can change during
- * the day on the gov server, so it's worth a fresh fetch — but only once
- * per login, not on every month/year navigation or page remount. A
- * sessionStorage flag (cleared on next login/tab close) tracks whether
- * this account has already done that one live fetch this session; every
- * other request for the current month asks the server to serve its cache
- * instead of hitting the gov API again.
+ * the signed-in user purely from the stored database — this never calls
+ * the government API. The gov API is only ever hit by an explicit manual
+ * "Fetch and Parse" on the Sync page; every login/navigation/page remount
+ * after that just reads back what's already stored, so viewing data never
+ * triggers a fresh gov-API call. Merges the result into the local store so
+ * pages display it without requiring a manual sync each time.
  */
-function hasSyncedThisLogin(identity: string): boolean {
-  try {
-    return sessionStorage.getItem(`freshSync:${identity}`) === "1";
-  } catch {
-    return true; // if sessionStorage is unavailable, don't force extra gov-API calls
-  }
-}
-
-function markSyncedThisLogin(identity: string): void {
-  try {
-    sessionStorage.setItem(`freshSync:${identity}`, "1");
-  } catch {
-    // ignore
-  }
-}
 export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
   const { status, data: session } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
@@ -71,15 +50,12 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
     let cancelled = false;
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }));
 
-    const identity = `${session.role}:${session.fpsId}`;
     const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
-    const forceParam = !viewingFpsId && !hasSyncedThisLogin(identity) ? "&forceRefresh=true" : "";
-    apiFetch(`/api/transactions?month=${month}&year=${year}${viewParam}${forceParam}`)
+    apiFetch(`/api/transactions?month=${month}&year=${year}${viewParam}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
         if (data.success) {
-          if (forceParam) markSyncedThisLogin(identity);
           addTransactions(data.transactions);
           setInfo({
             loading: false,
