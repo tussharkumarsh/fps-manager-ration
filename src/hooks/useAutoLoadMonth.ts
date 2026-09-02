@@ -19,7 +19,30 @@ export interface AutoLoadInfo {
  * stored database if that month is already locked, or fetches once from
  * the gov API and stores it if not. Merges the result into the local store
  * so pages display it without requiring a manual "Sync" click.
+ *
+ * The current (live) month is a special case: its data can change during
+ * the day on the gov server, so it's worth a fresh fetch — but only once
+ * per login, not on every month/year navigation or page remount. A
+ * sessionStorage flag (cleared on next login/tab close) tracks whether
+ * this account has already done that one live fetch this session; every
+ * other request for the current month asks the server to serve its cache
+ * instead of hitting the gov API again.
  */
+function hasSyncedThisLogin(identity: string): boolean {
+  try {
+    return sessionStorage.getItem(`freshSync:${identity}`) === "1";
+  } catch {
+    return true; // if sessionStorage is unavailable, don't force extra gov-API calls
+  }
+}
+
+function markSyncedThisLogin(identity: string): void {
+  try {
+    sessionStorage.setItem(`freshSync:${identity}`, "1");
+  } catch {
+    // ignore
+  }
+}
 export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
   const { status, data: session } = useSession();
   const addTransactions = useStore((s) => s.addTransactions);
@@ -48,12 +71,15 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
     let cancelled = false;
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }));
 
+    const identity = `${session.role}:${session.fpsId}`;
     const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
-    apiFetch(`/api/transactions?month=${month}&year=${year}${viewParam}`)
+    const forceParam = !viewingFpsId && !hasSyncedThisLogin(identity) ? "&forceRefresh=true" : "";
+    apiFetch(`/api/transactions?month=${month}&year=${year}${viewParam}${forceParam}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
         if (data.success) {
+          if (forceParam) markSyncedThisLogin(identity);
           addTransactions(data.transactions);
           setInfo({
             loading: false,

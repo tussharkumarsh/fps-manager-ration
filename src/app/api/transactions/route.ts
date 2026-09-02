@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month");
   const year = searchParams.get("year");
+  const forceRefresh = searchParams.get("forceRefresh") === "true";
 
   if (!month || !year) {
     return NextResponse.json(
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
         year,
         month,
         readOnly: viewingOther ? "true" : undefined,
+        forceRefresh: forceRefresh ? "true" : undefined,
       },
     });
     return NextResponse.json({ success: true, ...data });
