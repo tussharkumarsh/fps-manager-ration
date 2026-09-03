@@ -19,10 +19,15 @@ const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"
 interface StockRow {
   name: string;
   unit: string;
-  closing: number;
+  received: number;
+  distributed: number;
 }
 
-function useAvailableStock(month: string, year: string, viewingFpsId: string | undefined, aggregateMode: boolean) {
+// Per-item received/distributed as stored in the inventory ledger. This is
+// the fallback "received" source for items the SCM portal doesn't track
+// (e.g. Saree Kit) — for wheat/rice/sugar/jowar, useScmReceived below
+// overrides it with the real govt-sourced figure.
+function useInventorySnapshot(month: string, year: string, viewingFpsId: string | undefined, aggregateMode: boolean) {
   const [stock, setStock] = useState<StockRow[]>([]);
 
   useEffect(() => {
@@ -39,7 +44,8 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
             byItem.set(row.itemName, {
               name: row.itemName,
               unit: row.unit,
-              closing: (existing?.closing ?? 0) + row.closing,
+              received: (existing?.received ?? 0) + row.received,
+              distributed: (existing?.distributed ?? 0) + row.distributed,
             });
           }
           setStock(Array.from(byItem.values()));
@@ -56,7 +62,8 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
           items.map((item) => ({
             name: item.name,
             unit: item.unit,
-            closing: ledgerByItem.get(item.id)?.closing ?? 0,
+            received: ledgerByItem.get(item.id)?.received ?? 0,
+            distributed: ledgerByItem.get(item.id)?.distributed ?? 0,
           }))
         );
       } catch {
@@ -69,6 +76,42 @@ function useAvailableStock(month: string, year: string, viewingFpsId: string | u
   }, [month, year, viewingFpsId, aggregateMode]);
 
   return stock;
+}
+
+// Received quantities for the commodities the SCM portal tracks (wheat,
+// rice, sugar, jowar), summed across schemes (AAY + PHH). Not available in
+// aggregate (all-dealers) mode.
+function useScmReceived(month: string, year: string, viewingFpsId: string | undefined, aggregateMode: boolean) {
+  const [byCommodity, setByCommodity] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (aggregateMode) {
+      setByCommodity(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
+        const res = await apiFetch(`/api/inventory/scm?year=${year}&month=${month}${viewParam}`);
+        const data = await res.json();
+        if (!res.ok || cancelled) return;
+        const map = new Map<string, number>();
+        for (const row of (data.rows || []) as { commodity: string; receivedQty: number }[]) {
+          const key = row.commodity.trim().toLowerCase();
+          map.set(key, (map.get(key) ?? 0) + (row.receivedQty || 0));
+        }
+        if (!cancelled) setByCommodity(map);
+      } catch {
+        // Non-fatal — the dashboard's main content doesn't depend on this.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [month, year, viewingFpsId, aggregateMode]);
+
+  return byCommodity;
 }
 
 export default function DashboardPage() {
@@ -92,7 +135,8 @@ export default function DashboardPage() {
   // stock as it stood at the end of that month.
   const [stockYear, stockMonth] =
     monthFilter === "ALL" ? [settings.year, settings.month] : monthFilter.split("-").map((v) => String(parseInt(v, 10)));
-  const availableStock = useAvailableStock(stockMonth, stockYear, viewingDealer?.fpsId, aggregateMode);
+  const inventorySnapshot = useInventorySnapshot(stockMonth, stockYear, viewingDealer?.fpsId, aggregateMode);
+  const scmReceived = useScmReceived(stockMonth, stockYear, viewingDealer?.fpsId, aggregateMode);
 
   const scopedTransactions = useMemo(() => {
     if (monthFilter === "ALL") return transactions;
@@ -126,26 +170,68 @@ export default function DashboardPage() {
     return customers.filter((c) => !collected.has(c.srcNo));
   }, [scopedTransactions, customers]);
 
-  const stockIcons: Record<string, string> = { Wheat: "🌾", Rice: "🍚", Sugar: "🧂", Jowar: "🌽" };
   const stockAsOfLabel =
     monthFilter === "ALL"
       ? t("inventory.asOfNow")
       : `${t("inventory.asOfEndOf")} ${getMonthName(parseInt(stockMonth))} ${stockYear}`;
-  const availableStockSection = availableStock.length > 0 && (
+
+  const snapshotByName = useMemo(
+    () => new Map(inventorySnapshot.map((s) => [s.name.toLowerCase(), s])),
+    [inventorySnapshot]
+  );
+
+  // Received: SCM govt data for wheat/rice/sugar/jowar (summed across
+  // schemes); the inventory ledger's manually-entered figure for items the
+  // SCM portal doesn't track (e.g. Saree Kit). Distributed: always the
+  // actual quantity handed out per transactions.
+  const itemCards = useMemo(() => {
+    const defs: { key: string; label: string; unit: string; icon: string; distributed: number }[] = [
+      { key: "wheat", label: t("transactions.wheat"), unit: "Kg", icon: "🌾", distributed: stats.totalWheat },
+      { key: "rice", label: t("transactions.rice"), unit: "Kg", icon: "🍚", distributed: stats.totalRice },
+      { key: "sugar", label: t("transactions.sugar"), unit: "Kg", icon: "🧂", distributed: stats.totalSugar },
+      { key: "jowar", label: t("transactions.jowar"), unit: "Kg", icon: "🌽", distributed: stats.totalJowar },
+      {
+        key: "saree kit",
+        label: t("transactions.saree"),
+        unit: snapshotByName.get("saree kit")?.unit ?? "Pcs",
+        icon: "👘",
+        distributed: stats.totalSaree,
+      },
+    ];
+    return defs.map((d) => {
+      const scm = scmReceived.get(d.key);
+      const received = scm !== undefined ? scm : snapshotByName.get(d.key)?.received ?? 0;
+      return { ...d, received, remaining: received - d.distributed };
+    });
+  }, [stats, scmReceived, snapshotByName, t]);
+
+  const itemCardsSection = (
     <div className="card p-5">
       <div className="flex items-baseline justify-between mb-4">
         <h3 className="text-sm font-semibold">📦 {t("inventory.availableStock")}</h3>
         <span className="text-xs text-gray-400">{stockAsOfLabel}</span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {availableStock.map((s) => (
-          <KPICard
-            key={s.name}
-            label={s.name}
-            value={`${formatNumber(s.closing)} ${s.unit}`}
-            color="blue"
-            icon={stockIcons[s.name] ?? "📦"}
-          />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {itemCards.map((s) => (
+          <div key={s.key} className="card p-4 border-l-4 border-l-blue-600">
+            <div className="text-xs font-semibold text-gray-500 uppercase mb-3">
+              {s.icon} {s.label} <span className="font-normal normal-case text-gray-400">({s.unit})</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 text-center">
+              <div>
+                <div className="text-base font-bold font-mono text-blue-600">{formatNumber(s.received)}</div>
+                <div className="text-[10px] text-gray-400">{t("inventory.received")}</div>
+              </div>
+              <div>
+                <div className="text-base font-bold font-mono text-emerald-600">{formatNumber(s.distributed)}</div>
+                <div className="text-[10px] text-gray-400">{t("inventory.distributed")}</div>
+              </div>
+              <div>
+                <div className="text-base font-bold font-mono text-violet-600">{formatNumber(s.remaining)}</div>
+                <div className="text-[10px] text-gray-400">{t("inventory.remaining")}</div>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -160,7 +246,7 @@ export default function DashboardPage() {
             {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year}
           </p>
         </div>
-        {availableStockSection}
+        {itemCardsSection}
         <EmptyState
           icon="📋"
           title={t("dashboard.noTransactionsTitle")}
@@ -200,19 +286,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard label={t("dashboard.totalWheat")} value={`${formatNumber(stats.totalWheat)} Kg`} sub={`${stats.activeDays} ${t("dashboard.activeDays")}`} color="blue" icon="🌾" />
-        <KPICard label={t("dashboard.totalRice")} value={`${formatNumber(stats.totalRice)} Kg`} sub="PHH + AAY" color="green" icon="🍚" />
-        <KPICard label={t("dashboard.totalSugar")} value={`${formatNumber(stats.totalSugar)} Kg`} sub="PHH + AAY" color="yellow" icon="🧂" />
-        <KPICard label={t("dashboard.totalJowar")} value={`${formatNumber(stats.totalJowar)} Kg`} sub="PHH + AAY" color="purple" icon="🌽" />
-        <KPICard label={t("dashboard.phhFamilies")} value={stats.phhCount} sub={t("dashboard.priorityHousehold")} color="blue" icon="🏠" />
+      {/* Item cards: received (SCM govt data) / distributed (transactions) / remaining */}
+      {itemCardsSection}
+
+      {/* Family KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KPICard label={t("dashboard.aayFamilies")} value={stats.aayCount} sub={t("dashboard.antyodaya")} color="yellow" icon="🎯" />
-        <KPICard label={t("dashboard.uniqueCustomers")} value={stats.uniqueCustomers} sub={t("dashboard.ofRegistered", { count: customers.length })} color="purple" icon="👥" />
+        <KPICard label={t("dashboard.phhFamilies")} value={stats.phhCount} sub={t("dashboard.priorityHousehold")} color="blue" icon="🏠" />
+        <KPICard label={t("dashboard.totalFamilies")} value={customers.length} sub={t("dashboard.registered")} color="purple" icon="👨‍👩‍👧‍👦" />
+        <KPICard label={t("dashboard.collected")} value={stats.uniqueCustomers} sub={t("dashboard.ofRegistered", { count: customers.length })} color="green" icon="✅" />
         <KPICard label={t("dashboard.pending")} value={pendingCustomers.length} sub={t("dashboard.notCollected")} color="red" icon="⚠️" />
       </div>
-
-      {availableStockSection}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
