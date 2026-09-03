@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLoadingStore } from "@/store/useLoadingStore";
+import { useStore } from "@/store/useStore";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { LANGUAGES } from "@/lib/i18n/translations";
 
@@ -37,6 +38,12 @@ function LoginForm() {
       setError(t("login.invalidCredentials"));
       return;
     }
+
+    // Every login starts from a clean slate — any data cached in this
+    // browser from a previous session (possibly stale, e.g. another device
+    // synced new records since) is wiped so the destination page always
+    // re-reads fresh data from the DB instead of showing leftovers.
+    useStore.getState().resetSessionCache();
 
     router.push(callbackUrl);
     router.refresh();

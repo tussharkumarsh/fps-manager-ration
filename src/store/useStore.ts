@@ -65,6 +65,16 @@ interface AppState {
    * so callers know to force a fresh fetch.
    */
   syncSessionIdentity: (key: string) => boolean;
+  /**
+   * Called right after a successful sign-in, before navigating away from
+   * the login page — wipes every per-account cache and bumps sessionEpoch
+   * unconditionally, even when the same account is logging back in on this
+   * browser (syncSessionIdentity alone would skip the wipe in that case,
+   * since the identity key hasn't changed). Guarantees every login starts
+   * from a clean slate and re-reads fresh data from the DB, rather than
+   * relying on AppShell happening to remount.
+   */
+  resetSessionCache: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -210,6 +220,17 @@ export const useStore = create<AppState>()(
         }));
         return true;
       },
+      resetSessionCache: () =>
+        set((state) => ({
+          sessionEpoch: state.sessionEpoch + 1,
+          customers: [],
+          transactions: [],
+          syncLogs: [],
+          scmSyncLogs: [],
+          inventoryItems: [],
+          inventoryLedger: [],
+          viewingDealer: null,
+        })),
     }),
     {
       name: "fps-manager-storage",
