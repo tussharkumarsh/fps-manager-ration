@@ -185,8 +185,8 @@ export default function TransactionsPage() {
         <span>{t("transactions.wheat")}: <strong className="font-mono text-gray-900">{formatNumber(totals.wheat)} Kg</strong></span>
         <span>{t("transactions.rice")}: <strong className="font-mono text-gray-900">{formatNumber(totals.rice)} Kg</strong></span>
         <span>{t("transactions.sugar")}: <strong className="font-mono text-gray-900">{formatNumber(totals.sugar)} Kg</strong></span>
-        <span>{t("transactions.saree")}: <strong className="font-mono text-gray-900">{formatNumber(totals.saree)} Pkts</strong></span>
-        <span>{t("transactions.jowar")}: <strong className="font-mono text-gray-900">{formatNumber(totals.jowar)} Kg</strong></span>
+        <span>{t("transactions.saree")}: <strong className="font-mono text-gray-900">{totals.saree > 0 ? `${formatNumber(totals.saree)} Pkts` : "N/A"}</strong></span>
+        <span>{t("transactions.jowar")}: <strong className="font-mono text-gray-900">{totals.jowar > 0 ? `${formatNumber(totals.jowar)} Kg` : "N/A"}</strong></span>
       </div>
 
       <DataTable<TransactionRow>
@@ -206,8 +206,10 @@ export default function TransactionsPage() {
           { key: "wheat", label: `${t("transactions.wheat")} (Kg)`, align: "right", mono: true },
           { key: "rice", label: `${t("transactions.rice")} (Kg)`, align: "right", mono: true },
           { key: "sugar", label: `${t("transactions.sugar")} (Kg)`, align: "right", mono: true },
-          { key: "saree", label: t("transactions.saree"), align: "right", mono: true },
-          { key: "jowar", label: `${t("transactions.jowar")} (Kg)`, align: "right", mono: true },
+          { key: "saree", label: t("transactions.saree"), align: "right", mono: true,
+            render: (v) => <span>{Number(v) > 0 ? formatNumber(Number(v)) : "—"}</span> },
+          { key: "jowar", label: `${t("transactions.jowar")} (Kg)`, align: "right", mono: true,
+            render: (v) => <span>{Number(v) > 0 ? formatNumber(Number(v)) : "—"}</span> },
           { key: "amount", label: t("transactions.amount"), align: "right", mono: true,
             render: (v) => <span>{Number(v) > 0 ? `₹${v}` : "—"}</span> },
           { key: "portability", label: t("transactions.portability"),
