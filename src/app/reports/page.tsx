@@ -36,6 +36,7 @@ export default function ReportsPage() {
   const [toDate, setToDate] = useState<string>("");
   const [pivotScheme, setPivotScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [pivotMonths, setPivotMonths] = useState<string[]>(["", "", ""]);
+  const [pivotSort, setPivotSort] = useState<"asc" | "desc" | null>(null);
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
 
@@ -149,15 +150,22 @@ export default function ReportsPage() {
   }, [transactions, pivotScheme]);
 
   const pivotRows = useMemo(() => {
-    return customers
+    const rows = customers
       .filter((c) => pivotScheme === "ALL" || c.scheme === pivotScheme)
       .map((c) => ({
         srcNo: c.srcNo,
         name: c.name,
+        mobile: c.mobile,
         memberCount: c.memberCount,
         dates: effectivePivotMonths.map((ym) => (ym ? pivotDatesByCustomer[c.srcNo]?.[ym] || "" : "")),
       }));
-  }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths]);
+    if (pivotSort) {
+      rows.sort((a, b) =>
+        pivotSort === "asc" ? a.srcNo.localeCompare(b.srcNo) : b.srcNo.localeCompare(a.srcNo)
+      );
+    }
+    return rows;
+  }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths, pivotSort]);
 
   const hasActiveFilter = monthFilter !== "ALL" || !!fromDate || !!toDate;
 
@@ -490,11 +498,23 @@ export default function ReportsPage() {
           </h3>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-sm monthly-dates-table">
               <thead>
                 <tr className="bg-brand-700 text-white">
-                  <th className="px-4 py-3 text-left font-semibold">{t("reports.customerId")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("reports.srNo")}</th>
+                  <th
+                    className="px-4 py-3 text-left font-semibold cursor-pointer select-none"
+                    onClick={() =>
+                      setPivotSort((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"))
+                    }
+                  >
+                    {t("reports.customerId")}
+                    <span className="ml-1 text-xs">
+                      {pivotSort === "asc" ? "▲" : pivotSort === "desc" ? "▼" : "⇅"}
+                    </span>
+                  </th>
                   <th className="px-4 py-3 text-left font-semibold">{t("reports.customerName")}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t("customers.mobile")}</th>
                   <th className="px-4 py-3 text-right font-semibold">{t("reports.units")}</th>
                   {effectivePivotMonths.map((ym, idx) => (
                     <th key={idx} className="px-4 py-3 text-right font-semibold">
@@ -506,8 +526,10 @@ export default function ReportsPage() {
               <tbody>
                 {pivotRows.map((row, i) => (
                   <tr key={row.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                    <td className="px-4 py-3 font-mono">{i + 1}</td>
                     <td className="px-4 py-3 font-mono">{row.srcNo}</td>
                     <td className="px-4 py-3">{row.name}</td>
+                    <td className="px-4 py-3 font-mono text-gray-500">{row.mobile || "—"}</td>
                     <td className="px-4 py-3 text-right font-mono">{row.memberCount ?? "—"}</td>
                     {row.dates.map((d, idx) => (
                       <td key={idx} className="px-4 py-3 text-right font-mono">
