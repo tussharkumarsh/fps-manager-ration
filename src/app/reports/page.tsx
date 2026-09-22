@@ -501,9 +501,9 @@ export default function ReportsPage() {
             <table className="w-full border-collapse text-sm monthly-dates-table">
               <thead>
                 <tr className="bg-brand-700 text-white">
-                  <th className="px-4 py-3 text-left font-semibold">{t("reports.srNo")}</th>
+                  <th className="px-2 py-1.5 text-left font-semibold">{t("reports.srNo")}</th>
                   <th
-                    className="px-4 py-3 text-left font-semibold cursor-pointer select-none"
+                    className="px-2 py-1.5 text-left font-semibold cursor-pointer select-none"
                     onClick={() =>
                       setPivotSort((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"))
                     }
@@ -513,12 +513,12 @@ export default function ReportsPage() {
                       {pivotSort === "asc" ? "▲" : pivotSort === "desc" ? "▼" : "⇅"}
                     </span>
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">{t("reports.customerName")}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t("customers.mobile")}</th>
-                  <th className="px-4 py-3 text-right font-semibold">{t("reports.units")}</th>
+                  <th className="px-2 py-1.5 text-left font-semibold">{t("reports.customerName")}</th>
+                  <th className="px-2 py-1.5 text-left font-semibold">{t("customers.mobile")}</th>
+                  <th className="px-2 py-1.5 text-right font-semibold">{t("reports.units")}</th>
                   {effectivePivotMonths.map((ym, idx) => (
-                    <th key={idx} className="px-4 py-3 text-right font-semibold">
-                      {ym ? monthOptions.find((m) => m.value === ym)?.label || ym : "—"}
+                    <th key={idx} className="px-2 py-1.5 text-right font-semibold">
+                      {ym ? getMonthName(parseInt(ym.split("-")[1], 10)) : "—"}
                     </th>
                   ))}
                 </tr>
@@ -526,13 +526,13 @@ export default function ReportsPage() {
               <tbody>
                 {pivotRows.map((row, i) => (
                   <tr key={row.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                    <td className="px-4 py-3 font-mono">{i + 1}</td>
-                    <td className="px-4 py-3 font-mono">{row.srcNo}</td>
-                    <td className="px-4 py-3">{row.name}</td>
-                    <td className="px-4 py-3 font-mono text-gray-500">{row.mobile || "—"}</td>
-                    <td className="px-4 py-3 text-right font-mono">{row.memberCount ?? "—"}</td>
+                    <td className="px-2 py-1 font-mono">{i + 1}</td>
+                    <td className="px-2 py-1 font-mono">{row.srcNo}</td>
+                    <td className="px-2 py-1">{row.name}</td>
+                    <td className="px-2 py-1 font-mono text-gray-500">{row.mobile || "—"}</td>
+                    <td className="px-2 py-1 text-right font-mono">{row.memberCount ?? "—"}</td>
                     {row.dates.map((d, idx) => (
-                      <td key={idx} className="px-4 py-3 text-right font-mono">
+                      <td key={idx} className="px-2 py-1 text-right font-mono">
                         {d ? formatDate(d) : "—"}
                       </td>
                     ))}
