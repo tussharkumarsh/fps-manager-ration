@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
-import { DataTable, Badge, TabGroup, EmptyState } from "@/components/ui";
+import { DataTable, Badge, TabGroup, EmptyState, type Column } from "@/components/ui";
 import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -177,6 +177,30 @@ export default function ReportsPage() {
     }, 0);
   };
 
+  const dailyColumns: Column<DailySummary>[] = [
+    { key: "date", label: t("transactions.date"), mono: true,
+      render: (v) =>
+        String(v) === "TOTAL"
+          ? <span className="font-bold text-blue-700">{t("reports.total")}</span>
+          : <span>{formatDate(String(v))}</span> },
+    { key: "phhFamilies", label: "PHH #", align: "right", mono: true },
+    { key: "phhWheat", label: "PHH Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "phhRice", label: "PHH Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "phhSugar", label: "PHH Sugar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "phhJowar", label: "PHH Jowar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "aayFamilies", label: "AAY #", align: "right", mono: true },
+    { key: "aayWheat", label: "AAY Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "aayRice", label: "AAY Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "aaySugar", label: "AAY Sugar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "aaySaree", label: t("transactions.saree"), align: "right", mono: true },
+    { key: "aayJowar", label: "AAY Jowar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
+    { key: "totalWheat", label: `${t("reports.total")} ${t("transactions.wheat")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+    { key: "totalRice", label: `${t("reports.total")} ${t("transactions.rice")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+    { key: "totalSugar", label: `${t("reports.total")} ${t("transactions.sugar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+    { key: "totalJowar", label: `${t("reports.total")} ${t("transactions.jowar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
+    { key: "totalTransactions", label: "Total Txns", align: "right", mono: true },
+  ];
+
   const hasActiveFilter = monthFilter !== "ALL" || !!fromDate || !!toDate;
 
   if (transactions.length === 0) {
@@ -244,34 +268,55 @@ export default function ReportsPage() {
 
       {/* Daily Summary */}
       {reportType === "daily" && (
-        <DataTable<DailySummary>
-          columns={[
-            { key: "date", label: t("transactions.date"), mono: true,
-              render: (v) =>
-                String(v) === "TOTAL"
-                  ? <span className="font-bold text-blue-700">{t("reports.total")}</span>
-                  : <span>{formatDate(String(v))}</span> },
-            { key: "phhFamilies", label: "PHH #", align: "right", mono: true },
-            { key: "phhWheat", label: "PHH Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "phhRice", label: "PHH Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "phhSugar", label: "PHH Sugar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "phhJowar", label: "PHH Jowar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "aayFamilies", label: "AAY #", align: "right", mono: true },
-            { key: "aayWheat", label: "AAY Wheat", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "aayRice", label: "AAY Rice", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "aaySugar", label: "AAY Sugar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "aaySaree", label: t("transactions.saree"), align: "right", mono: true },
-            { key: "aayJowar", label: "AAY Jowar", align: "right", mono: true, render: (v) => formatNumber(Number(v)) },
-            { key: "totalWheat", label: `${t("reports.total")} ${t("transactions.wheat")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
-            { key: "totalRice", label: `${t("reports.total")} ${t("transactions.rice")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
-            { key: "totalSugar", label: `${t("reports.total")} ${t("transactions.sugar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
-            { key: "totalJowar", label: `${t("reports.total")} ${t("transactions.jowar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
-            { key: "totalTransactions", label: "Total Txns", align: "right", mono: true },
-          ]}
-          data={dailyWithTotals}
-          pageSize={50}
-          searchable={false}
-        />
+        <>
+          <div className="no-print flex justify-end">
+            <button onClick={() => window.print()} className="btn-secondary text-xs">
+              🖨️ {t("reports.printReport")}
+            </button>
+          </div>
+          <div className="no-print">
+            <DataTable<DailySummary>
+              columns={dailyColumns}
+              data={dailyWithTotals}
+              pageSize={50}
+              searchable={false}
+            />
+          </div>
+
+          {/* Print-only: full daily summary on a landscape page */}
+          <style>{"@media print { @page { size: landscape; } }"}</style>
+          <div className="hidden print:block">
+            <h3 className="text-base font-bold text-center mb-1">{t("reports.dailySummary")}</h3>
+            <p className="text-xs text-center mb-3">
+              {scopeLabel} · {monthLabel}
+            </p>
+            <table className="w-full border-collapse monthly-dates-table">
+              <thead>
+                <tr>
+                  {dailyColumns.map((c) => (
+                    <th key={String(c.key)} className={c.align === "right" ? "text-right" : "text-left"}>{c.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dailyWithTotals.map((row) => {
+                  const isTotal = row.date === "TOTAL";
+                  return (
+                    <tr key={row.date} className={isTotal ? "font-bold" : ""}>
+                      {dailyColumns.map((c) => (
+                        <td key={String(c.key)} className={`font-mono ${c.align === "right" ? "text-right" : ""}`}>
+                          {c.key === "date"
+                            ? isTotal ? t("reports.total") : formatDate(row.date)
+                            : formatNumber(Number(row[c.key as keyof DailySummary]))}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Scheme-wise */}

@@ -81,7 +81,7 @@ export function Badge({ text, variant }: { text: string; variant?: string }) {
 }
 
 // ─── Data Table ───
-interface Column<T> {
+export interface Column<T> {
   key: keyof T | string;
   label: string;
   align?: "left" | "center" | "right";
