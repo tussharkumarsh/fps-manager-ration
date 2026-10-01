@@ -38,6 +38,7 @@ export default function ReportsPage() {
   const [pivotMonths, setPivotMonths] = useState<string[]>(["", "", ""]);
   const [pivotSort, setPivotSort] = useState<"asc" | "desc" | null>(null);
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
+  const [printScheme, setPrintScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [disableReason, setDisableReason] = useState("");
 
   const patchCustomer = async (srcNo: string, patch: Partial<Customer>) => {
@@ -167,6 +168,15 @@ export default function ReportsPage() {
     return rows;
   }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths, pivotSort]);
 
+  /** Render the print-only tables for the chosen scheme(s), then open the print dialog. */
+  const printSchemeReport = (scheme: "ALL" | "PHH" | "AAY") => {
+    setPrintScheme(scheme);
+    setTimeout(() => {
+      window.print();
+      setPrintScheme("ALL");
+    }, 0);
+  };
+
   const hasActiveFilter = monthFilter !== "ALL" || !!fromDate || !!toDate;
 
   if (transactions.length === 0) {
@@ -268,13 +278,18 @@ export default function ReportsPage() {
       {reportType === "scheme" && (
         <>
         <div className="no-print flex justify-end">
-          <button onClick={() => window.print()} className="btn-secondary text-xs">
-            🖨️ {t("reports.printReport")}
+          <button onClick={() => printSchemeReport("ALL")} className="btn-secondary text-xs">
+            🖨️ {t("reports.printReport")} (PHH + AAY)
           </button>
         </div>
         <div className="no-print grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3 text-blue-800">PHH — {t("dashboard.priorityHousehold")}</h3>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-semibold text-blue-800">PHH — {t("dashboard.priorityHousehold")}</h3>
+              <button onClick={() => printSchemeReport("PHH")} className="btn-secondary text-xs">
+                🖨️ {t("reports.printReport")}
+              </button>
+            </div>
             <DataTable<Transaction & { customerName?: string }>
               columns={[
                 { key: "date", label: t("transactions.date"), mono: true, render: (v) => formatDate(dateOnly(String(v))) },
@@ -291,7 +306,12 @@ export default function ReportsPage() {
             />
           </div>
           <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3 text-amber-800">AAY — {t("dashboard.antyodaya")}</h3>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-semibold text-amber-800">AAY — {t("dashboard.antyodaya")}</h3>
+              <button onClick={() => printSchemeReport("AAY")} className="btn-secondary text-xs">
+                🖨️ {t("reports.printReport")}
+              </button>
+            </div>
             <DataTable<Transaction & { customerName?: string }>
               columns={[
                 { key: "date", label: t("transactions.date"), mono: true, render: (v) => formatDate(dateOnly(String(v))) },
@@ -312,14 +332,14 @@ export default function ReportsPage() {
 
         {/* Print-only: full, unpaginated record lists for both schemes */}
         <div className="hidden print:block space-y-6">
-          {(["PHH", "AAY"] as const).map((scheme) => {
+          {(["PHH", "AAY"] as const).filter((scheme) => printScheme === "ALL" || printScheme === scheme).map((scheme) => {
             const rows = enriched
               .filter((tx) => tx.scheme === scheme)
               .sort((a, b) => dateOnly(a.date).localeCompare(dateOnly(b.date)) || a.srcNo.localeCompare(b.srcNo));
             const isAay = scheme === "AAY";
             const sum = (k: "wheat" | "rice" | "sugar" | "saree" | "jowar") => rows.reduce((s, r) => s + r[k], 0);
             return (
-              <div key={scheme} className={isAay ? "break-before-page" : ""}>
+              <div key={scheme} className={isAay && printScheme === "ALL" ? "break-before-page" : ""}>
                 <h3 className="text-base font-bold text-center mb-1">
                   {scheme} — {isAay ? t("dashboard.antyodaya") : t("dashboard.priorityHousehold")}
                 </h3>
