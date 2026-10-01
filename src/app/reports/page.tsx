@@ -266,7 +266,13 @@ export default function ReportsPage() {
 
       {/* Scheme-wise */}
       {reportType === "scheme" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <>
+        <div className="no-print flex justify-end">
+          <button onClick={() => window.print()} className="btn-secondary text-xs">
+            🖨️ {t("reports.printReport")}
+          </button>
+        </div>
+        <div className="no-print grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="card p-5">
             <h3 className="text-sm font-semibold mb-3 text-blue-800">PHH — {t("dashboard.priorityHousehold")}</h3>
             <DataTable<Transaction & { customerName?: string }>
@@ -303,6 +309,68 @@ export default function ReportsPage() {
             />
           </div>
         </div>
+
+        {/* Print-only: full, unpaginated record lists for both schemes */}
+        <div className="hidden print:block space-y-6">
+          {(["PHH", "AAY"] as const).map((scheme) => {
+            const rows = enriched
+              .filter((tx) => tx.scheme === scheme)
+              .sort((a, b) => dateOnly(a.date).localeCompare(dateOnly(b.date)) || a.srcNo.localeCompare(b.srcNo));
+            const isAay = scheme === "AAY";
+            const sum = (k: "wheat" | "rice" | "sugar" | "saree" | "jowar") => rows.reduce((s, r) => s + r[k], 0);
+            return (
+              <div key={scheme} className={isAay ? "break-before-page" : ""}>
+                <h3 className="text-base font-bold text-center mb-1">
+                  {scheme} — {isAay ? t("dashboard.antyodaya") : t("dashboard.priorityHousehold")}
+                </h3>
+                <p className="text-xs text-center mb-3">
+                  {scopeLabel} · {monthLabel} · {formatNumber(rows.length)} record(s)
+                </p>
+                <table className="w-full border-collapse monthly-dates-table">
+                  <thead>
+                    <tr>
+                      <th className="text-left">{t("reports.srNo")}</th>
+                      <th className="text-left">{t("transactions.date")}</th>
+                      <th className="text-left">{t("transactions.srcNo")}</th>
+                      <th className="text-left">{t("transactions.customerName")}</th>
+                      <th className="text-left">{t("transactions.authType")}</th>
+                      <th className="text-right">{t("transactions.wheat")}</th>
+                      <th className="text-right">{t("transactions.rice")}</th>
+                      <th className="text-right">{t("transactions.sugar")}</th>
+                      {isAay && <th className="text-right">{t("transactions.saree")}</th>}
+                      <th className="text-right">{t("transactions.jowar")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={`${r.srcNo}-${r.date}-${i}`}>
+                        <td className="font-mono">{i + 1}</td>
+                        <td className="font-mono">{formatDate(dateOnly(r.date))}</td>
+                        <td className="font-mono">{r.srcNo}</td>
+                        <td>{r.customerName || "—"}</td>
+                        <td>{r.availType}</td>
+                        <td className="text-right font-mono">{r.wheat}</td>
+                        <td className="text-right font-mono">{r.rice}</td>
+                        <td className="text-right font-mono">{r.sugar}</td>
+                        {isAay && <td className="text-right font-mono">{r.saree}</td>}
+                        <td className="text-right font-mono">{r.jowar}</td>
+                      </tr>
+                    ))}
+                    <tr className="font-bold">
+                      <td colSpan={5}>{t("reports.total")}</td>
+                      <td className="text-right font-mono">{formatNumber(sum("wheat"))}</td>
+                      <td className="text-right font-mono">{formatNumber(sum("rice"))}</td>
+                      <td className="text-right font-mono">{formatNumber(sum("sugar"))}</td>
+                      {isAay && <td className="text-right font-mono">{formatNumber(sum("saree"))}</td>}
+                      <td className="text-right font-mono">{formatNumber(sum("jowar"))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
 
       {/* Pending */}
