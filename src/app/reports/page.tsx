@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState, type Column } from "@/components/ui";
@@ -8,7 +8,7 @@ import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
-import type { DailySummary, Transaction, Customer } from "@/types";
+import type { DailySummary, Transaction, Customer, ManualGoshwara } from "@/types";
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
 function lastDispatchedMonth(txns: { date: string }[]): string {
@@ -121,16 +121,84 @@ export default function ReportsPage() {
     const phh = enriched.filter((t) => t.scheme === "PHH");
     const aay = enriched.filter((t) => t.scheme === "AAY");
     return [
-      { label: t("reports.familiesServed"), phh: phh.filter((t) => t.wheat > 0).length, aay: aay.filter((t) => t.wheat > 0).length },
-      { label: t("reports.wheatDistributed"), phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
-      { label: t("reports.riceDistributed"), phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
-      { label: `${t("transactions.sugar")} (Kg)`, phh: phh.reduce((s, t) => s + t.sugar, 0), aay: aay.reduce((s, t) => s + t.sugar, 0) },
-      { label: `${t("transactions.jowar")} (Kg)`, phh: phh.reduce((s, t) => s + t.jowar, 0), aay: aay.reduce((s, t) => s + t.jowar, 0) },
-      { label: `${t("transactions.saree")} (Pkts)`, phh: 0, aay: aay.reduce((s, t) => s + t.saree, 0) },
-      { label: t("reports.portabilityTxns"), phh: phh.filter((t) => t.portability !== "Self").length, aay: aay.filter((t) => t.portability !== "Self").length },
-      { label: t("reports.activeDays"), phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
+      { key: "families", label: t("reports.familiesServed"), phh: phh.filter((t) => t.wheat > 0).length, aay: aay.filter((t) => t.wheat > 0).length },
+      { key: "wheat", label: t("reports.wheatDistributed"), phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
+      { key: "rice", label: t("reports.riceDistributed"), phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
+      { key: "sugar", label: `${t("transactions.sugar")} (Kg)`, phh: phh.reduce((s, t) => s + t.sugar, 0), aay: aay.reduce((s, t) => s + t.sugar, 0) },
+      { key: "jowar", label: `${t("transactions.jowar")} (Kg)`, phh: phh.reduce((s, t) => s + t.jowar, 0), aay: aay.reduce((s, t) => s + t.jowar, 0) },
+      { key: "saree", label: `${t("transactions.saree")} (Pkts)`, phh: 0, aay: aay.reduce((s, t) => s + t.saree, 0) },
+      { key: "portability", label: t("reports.portabilityTxns"), phh: phh.filter((t) => t.portability !== "Self").length, aay: aay.filter((t) => t.portability !== "Self").length },
+      { key: "activeDays", label: t("reports.activeDays"), phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
     ];
   }, [enriched, t]);
+
+  // Manual goshwara: hand-entered figures for the selected month, stored per
+  // FPS per month and shown beside the one computed from transactions.
+  const manualEnabled = monthFilter !== "ALL" && !aggregateMode;
+  const [manualValues, setManualValues] = useState<Record<string, { phh: string; aay: string }>>({});
+  const [manualUpdatedAt, setManualUpdatedAt] = useState("");
+  const [manualStatus, setManualStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [goshwaraPrint, setGoshwaraPrint] = useState<"both" | "system" | "manual">("both");
+
+  const applyManual = (g: ManualGoshwara | null) => {
+    const values: Record<string, { phh: string; aay: string }> = {};
+    for (const [key, v] of Object.entries(g?.entries ?? {})) {
+      values[key] = { phh: String(v.phh), aay: String(v.aay) };
+    }
+    setManualValues(values);
+    setManualUpdatedAt(g?.updatedAt ?? "");
+  };
+
+  useEffect(() => {
+    if (reportType !== "goshwara" || !manualEnabled) return;
+    let cancelled = false;
+    const [year, month] = monthFilter.split("-");
+    const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
+    setManualStatus("idle");
+    applyManual(null);
+    apiFetch(`/api/goshwara?year=${year}&month=${month}${viewParam}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!cancelled && data) applyManual(data.goshwara); })
+      .catch(() => { /* Non-fatal — the form just starts empty. */ });
+    return () => { cancelled = true; };
+  }, [reportType, manualEnabled, monthFilter, viewingDealer?.fpsId]);
+
+  const manualNum = (key: string, scheme: "phh" | "aay") => Number(manualValues[key]?.[scheme]) || 0;
+
+  const setManualValue = (key: string, scheme: "phh" | "aay", value: string) => {
+    setManualStatus("idle");
+    setManualValues((prev) => ({
+      ...prev,
+      [key]: { phh: prev[key]?.phh ?? "", aay: prev[key]?.aay ?? "", [scheme]: value },
+    }));
+  };
+
+  const saveManual = async () => {
+    const [year, month] = monthFilter.split("-");
+    const entries = Object.fromEntries(
+      goshwaraRows.map((row) => [row.key, { phh: manualNum(row.key, "phh"), aay: manualNum(row.key, "aay") }])
+    );
+    setManualStatus("saving");
+    try {
+      const res = await apiFetch("/api/goshwara", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year, month, entries }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      applyManual(data.goshwara);
+      setManualStatus("saved");
+    } catch {
+      setManualStatus("error");
+    }
+  };
+
+  const printGoshwara = (target: "both" | "system" | "manual") => {
+    setGoshwaraPrint(target);
+    // Let React apply the print-visibility classes before the dialog opens.
+    setTimeout(() => window.print(), 0);
+  };
 
   const effectivePivotMonths = useMemo(() => {
     const filled = pivotMonths.filter(Boolean);
@@ -556,10 +624,23 @@ export default function ReportsPage() {
 
       {/* Goshwara */}
       {reportType === "goshwara" && (
-        <div className="card p-6 max-w-3xl">
-          <h3 className="text-base font-bold text-center text-brand-700 mb-5">
+        <>
+        {goshwaraPrint === "both" && <style>{"@media print { @page { size: landscape; } }"}</style>}
+        {manualEnabled && (
+          <div className="no-print flex justify-end">
+            <button onClick={() => printGoshwara("both")} className="btn-secondary text-xs">
+              🖨️ {t("reports.printReport")} ({t("reports.systemGoshwara")} + {t("reports.manualGoshwara")})
+            </button>
+          </div>
+        )}
+        <div className={`grid gap-6 xl:grid-cols-2 items-start ${goshwaraPrint === "both" ? "print:grid-cols-2" : "print:block"}`}>
+        <div className={`card p-6 ${goshwaraPrint === "manual" ? "print:hidden" : ""}`}>
+          <h3 className="text-base font-bold text-center text-brand-700 mb-1">
             गोषवारा — {t("reports.monthlySummary")} ({monthLabel})
           </h3>
+          <p className="text-xs text-center text-gray-500 mb-5">
+            {scopeLabel} · {t("reports.systemGoshwara")}
+          </p>
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-brand-700 text-white">
@@ -580,12 +661,85 @@ export default function ReportsPage() {
               ))}
             </tbody>
           </table>
-          <div className="mt-4 flex justify-end">
-            <button onClick={() => window.print()} className="btn-secondary text-xs">
+          <div className="no-print mt-4 flex justify-end">
+            <button onClick={() => printGoshwara("system")} className="btn-secondary text-xs">
               🖨️ {t("reports.printReport")}
             </button>
           </div>
         </div>
+
+        {/* Manual goshwara for the same month */}
+        <div className={`card p-6 ${goshwaraPrint === "system" ? "print:hidden" : ""} ${manualEnabled ? "" : "no-print"}`}>
+          <h3 className="text-base font-bold text-center text-brand-700 mb-1">
+            गोषवारा — {t("reports.manualGoshwara")} ({monthLabel})
+          </h3>
+          <p className="text-xs text-center text-gray-500 mb-5">
+            {scopeLabel}
+            {manualUpdatedAt && <span className="no-print"> · {t("reports.lastSaved")}: {formatDate(manualUpdatedAt)}</span>}
+          </p>
+          {!manualEnabled ? (
+            <p className="text-sm text-center text-gray-500 py-8">{t("reports.selectMonthForManual")}</p>
+          ) : (
+            <>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-brand-700 text-white">
+                    <th className="px-4 py-3 text-left font-semibold">{t("reports.particulars")}</th>
+                    <th className="px-4 py-3 text-right font-semibold">PHH</th>
+                    <th className="px-4 py-3 text-right font-semibold">AAY</th>
+                    <th className="px-4 py-3 text-right font-semibold">{t("reports.total")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {goshwaraRows.map((row, i) => (
+                    <tr key={row.key} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                      <td className="px-4 py-3 font-medium">{row.label}</td>
+                      {(["phh", "aay"] as const).map((scheme) => (
+                        <td key={scheme} className="px-4 py-2 text-right font-mono">
+                          {readOnly ? (
+                            formatNumber(manualNum(row.key, scheme))
+                          ) : (
+                            <>
+                              <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
+                                value={manualValues[row.key]?.[scheme] ?? ""}
+                                onChange={(e) => setManualValue(row.key, scheme, e.target.value)}
+                                placeholder="0"
+                                aria-label={`${row.label} ${scheme.toUpperCase()}`}
+                                className="input-field w-24 ml-auto text-right font-mono py-1 print:hidden"
+                              />
+                              <span className="hidden print:inline">{formatNumber(manualNum(row.key, scheme))}</span>
+                            </>
+                          )}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-right font-mono font-bold">
+                        {formatNumber(manualNum(row.key, "phh") + manualNum(row.key, "aay"))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="no-print mt-4 flex items-center justify-end gap-3">
+                {manualStatus === "saved" && <span className="text-xs text-green-600">✓ {t("reports.manualSaved")}</span>}
+                {manualStatus === "error" && <span className="text-xs text-red-600">{t("reports.manualSaveFailed")}</span>}
+                {!readOnly && (
+                  <button onClick={saveManual} disabled={manualStatus === "saving"} className="btn-primary text-xs">
+                    {manualStatus === "saving" ? t("common.loading") : t("common.save")}
+                  </button>
+                )}
+                <button onClick={() => printGoshwara("manual")} className="btn-secondary text-xs">
+                  🖨️ {t("reports.printReport")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        </div>
+        </>
       )}
 
       {/* Monthly Dates (Customer x Month pivot) */}

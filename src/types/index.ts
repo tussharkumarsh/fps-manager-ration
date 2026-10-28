@@ -163,3 +163,14 @@ export interface GovStockRegisterEntry {
   closing: number;
   fetchedAt: string;
 }
+
+/** Particular key (e.g. "wheat") -> hand-entered PHH/AAY figures. */
+export type ManualGoshwaraEntries = Record<string, { phh: number; aay: number }>;
+
+export interface ManualGoshwara {
+  fpsId: string;
+  year: string;
+  month: string;
+  entries: ManualGoshwaraEntries;
+  updatedAt: string;
+}
