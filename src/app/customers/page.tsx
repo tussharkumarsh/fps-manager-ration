@@ -306,7 +306,7 @@ export default function CustomersPage() {
           <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-brand-700 text-white text-xs font-semibold tracking-wide">
+                <tr className="table-head">
                   <th className="px-2 py-2.5 w-8"></th>
                   {showDealerColumn && <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.dealer")}</th>}
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.sNo")}</th>

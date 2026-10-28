@@ -326,7 +326,7 @@ export default function InventoryPage() {
                       {[t("inventory.dealer"), t("inventory.item"), t("inventory.unit"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                         <th
                           key={h}
-                          className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
+                          className="table-head px-3 py-2.5 whitespace-nowrap text-right first:text-left"
                         >
                           {h}
                         </th>
@@ -370,7 +370,7 @@ export default function InventoryPage() {
                     {[t("inventory.item"), t("inventory.unit"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                       <th
                         key={h}
-                        className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left"
+                        className="table-head px-3 py-2.5 whitespace-nowrap text-right first:text-left"
                       >
                         {h}
                       </th>
@@ -457,7 +457,7 @@ export default function InventoryPage() {
                   <thead>
                     <tr>
                       {['Scheme', 'Commodity', 'Received', 'Distributed', 'Closing'].map((h) => (
-                        <th key={h} className="px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 whitespace-nowrap text-right first:text-left">
+                        <th key={h} className="table-head px-3 py-2.5 whitespace-nowrap text-right first:text-left">
                           {h}
                         </th>
                       ))}

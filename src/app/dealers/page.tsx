@@ -248,7 +248,7 @@ export default function DealersPage() {
               <button
                 type="submit"
                 disabled={creating}
-                className="px-4 py-2 bg-brand-700 text-white rounded-lg text-sm font-semibold hover:bg-brand-800 disabled:opacity-50"
+                className="btn-primary"
               >
                 {creating ? t("dealers.creating") : t("dealers.createDealer")}
               </button>
@@ -274,7 +274,7 @@ export default function DealersPage() {
           <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-brand-700 text-white text-xs font-semibold tracking-wide">
+                <tr className="table-head">
                   <th className="px-3 py-2.5 text-left">{t("dealers.fpsId")}</th>
                   <th className="px-3 py-2.5 text-left">District</th>
                   <th className="px-3 py-2.5 text-left">{t("dealers.username")}</th>

@@ -152,7 +152,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={changing}
-            className="px-4 py-2 bg-brand-700 text-white rounded-lg text-sm font-semibold hover:bg-brand-800 disabled:opacity-50"
+            className="btn-primary"
           >
             {changing ? t("profile.changing") : t("profile.changePassword")}
           </button>

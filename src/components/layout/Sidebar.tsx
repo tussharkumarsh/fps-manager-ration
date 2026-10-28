@@ -33,21 +33,21 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "no-print flex flex-col bg-brand-700 transition-all duration-200 flex-shrink-0",
+        "no-print flex flex-col bg-[#f5f5f7]/80 backdrop-blur-xl border-r border-black/10 transition-all duration-200 flex-shrink-0",
         sidebarOpen ? "w-56" : "w-14"
       )}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-4 py-4">
         <button
           onClick={toggleSidebar}
-          className="text-white text-lg hover:bg-white/10 rounded-md p-1 transition-colors"
+          className="text-apple-secondary text-base hover:bg-black/5 rounded-md w-7 h-7 flex items-center justify-center transition-colors"
           aria-label="Toggle sidebar"
         >
           {sidebarOpen ? "✕" : "☰"}
         </button>
         {sidebarOpen && (
-          <span className="text-white font-bold text-sm whitespace-nowrap">
+          <span className="text-apple-label font-semibold text-[15px] tracking-tight whitespace-nowrap">
             {t("sidebar.appName")}
           </span>
         )}
@@ -60,14 +60,14 @@ export default function Sidebar() {
 
       {/* Viewing-as-dealer banner */}
       {viewingDealer && sidebarOpen && (
-        <div className="mx-2 mt-2 px-2 py-2 rounded-md bg-amber-500/20 text-amber-100 text-[11px] space-y-1">
+        <div className="mx-2 mt-2 px-3 py-2 rounded-xl bg-amber-100 text-amber-900 text-[11px] space-y-1">
           <div className="font-semibold truncate">
             {t("sidebar.viewing")}: {viewingDealer.displayName}
           </div>
           <div className="font-mono">{viewingDealer.fpsId}</div>
           <button
             onClick={clearViewingDealer}
-            className="w-full mt-1 px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-white text-[11px] font-medium"
+            className="w-full mt-1 px-2 py-1 bg-white hover:bg-amber-50 rounded-full text-amber-900 text-[11px] font-medium shadow-sm"
           >
             {t("sidebar.exitView")}
           </button>
@@ -97,11 +97,11 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-2 py-3 border-t border-white/10 space-y-2">
+      <div className="px-2 py-3 border-t border-black/10 space-y-2">
         {sidebarOpen && session?.fpsId && (
-          <div className="px-2 text-[11px] text-white/50 space-y-0.5">
+          <div className="px-2 text-[11px] text-apple-tertiary space-y-0.5">
             {session.displayName && (
-              <div className="text-white/80 font-medium truncate">{session.displayName}</div>
+              <div className="text-apple-label font-medium truncate">{session.displayName}</div>
             )}
             <div>FPS: {session.fpsId}</div>
             <div>{new Date().toLocaleDateString("en-IN")}</div>
@@ -116,7 +116,7 @@ export default function Sidebar() {
             useStore.getState().syncSessionIdentity("");
             signOut({ callbackUrl: "/login" });
           }}
-          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-red-600 hover:bg-black/5 rounded-lg transition-colors"
           title={t("sidebar.signOut")}
         >
           <span>🚪</span>

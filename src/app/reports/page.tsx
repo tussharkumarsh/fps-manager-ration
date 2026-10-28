@@ -574,7 +574,7 @@ export default function ReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="bg-brand-700 text-white">
+                <tr className="table-head">
                   <th className="px-4 py-3 text-left font-semibold">{t("reports.srNo")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("transactions.srcNo")}</th>
                   <th className="px-4 py-3 text-left font-semibold">{t("transactions.customerName")}</th>
@@ -690,7 +690,7 @@ export default function ReportsPage() {
           </p>
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-brand-700 text-white">
+              <tr className="table-head">
                 <th className="px-4 py-3 text-left font-semibold">{t("reports.particulars")}</th>
                 <th className="px-4 py-3 text-right font-semibold">PHH</th>
                 <th className="px-4 py-3 text-right font-semibold">AAY</th>
@@ -730,7 +730,7 @@ export default function ReportsPage() {
             <>
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-brand-700 text-white">
+                  <tr className="table-head">
                     <th className="px-4 py-3 text-left font-semibold">{t("reports.particulars")}</th>
                     <th className="px-4 py-3 text-right font-semibold">PHH</th>
                     <th className="px-4 py-3 text-right font-semibold">AAY</th>
@@ -844,7 +844,7 @@ export default function ReportsPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm monthly-dates-table">
               <thead>
-                <tr className="bg-brand-700 text-white">
+                <tr className="table-head">
                   <th className="px-2 py-1.5 text-left font-semibold">{t("reports.srNo")}</th>
                   <th
                     className="px-2 py-1.5 text-left font-semibold cursor-pointer select-none"

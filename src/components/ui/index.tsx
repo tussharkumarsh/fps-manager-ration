@@ -22,32 +22,32 @@ export function KPICard({
   active?: boolean;
 }) {
   const colorMap: Record<string, string> = {
-    blue: "border-l-blue-600",
-    green: "border-l-emerald-600",
-    yellow: "border-l-amber-500",
-    red: "border-l-red-600",
-    purple: "border-l-violet-600",
-    cyan: "border-l-cyan-600",
+    blue: "bg-blue-600",
+    green: "bg-emerald-500",
+    yellow: "bg-amber-500",
+    red: "bg-red-500",
+    purple: "bg-violet-500",
+    cyan: "bg-cyan-500",
   };
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "card border-l-4 p-5",
-        colorMap[color] || "border-l-blue-600",
-        onClick && "cursor-pointer transition-shadow hover:shadow-md",
-        active && "ring-2 ring-offset-1 ring-brand-600"
+        "card p-5",
+        onClick && "cursor-pointer transition-shadow hover:shadow-apple-lg",
+        active && "ring-2 ring-blue-600"
       )}
     >
-      <div className="text-xs font-medium text-gray-500 tracking-wide uppercase">
+      <div className="flex items-center gap-1.5 text-[13px] font-medium text-apple-secondary">
+        <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colorMap[color] || "bg-blue-600")} />
         {icon && <span className="mr-1">{icon}</span>}
         {label}
       </div>
-      <div className="mt-1 text-2xl font-bold text-gray-900 font-mono">
+      <div className="mt-1.5 text-[28px] leading-tight font-semibold tracking-tight text-apple-label font-mono">
         {typeof value === "number" ? formatNumber(value) : value}
       </div>
-      {sub && <div className="mt-0.5 text-xs text-gray-500">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs text-apple-tertiary">{sub}</div>}
     </div>
   );
 }
@@ -71,7 +71,7 @@ export function Badge({ text, variant }: { text: string; variant?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide",
+        "inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium",
         styles[v] || "bg-gray-100 text-gray-600"
       )}
     >
@@ -169,7 +169,7 @@ export function DataTable<T extends object>({
       </div>
 
       <div
-        className="overflow-x-auto rounded-lg border border-gray-200"
+        className="overflow-x-auto rounded-2xl bg-white shadow-apple"
         style={{ maxHeight, overflowY: "auto" }}
       >
         <table className="w-full border-collapse text-sm">
@@ -182,8 +182,8 @@ export function DataTable<T extends object>({
                     col.sortable !== false && handleSort(String(col.key))
                   }
                   className={cn(
-                    "px-3 py-2.5 text-xs font-semibold tracking-wide text-white bg-brand-700 sticky top-0 z-10 select-none whitespace-nowrap",
-                    col.sortable !== false && "cursor-pointer hover:bg-brand-700/90",
+                    "table-head px-3 py-2.5 sticky top-0 z-10 select-none whitespace-nowrap",
+                    col.sortable !== false && "cursor-pointer hover:text-apple-label",
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center"
                   )}
@@ -202,8 +202,7 @@ export function DataTable<T extends object>({
               <tr
                 key={i}
                 className={cn(
-                  "border-b border-gray-100 hover:bg-blue-50/50 transition-colors",
-                  i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                  "border-b border-black/5 last:border-0 hover:bg-[#f5f5f7] transition-colors",
                 )}
               >
                 {columns.map((col) => (
@@ -278,16 +277,16 @@ export function TabGroup({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="flex gap-1.5 mb-5">
+    <div className="inline-flex flex-wrap gap-0.5 mb-5 p-0.5 rounded-[10px] bg-apple-fill">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+            "px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all",
             active === tab.id
-              ? "bg-blue-600 text-white shadow-sm"
-              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+              ? "bg-white text-apple-label shadow-sm"
+              : "text-apple-secondary hover:text-apple-label"
           )}
         >
           {tab.label}
@@ -346,8 +345,8 @@ export function ColumnPicker({
         <span className="text-gray-400">▾</span>
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-gray-200 bg-white shadow-lg">
-          <div className="flex justify-between border-b border-gray-100 px-3 py-2 text-xs">
+        <div className="absolute right-0 z-20 mt-2 w-60 rounded-xl border border-black/10 bg-white/90 backdrop-blur-xl shadow-apple-lg">
+          <div className="flex justify-between border-b border-black/5 px-3 py-2 text-xs">
             <button type="button" onClick={() => onChange(options.map((o) => o.key))} className="text-blue-600 hover:underline">
               {selectAllLabel}
             </button>
@@ -360,8 +359,8 @@ export function ColumnPicker({
               <label
                 key={o.key}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-sm",
-                  o.locked ? "text-gray-400" : "cursor-pointer hover:bg-gray-50"
+                  "flex items-center gap-2 mx-1 px-2 py-1.5 rounded-md text-[13px]",
+                  o.locked ? "text-apple-tertiary" : "cursor-pointer hover:bg-blue-600 hover:text-white"
                 )}
               >
                 <input

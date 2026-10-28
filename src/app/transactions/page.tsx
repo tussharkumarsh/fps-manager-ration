@@ -125,13 +125,13 @@ export default function TransactionsPage() {
 
         <div className="flex gap-3 items-center flex-wrap">
           {/* Scheme filter */}
-          <div className="flex gap-1">
+          <div className="flex gap-0.5 p-0.5 rounded-lg bg-apple-fill">
             {(["ALL", "PHH", "AAY"] as const).map((s) => (
               <button key={s} onClick={() => setSchemeFilter(s)}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   schemeFilter === s
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                    ? "bg-white text-apple-label shadow-sm"
+                    : "text-apple-secondary hover:text-apple-label"
                 }`}>
                 {s === "ALL" ? t("common.all") : s}
               </button>
