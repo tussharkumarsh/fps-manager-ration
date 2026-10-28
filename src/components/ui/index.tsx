@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { cn, formatNumber } from "@/lib/utils";
 
 // ─── KPI Card ───
@@ -293,6 +293,90 @@ export function TabGroup({
           {tab.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+// ─── Column Picker (multi-select dropdown) ───
+export function ColumnPicker({
+  label,
+  options,
+  selected,
+  onChange,
+  selectAllLabel,
+  clearLabel,
+}: {
+  label: string;
+  options: { key: string; label: string; locked?: boolean }[];
+  selected: string[];
+  onChange: (keys: string[]) => void;
+  selectAllLabel: string;
+  clearLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const locked = options.filter((o) => o.locked).map((o) => o.key);
+  const toggle = (key: string) =>
+    onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="btn-secondary text-xs flex items-center gap-1.5"
+      >
+        ☰ {label} ({selected.length}/{options.length})
+        <span className="text-gray-400">▾</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="flex justify-between border-b border-gray-100 px-3 py-2 text-xs">
+            <button type="button" onClick={() => onChange(options.map((o) => o.key))} className="text-blue-600 hover:underline">
+              {selectAllLabel}
+            </button>
+            <button type="button" onClick={() => onChange(locked)} className="text-gray-500 hover:underline">
+              {clearLabel}
+            </button>
+          </div>
+          <div className="max-h-72 overflow-y-auto py-1">
+            {options.map((o) => (
+              <label
+                key={o.key}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 text-sm",
+                  o.locked ? "text-gray-400" : "cursor-pointer hover:bg-gray-50"
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(o.key)}
+                  disabled={o.locked}
+                  onChange={() => toggle(o.key)}
+                  className="rounded border-gray-300 text-blue-600"
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

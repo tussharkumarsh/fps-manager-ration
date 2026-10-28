@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
-import { DataTable, Badge, TabGroup, EmptyState, type Column } from "@/components/ui";
+import { DataTable, Badge, TabGroup, EmptyState, ColumnPicker, type Column } from "@/components/ui";
 import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth, activeCustomers } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -17,6 +17,8 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
   const [year, month] = dateOnly(latest.date).split("-");
   return `${getMonthName(parseInt(month, 10))} ${year}`;
 }
+
+const DAILY_COLUMNS_STORAGE_KEY = "reports.dailyColumns";
 
 export default function ReportsPage() {
   const { data: session } = useSession();
@@ -40,6 +42,26 @@ export default function ReportsPage() {
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [printScheme, setPrintScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [disableReason, setDisableReason] = useState("");
+  // null = all daily-summary columns (the default before any choice is made).
+  const [dailyColumnKeys, setDailyColumnKeys] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DAILY_COLUMNS_STORAGE_KEY);
+      if (stored) setDailyColumnKeys(JSON.parse(stored));
+    } catch {
+      // Storage unavailable or corrupt — fall back to all columns.
+    }
+  }, []);
+
+  const changeDailyColumns = (keys: string[]) => {
+    setDailyColumnKeys(keys);
+    try {
+      localStorage.setItem(DAILY_COLUMNS_STORAGE_KEY, JSON.stringify(keys));
+    } catch {
+      // Non-fatal — the choice just won't be remembered.
+    }
+  };
 
   const patchCustomer = async (srcNo: string, patch: Partial<Customer>) => {
     try {
@@ -280,6 +302,12 @@ export default function ReportsPage() {
     { key: "totalTransactions", label: "Total Txns", align: "right", mono: true },
   ];
 
+  // Which daily-summary columns to show and print. Date is always kept; the
+  // choice is remembered per browser.
+  const visibleDailyColumns = dailyColumns.filter(
+    (c) => c.key === "date" || dailyColumnKeys === null || dailyColumnKeys.includes(String(c.key))
+  );
+
   const hasActiveFilter = monthFilter !== "ALL" || !!fromDate || !!toDate;
 
   if (transactions.length === 0) {
@@ -348,14 +376,22 @@ export default function ReportsPage() {
       {/* Daily Summary */}
       {reportType === "daily" && (
         <>
-          <div className="no-print flex justify-end">
+          <div className="no-print flex justify-end gap-2">
+            <ColumnPicker
+              label={t("reports.columns")}
+              options={dailyColumns.map((c) => ({ key: String(c.key), label: c.label, locked: c.key === "date" }))}
+              selected={visibleDailyColumns.map((c) => String(c.key))}
+              onChange={changeDailyColumns}
+              selectAllLabel={t("reports.selectAllColumns")}
+              clearLabel={t("reports.clearColumns")}
+            />
             <button onClick={() => window.print()} className="btn-secondary text-xs">
               🖨️ {t("reports.printReport")}
             </button>
           </div>
           <div className="no-print">
             <DataTable<DailySummary>
-              columns={dailyColumns}
+              columns={visibleDailyColumns}
               data={dailyWithTotals}
               pageSize={50}
               searchable={false}
@@ -372,7 +408,7 @@ export default function ReportsPage() {
             <table className="w-full border-collapse monthly-dates-table">
               <thead>
                 <tr>
-                  {dailyColumns.map((c) => (
+                  {visibleDailyColumns.map((c) => (
                     <th key={String(c.key)} className={c.align === "right" ? "text-right" : "text-left"}>{c.label}</th>
                   ))}
                 </tr>
@@ -382,7 +418,7 @@ export default function ReportsPage() {
                   const isTotal = row.date === "TOTAL";
                   return (
                     <tr key={row.date} className={isTotal ? "font-bold" : ""}>
-                      {dailyColumns.map((c) => (
+                      {visibleDailyColumns.map((c) => (
                         <td key={String(c.key)} className={`font-mono ${c.align === "right" ? "text-right" : ""}`}>
                           {c.key === "date"
                             ? isTotal ? t("reports.total") : formatDate(row.date)
