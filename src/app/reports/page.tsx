@@ -139,6 +139,10 @@ export default function ReportsPage() {
   const [manualUpdatedAt, setManualUpdatedAt] = useState("");
   const [manualStatus, setManualStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [goshwaraPrint, setGoshwaraPrint] = useState<"both" | "system" | "manual">("both");
+  const [savedManual, setSavedManual] = useState<ManualGoshwara | null>(null);
+  // A month with saved figures opens read-only (like the computed card); the
+  // inputs only show for a month with nothing saved yet, or after Edit.
+  const [manualEditing, setManualEditing] = useState(true);
 
   const applyManual = (g: ManualGoshwara | null) => {
     const values: Record<string, { phh: string; aay: string }> = {};
@@ -147,6 +151,13 @@ export default function ReportsPage() {
     }
     setManualValues(values);
     setManualUpdatedAt(g?.updatedAt ?? "");
+    setSavedManual(g);
+    setManualEditing(!g);
+  };
+
+  const cancelManualEdit = () => {
+    applyManual(savedManual);
+    setManualStatus("idle");
   };
 
   useEffect(() => {
@@ -695,8 +706,8 @@ export default function ReportsPage() {
                     <tr key={row.key} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
                       <td className="px-4 py-3 font-medium">{row.label}</td>
                       {(["phh", "aay"] as const).map((scheme) => (
-                        <td key={scheme} className="px-4 py-2 text-right font-mono">
-                          {readOnly ? (
+                        <td key={scheme} className={`px-4 ${!readOnly && manualEditing ? "py-2" : "py-3"} text-right font-mono`}>
+                          {readOnly || !manualEditing ? (
                             formatNumber(manualNum(row.key, scheme))
                           ) : (
                             <>
@@ -726,9 +737,19 @@ export default function ReportsPage() {
               <div className="no-print mt-4 flex items-center justify-end gap-3">
                 {manualStatus === "saved" && <span className="text-xs text-green-600">✓ {t("reports.manualSaved")}</span>}
                 {manualStatus === "error" && <span className="text-xs text-red-600">{t("reports.manualSaveFailed")}</span>}
-                {!readOnly && (
+                {!readOnly && manualEditing && savedManual && (
+                  <button onClick={cancelManualEdit} disabled={manualStatus === "saving"} className="btn-secondary text-xs">
+                    {t("common.cancel")}
+                  </button>
+                )}
+                {!readOnly && manualEditing && (
                   <button onClick={saveManual} disabled={manualStatus === "saving"} className="btn-primary text-xs">
                     {manualStatus === "saving" ? t("common.loading") : t("common.save")}
+                  </button>
+                )}
+                {!readOnly && !manualEditing && (
+                  <button onClick={() => { setManualEditing(true); setManualStatus("idle"); }} className="btn-secondary text-xs">
+                    ✏️ {t("common.edit")}
                   </button>
                 )}
                 <button onClick={() => printGoshwara("manual")} className="btn-secondary text-xs">
