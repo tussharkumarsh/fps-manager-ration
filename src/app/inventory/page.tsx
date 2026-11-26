@@ -18,6 +18,8 @@ interface AggregateRow extends InventoryLedgerEntry {
 interface ScmSummaryRow {
   scheme: string;
   commodity: string;
+  /** Previous month's closing for the same scheme × commodity. */
+  openingStock: number;
   receivedQty: number;
   distributedQty: number;
   closingStock: number;
@@ -456,7 +458,7 @@ export default function InventoryPage() {
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr>
-                      {['Scheme', 'Commodity', 'Received', 'Distributed', 'Closing'].map((h) => (
+                      {['Scheme', 'Commodity', 'Opening', 'Received', 'Distributed', 'Closing'].map((h) => (
                         <th key={h} className="table-head px-3 py-2.5 whitespace-nowrap text-right first:text-left">
                           {h}
                         </th>
@@ -468,6 +470,7 @@ export default function InventoryPage() {
                       <tr key={`${row.scheme}-${row.commodity}`} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
                         <td className="px-3 py-2 font-semibold text-gray-800">{row.scheme}</td>
                         <td className="px-3 py-2 text-gray-700">{row.commodity}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-500">{formatNumber(row.openingStock ?? 0)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNumber(row.receivedQty)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNumber(row.distributedQty)}</td>
                         <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{formatNumber(row.closingStock)}</td>
