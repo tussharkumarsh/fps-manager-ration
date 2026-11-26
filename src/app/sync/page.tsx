@@ -7,6 +7,7 @@ import { Badge, DataTable } from "@/components/ui";
 import { getMonthName } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { apiFetch } from "@/lib/apiFetch";
+import { monthsToBackfill, currentIstYearMonth } from "@/lib/backfill";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { SyncLog, ScmSyncLog } from "@/types";
 
@@ -37,6 +38,85 @@ export default function SyncPage() {
   // one truck-chit batch at a time.
   const [scmBatchNo, setScmBatchNo] = useState("");
   const autoLoad = useAutoLoadMonth(settings.month, settings.year);
+  // Commodity columns the portal showed that have no dedicated field — their
+  // quantities are saved (extraItems) but the dealer should know they exist.
+  const [unknownColumns, setUnknownColumns] = useState<string[]>([]);
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillLines, setBackfillLines] = useState<{ month: string; ok: boolean; text: string }[]>([]);
+  const [backfillSummary, setBackfillSummary] = useState("");
+
+  const noteUnknownColumns = (cols: unknown) => {
+    if (!Array.isArray(cols) || cols.length === 0) return;
+    setUnknownColumns((prev) => Array.from(new Set([...prev, ...cols.map(String)])));
+  };
+
+  /**
+   * Fetches every not-yet-synced month of the selected year, one request per
+   * month (each stays well inside the serverless time limit and shows its
+   * own result), and keeps going past a failed month.
+   */
+  const handleBackfill = async () => {
+    if (readOnly || backfillRunning) return;
+    setBackfillRunning(true);
+    setBackfillLines([]);
+    setBackfillSummary("");
+    try {
+      const statusRes = await apiFetch(`/api/sync-status?year=${encodeURIComponent(monthYear.year)}`);
+      const statusData = await statusRes.json();
+      if (!statusRes.ok || !statusData.success) throw new Error(statusData.error || "Failed to read sync status");
+
+      const months = monthsToBackfill(monthYear.year, statusData.locks, currentIstYearMonth());
+      if (months.length === 0) {
+        setBackfillSummary(t("sync.backfillNothing"));
+        return;
+      }
+
+      let ok = 0;
+      let failed = 0;
+      for (const month of months) {
+        setBackfillSummary(t("sync.backfillRunning", { month: `${getMonthName(Number(month))} ${monthYear.year}` }));
+        const label = `${getMonthName(Number(month))} ${monthYear.year}`;
+        try {
+          const res = await apiFetch("/api/fetch-transactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ month, year: monthYear.year }),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || "Unknown error");
+          addTransactions(data.transactions);
+          noteUnknownColumns(data.unknownColumns);
+          ok++;
+          setBackfillLines((prev) => [...prev, { month, ok: true, text: `${label}: ${data.count} record(s)` }]);
+          addSyncLog({
+            timestamp: new Date().toISOString(),
+            month,
+            year: monthYear.year,
+            transactionCount: data.count,
+            status: "success",
+            message: `Backfill: fetched ${data.count} transactions`,
+          });
+        } catch (err) {
+          failed++;
+          const errMsg = err instanceof Error ? err.message : "Failed to fetch";
+          setBackfillLines((prev) => [...prev, { month, ok: false, text: `${label}: ${errMsg}` }]);
+          addSyncLog({
+            timestamp: new Date().toISOString(),
+            month,
+            year: monthYear.year,
+            transactionCount: 0,
+            status: "error",
+            message: `Backfill: ${errMsg}`,
+          });
+        }
+      }
+      setBackfillSummary(t("sync.backfillDone", { ok, failed }));
+    } catch (err) {
+      setBackfillSummary(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBackfillRunning(false);
+    }
+  };
 
   // The FPS ID / district code used in the actual government API call is
   // always taken from the signed-in user's session on the server — never
@@ -61,6 +141,7 @@ export default function SyncPage() {
 
       if (data.success) {
         addTransactions(data.transactions);
+        noteUnknownColumns(data.unknownColumns);
         const added = data.count;
         const storedNote =
           data.source === "sheet_cache"
@@ -239,6 +320,40 @@ export default function SyncPage() {
             {status === "success" ? "✅" : "❌"} {message}
           </div>
         )}
+
+        {unknownColumns.length > 0 && (
+          <div className="mt-4 px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800">
+            ⚠️ {t("sync.unknownColumns", { cols: unknownColumns.join(", ") })}
+          </div>
+        )}
+
+        <div className="mt-6 pt-5 border-t border-gray-100">
+          <h4 className="text-sm font-semibold mb-1">{t("sync.backfillTitle")}</h4>
+          <p className="text-xs text-gray-500 mb-3">{t("sync.backfillHint")}</p>
+          <button
+            onClick={handleBackfill}
+            disabled={backfillRunning || status === "fetching" || readOnly}
+            className="btn-primary disabled:opacity-50"
+          >
+            {backfillRunning ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">⏳</span> {t("sync.fetching")}
+              </span>
+            ) : (
+              `📅 ${t("sync.backfillButton")} (${monthYear.year})`
+            )}
+          </button>
+          {backfillSummary && <div className="mt-3 text-sm text-gray-700">{backfillSummary}</div>}
+          {backfillLines.length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs font-mono">
+              {backfillLines.map((line) => (
+                <li key={line.month} className={line.ok ? "text-emerald-700" : "text-red-700"}>
+                  {line.ok ? "✅" : "❌"} {line.text}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="card p-6">
