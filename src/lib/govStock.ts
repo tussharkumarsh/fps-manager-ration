@@ -42,3 +42,34 @@ export function govStockByCommodity(
   }
   return map;
 }
+
+export interface ExtraGovCommodity extends GovStockFigures {
+  /** The commodity name as the register gives it, e.g. "Wheat-PMGKAY". */
+  name: string;
+  unit: string;
+}
+
+/**
+ * Register commodities that none of the dealer's inventory items cover
+ * (e.g. Wheat-PMGKAY, Rice-PMGKAY, PMGKAY Bag), so the dealer still sees
+ * all the stock the government holds against the shop. Commodities with
+ * nothing at all (zero opening, receipts, issues and closing) are left out.
+ */
+export function extraGovCommodities(
+  entries: Pick<GovStockRegisterEntry, "commodity" | "unit" | "opening" | "receivedRegular" | "receivedExtra" | "receivedMoved" | "issued" | "closing">[],
+  coveredKeys: string[]
+): ExtraGovCommodity[] {
+  const covered = new Set(coveredKeys);
+  const figures = govStockByCommodity(entries);
+  const out: ExtraGovCommodity[] = [];
+  const seen = new Set<string>();
+  for (const e of entries) {
+    const key = canonicalCommodity(e.commodity);
+    if (covered.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    const f = figures.get(key)!;
+    if (!f.opening && !f.received && !f.issued && !f.closing) continue;
+    out.push({ name: e.commodity.trim(), unit: (e.unit || "").trim(), ...f });
+  }
+  return out;
+}

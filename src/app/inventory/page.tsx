@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { formatNumber, getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { GovStockRegisterEntry, InventoryItem, InventoryLedgerEntry } from "@/types";
-import { canonicalCommodity, govStockByCommodity } from "@/lib/govStock";
+import { canonicalCommodity, extraGovCommodities, govStockByCommodity } from "@/lib/govStock";
 
 interface AggregateRow extends InventoryLedgerEntry {
   dealerName: string;
@@ -87,6 +87,16 @@ export default function InventoryPage() {
   const [govSyncing, setGovSyncing] = useState(false);
   const [govError, setGovError] = useState("");
   const govByCommodity = useMemo(() => govStockByCommodity(govEntries), [govEntries]);
+  // Register commodities none of the dealer's items cover (Wheat-PMGKAY,
+  // Rice-PMGKAY, PMGKAY Bag, …) — shown as extra read-only cards and rows.
+  const extraGovStock = useMemo(
+    () =>
+      extraGovCommodities(
+        govEntries,
+        inventoryItems.flatMap((item) => [canonicalCommodity(item.name), ...(item.txField ? [item.txField] : [])])
+      ),
+    [govEntries, inventoryItems]
+  );
 
   function figuresFor(item: InventoryItem, entry: InventoryLedgerEntry | undefined) {
     const gov = govByCommodity.get(canonicalCommodity(item.name)) ?? (item.txField ? govByCommodity.get(item.txField) : undefined);
@@ -283,12 +293,20 @@ export default function InventoryPage() {
       }
       return Array.from(byItem.values());
     }
-    return inventoryItems.map((item) => {
+    const fromItems = inventoryItems.map((item) => {
       const f = figuresFor(item, ledgerByItem.get(item.id));
       return { name: item.name, unit: item.unit, received: f.received, distributed: f.distributed, closing: f.closing };
     });
+    const fromRegisterOnly = extraGovStock.map((e) => ({
+      name: e.name,
+      unit: e.unit,
+      received: e.received,
+      distributed: e.issued,
+      closing: e.closing,
+    }));
+    return [...fromItems, ...fromRegisterOnly];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aggregateMode, aggregateRows, inventoryItems, ledgerByItem, scmReceivedByCommodity, govByCommodity]);
+  }, [aggregateMode, aggregateRows, inventoryItems, ledgerByItem, scmReceivedByCommodity, govByCommodity, extraGovStock]);
 
   const itemSummaryCards = itemSummaries.length > 0 && (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -488,6 +506,19 @@ export default function InventoryPage() {
                       </tr>
                     );
                   })}
+                  {extraGovStock.map((e, j) => (
+                    <tr key={`gov-${e.name}`} className={(inventoryItems.length + j) % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                      <td className="px-3 py-2 font-semibold text-gray-800">
+                        {e.name}
+                        <span className="ml-1 text-[10px] text-emerald-600" title={t("inventory.govSource")}>● Gov</span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-500">{e.unit}</td>
+                      <td className="px-3 py-2 text-right font-mono text-gray-500">{formatNumber(e.opening)}</td>
+                      <td className="px-3 py-2 text-right font-mono">{formatNumber(e.received)}</td>
+                      <td className="px-3 py-2 text-right font-mono">{formatNumber(e.issued)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{formatNumber(e.closing)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
