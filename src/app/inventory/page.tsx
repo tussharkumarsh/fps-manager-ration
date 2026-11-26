@@ -101,11 +101,11 @@ export default function InventoryPage() {
   function figuresFor(item: InventoryItem, entry: InventoryLedgerEntry | undefined) {
     const gov = govByCommodity.get(canonicalCommodity(item.name)) ?? (item.txField ? govByCommodity.get(item.txField) : undefined);
     if (gov) {
-      return { opening: gov.opening, received: gov.received, distributed: gov.issued, closing: gov.closing, fromGov: true };
+      return { allotted: gov.allotted, opening: gov.opening, received: gov.received, distributed: gov.issued, closing: gov.closing, fromGov: true };
     }
     const received = receivedFor(item.txField, entry?.received ?? 0);
     const distributed = entry?.distributed ?? 0;
-    return { opening: 0, received, distributed, closing: received - distributed, fromGov: false };
+    return { allotted: 0, opening: 0, received, distributed, closing: received - distributed, fromGov: false };
   }
 
   async function loadGovStock() {
@@ -450,7 +450,7 @@ export default function InventoryPage() {
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    {[t("inventory.item"), t("inventory.unit"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
+                    {[t("inventory.item"), t("inventory.unit"), t("inventory.allotted"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                       <th
                         key={h}
                         className="table-head px-3 py-2.5 whitespace-nowrap text-right first:text-left"
@@ -476,6 +476,7 @@ export default function InventoryPage() {
                           {f.fromGov && <span className="ml-1 text-[10px] text-emerald-600" title={t("inventory.govSource")}>● Gov</span>}
                         </td>
                         <td className="px-3 py-2 text-right text-gray-500">{item.unit}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-500">{f.fromGov && f.allotted ? formatNumber(f.allotted) : "—"}</td>
                         <td className="px-3 py-2 text-right font-mono text-gray-500">{f.fromGov ? formatNumber(f.opening) : "—"}</td>
                         <td className="px-3 py-2 text-right">
                           {f.fromGov ? (
@@ -513,6 +514,7 @@ export default function InventoryPage() {
                         <span className="ml-1 text-[10px] text-emerald-600" title={t("inventory.govSource")}>● Gov</span>
                       </td>
                       <td className="px-3 py-2 text-right text-gray-500">{e.unit}</td>
+                      <td className="px-3 py-2 text-right font-mono text-gray-500">{e.allotted ? formatNumber(e.allotted) : "—"}</td>
                       <td className="px-3 py-2 text-right font-mono text-gray-500">{formatNumber(e.opening)}</td>
                       <td className="px-3 py-2 text-right font-mono">{formatNumber(e.received)}</td>
                       <td className="px-3 py-2 text-right font-mono">{formatNumber(e.issued)}</td>
