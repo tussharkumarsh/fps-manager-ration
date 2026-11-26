@@ -39,6 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // Admins are read-only everywhere else; syncing rewrites a dealer's stored register.
+  if (session.role === "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   try {
     const { year, month, viewFpsId } = await req.json();
     if (!year || !month) {

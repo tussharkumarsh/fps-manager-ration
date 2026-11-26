@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { EmptyState } from "@/components/ui";
@@ -103,6 +103,9 @@ export default function InventoryPage() {
   const [govEntries, setGovEntries] = useState<GovStockRegisterEntry[]>([]);
   const [govSyncing, setGovSyncing] = useState(false);
   const [govError, setGovError] = useState("");
+  // Which month/dealer the latest register request is for: a slower, older
+  // response must not land on top of the one now on screen.
+  const govRequestKey = useRef("");
   const govByCommodity = useMemo(() => govStockByCommodity(govEntries), [govEntries]);
   // Register commodities none of the dealer's items cover (Wheat-PMGKAY,
   // Rice-PMGKAY, PMGKAY Bag, …) — shown as extra read-only cards and rows.
@@ -127,20 +130,27 @@ export default function InventoryPage() {
 
   async function loadGovStock() {
     if (aggregateMode) return;
+    const key = `${yearFilter}-${monthFilter}-${viewingDealer?.fpsId ?? "self"}`;
+    govRequestKey.current = key;
     setGovError("");
     try {
       const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
       const res = await apiFetch(`/api/inventory/gov-stock?year=${yearFilter}&month=${monthFilter}${viewParam}`);
       const data = await res.json();
+      if (govRequestKey.current !== key) return;
       if (!res.ok) throw new Error(data.error || "Failed to load the government stock register");
       setGovEntries(data.entries || []);
     } catch (e) {
+      if (govRequestKey.current !== key) return;
       setGovEntries([]);
       setGovError(e instanceof Error ? e.message : "Failed to load the government stock register");
     }
   }
 
   async function syncGovStock() {
+    if (readOnly) return;
+    const key = `${yearFilter}-${monthFilter}-${viewingDealer?.fpsId ?? "self"}`;
+    govRequestKey.current = key;
     setGovSyncing(true);
     setGovError("");
     try {
@@ -150,9 +160,11 @@ export default function InventoryPage() {
         body: JSON.stringify({ year: yearFilter, month: monthFilter, viewFpsId: viewingDealer?.fpsId }),
       });
       const data = await res.json();
+      if (govRequestKey.current !== key) return;
       if (!res.ok) throw new Error(data.error || "Failed to sync the government stock register");
       setGovEntries(data.entries || []);
     } catch (e) {
+      if (govRequestKey.current !== key) return;
       setGovError(e instanceof Error ? e.message : "Failed to sync the government stock register");
     } finally {
       setGovSyncing(false);
@@ -458,7 +470,7 @@ export default function InventoryPage() {
                   {govEntries.length > 0 ? t("inventory.govSource") : t("inventory.govMissing")}
                 </p>
               </div>
-              <button onClick={syncGovStock} disabled={govSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
+              <button onClick={syncGovStock} disabled={govSyncing || readOnly} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
                 {govSyncing ? t("common.loading") : `🔄 ${t("inventory.syncGov")}`}
               </button>
             </div>

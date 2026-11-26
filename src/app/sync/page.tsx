@@ -246,7 +246,7 @@ export default function SyncPage() {
       }
 
       setScmStatus("success");
-      setScmMessage(`SCM allotment synced for ${getMonthName(Number(scmMonthYear.month))} ${scmMonthYear.year}: ${data.allotmentRows ?? 0} allotment row(s) saved as received stock.`);
+      setScmMessage(`SCM allotment synced for ${getMonthName(Number(scmMonthYear.month))} ${scmMonthYear.year}: ${data.allotmentRows ?? 0} allotment row(s) saved as received stock.${Array.isArray(data.warnings) && data.warnings.length ? ` ⚠️ ${data.warnings.length} request(s) skipped (earlier data kept): ${data.warnings.join("; ")}` : ""}`);
       updateSettings(scmMonthYear);
 
       addScmSyncLog({
