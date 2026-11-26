@@ -35,7 +35,7 @@ function LoginForm() {
     setLoading(false);
 
     if (!result || result.error) {
-      setError(t("login.invalidCredentials"));
+      setError(result?.code === "locked" ? t("login.tooManyAttempts") : t("login.invalidCredentials"));
       return;
     }
 

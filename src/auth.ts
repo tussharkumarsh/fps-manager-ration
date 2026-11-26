@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { AuthService } from "@/server/services/AuthService";
 import authConfig from "@/auth.config";
@@ -16,6 +16,11 @@ declare module "next-auth" {
     role: "dealer" | "admin";
     displayName: string;
   }
+}
+
+/** Surfaces as `code: "locked"` on the client's signIn() result. */
+class LoginLockedError extends CredentialsSignin {
+  code = "locked";
 }
 
 interface AppToken {
@@ -37,13 +42,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         identifier: { label: "Login ID", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const identifier = credentials?.identifier as string | undefined;
         const password = credentials?.password as string | undefined;
         if (!identifier || !password) return null;
 
+        // First hop of x-forwarded-for is the browser's IP on Vercel; the
+        // backend scopes its failed-login lockout to account + IP.
+        const forwarded = request?.headers?.get("x-forwarded-for") || "";
+        const clientIp = forwarded.split(",")[0]?.trim() || request?.headers?.get("x-real-ip") || undefined;
+
         const authService = new AuthService();
-        const result = await authService.verifyCredentials(identifier, password);
+        const result = await authService.verifyCredentials(identifier, password, clientIp);
+        if (result === "locked") throw new LoginLockedError();
         if (!result) return null;
 
         return {

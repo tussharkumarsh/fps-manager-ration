@@ -55,6 +55,7 @@ const en = {
     signIn: "Sign In",
     signingIn: "Signing in...",
     invalidCredentials: "Invalid login ID or password.",
+    tooManyAttempts: "Too many failed attempts. Please try again in 15 minutes.",
   },
   dashboard: {
     title: "Dashboard",
@@ -374,6 +375,7 @@ const hi: typeof en = {
     signIn: "साइन इन करें",
     signingIn: "साइन इन हो रहा है...",
     invalidCredentials: "गलत लॉगिन आईडी या पासवर्ड।",
+    tooManyAttempts: "बहुत ज़्यादा गलत प्रयास। कृपया 15 मिनट बाद फिर से कोशिश करें।",
   },
   dashboard: {
     title: "डैशबोर्ड",
@@ -693,6 +695,7 @@ const mr: typeof en = {
     signIn: "साइन इन करा",
     signingIn: "साइन इन होत आहे...",
     invalidCredentials: "चुकीचा लॉगिन आयडी किंवा पासवर्ड.",
+    tooManyAttempts: "खूप चुकीचे प्रयत्न झाले. कृपया 15 मिनिटांनी पुन्हा प्रयत्न करा.",
   },
   dashboard: {
     title: "डॅशबोर्ड",
