@@ -9,7 +9,22 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { apiFetch } from "@/lib/apiFetch";
 import { monthsToBackfill, currentIstYearMonth } from "@/lib/backfill";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import type { DayComparison } from "@/app/api/transactions/verify/route";
 import type { SyncLog, ScmSyncLog } from "@/types";
+
+/** Table columns for the daily check: cards, then every commodity seen on either side. */
+function verifyColumns(days: DayComparison[]): string[] {
+  const names = new Set<string>();
+  for (const d of days) {
+    for (const side of [d.gov, d.ours]) Object.keys(side?.qty ?? {}).forEach((n) => names.add(n));
+  }
+  const order = ["Wheat", "Rice", "Sugar", "Jowar", "SAREE"];
+  const sorted = Array.from(names).sort((a, b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+  });
+  return ["cards", ...sorted];
+}
 
 export default function SyncPage() {
   const {
@@ -44,6 +59,38 @@ export default function SyncPage() {
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [backfillLines, setBackfillLines] = useState<{ month: string; ok: boolean; text: string }[]>([]);
   const [backfillSummary, setBackfillSummary] = useState("");
+  const [verifyRunning, setVerifyRunning] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
+  const [verifyResult, setVerifyResult] = useState<
+    { days: DayComparison[]; matched: number; total: number; label: string } | null
+  >(null);
+  // Admins verify the dealer they're viewing; with no dealer selected there's nothing to check.
+  const canVerify = !readOnly || !!viewingDealer;
+
+  const handleVerify = async () => {
+    if (!canVerify || verifyRunning) return;
+    setVerifyRunning(true);
+    setVerifyError("");
+    setVerifyResult(null);
+    try {
+      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
+      const res = await apiFetch(
+        `/api/transactions/verify?month=${encodeURIComponent(monthYear.month)}&year=${encodeURIComponent(monthYear.year)}${viewParam}`
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Verification failed");
+      setVerifyResult({
+        days: data.days,
+        matched: data.matched,
+        total: data.total,
+        label: `${getMonthName(Number(monthYear.month))} ${monthYear.year}`,
+      });
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setVerifyRunning(false);
+    }
+  };
 
   const noteUnknownColumns = (cols: unknown) => {
     if (!Array.isArray(cols) || cols.length === 0) return;
@@ -422,6 +469,84 @@ export default function SyncPage() {
           </div>
         )}
       </div>
+      </div>
+
+      {/* Day-by-day check of stored sales against the portal's own daily totals */}
+      <div className="card p-6 max-w-5xl">
+        <h3 className="text-base font-semibold mb-1">🔍 {t("sync.verifyTitle")}</h3>
+        <p className="text-xs text-gray-500 mb-4">{t("sync.verifyHint")}</p>
+        <button onClick={handleVerify} disabled={!canVerify || verifyRunning} className="btn-primary disabled:opacity-50">
+          {verifyRunning ? (
+            <span className="flex items-center gap-2">
+              <span className="animate-spin">⏳</span> {t("sync.fetching")}
+            </span>
+          ) : (
+            `${t("sync.verifyButton")} (${getMonthName(Number(monthYear.month))} ${monthYear.year})`
+          )}
+        </button>
+        {!canVerify && <p className="mt-2 text-xs text-gray-500">{t("sync.verifySelectDealer")}</p>}
+        {verifyError && <div className="mt-4 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-700">❌ {verifyError}</div>}
+
+        {verifyResult && (
+          <div className="mt-4">
+            <div
+              className={`px-4 py-3 rounded-lg text-sm ${
+                verifyResult.matched === verifyResult.total ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
+              }`}
+            >
+              {verifyResult.label}:{" "}
+              {verifyResult.total > 0 && verifyResult.matched === verifyResult.total
+                ? `✅ ${t("sync.verifyAllOk")} `
+                : "⚠️ "}
+              {t("sync.verifyResult", { matched: verifyResult.matched, total: verifyResult.total })}
+            </div>
+            {verifyResult.days.length > 0 && (
+              <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200 max-h-96 overflow-y-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className="table-head px-3 py-2 text-left">{t("sync.verifyDate")}</th>
+                      <th className="table-head px-3 py-2 text-left"></th>
+                      {verifyColumns(verifyResult.days).map((c) => (
+                        <th key={c} className="table-head px-3 py-2 text-right whitespace-nowrap">
+                          {c === "cards" ? t("sync.verifyCards") : c}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {verifyResult.days.map((d) => (
+                      <tr key={d.date} className={d.ok ? "bg-white" : "bg-red-50/60"}>
+                        <td className="px-3 py-1.5 font-mono whitespace-nowrap">
+                          {d.ok ? "✅" : "❌"} {d.date}
+                        </td>
+                        <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">
+                          {t("sync.verifyPortal")}
+                          <br />
+                          {t("sync.verifyOurs")}
+                        </td>
+                        {verifyColumns(verifyResult.days).map((c) => {
+                          const value = (side: DayComparison["gov"]) =>
+                            side ? (c === "cards" ? side.cards : side.qty[c] ?? 0) : 0;
+                          return (
+                            <td
+                              key={c}
+                              className={`px-3 py-1.5 text-right font-mono ${d.diffs.includes(c) ? "text-red-700 font-bold" : ""}`}
+                            >
+                              {value(d.gov)}
+                              <br />
+                              {value(d.ours)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Current data info — transaction sync and SCM inventory sync tracked separately */}
