@@ -47,11 +47,6 @@ export default function SyncPage() {
   const [scmStatus, setScmStatus] = useState<"idle" | "fetching" | "success" | "error">("idle");
   const [scmMessage, setScmMessage] = useState("");
   const [scmMonthYear, setScmMonthYear] = useState({ month: settings.month, year: settings.year });
-  // Blank means "all batches" - the backend only filters by batch when this
-  // is non-empty (ScmInventoryService.syncMonth), so leaving it blank is
-  // the only way to pull a full month's receipts in one sync instead of
-  // one truck-chit batch at a time.
-  const [scmBatchNo, setScmBatchNo] = useState("");
   const autoLoad = useAutoLoadMonth(settings.month, settings.year);
   // Commodity columns the portal showed that have no dedicated field — their
   // quantities are saved (extraItems) but the dealer should know they exist.
@@ -241,7 +236,6 @@ export default function SyncPage() {
           year: scmMonthYear.year,
           month: scmMonthYear.month,
           districtCode: session?.distCode || undefined,
-          batchNo: scmBatchNo,
         }),
       });
 
@@ -252,7 +246,7 @@ export default function SyncPage() {
       }
 
       setScmStatus("success");
-      setScmMessage(`SCM inventory synced for ${getMonthName(Number(scmMonthYear.month))} ${scmMonthYear.year}: ${data.roCount ?? 0} RO(s), ${data.truckChitCount ?? 0} truck chit(s).`);
+      setScmMessage(`SCM allotment synced for ${getMonthName(Number(scmMonthYear.month))} ${scmMonthYear.year}: ${data.allotmentRows ?? 0} allotment row(s) saved as received stock.`);
       updateSettings(scmMonthYear);
 
       addScmSyncLog({
@@ -262,7 +256,7 @@ export default function SyncPage() {
         roCount: data.roCount ?? 0,
         truckChitCount: data.truckChitCount ?? 0,
         status: "success",
-        message: `Synced ${data.roCount ?? 0} RO(s), ${data.truckChitCount ?? 0} truck chit(s)`,
+        message: `Synced ${data.allotmentRows ?? 0} allotment row(s)`,
       });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Failed to fetch SCM inventory";
@@ -407,23 +401,17 @@ export default function SyncPage() {
         <h3 className="text-base font-semibold mb-4">📦 SCM Inventory Sync</h3>
 
         <div className="bg-gray-50 rounded-lg p-4 mb-5 font-mono text-xs space-y-1">
-          <div className="text-gray-500">GET / POST</div>
+          <div className="text-gray-500">POST</div>
           <div className="text-gray-900 font-medium break-all">
-            /api/inventory/scm
+            https://scm.mahafood.gov.in/scm_spring/api/KeyRegister/get_fps_keyreg_allot
           </div>
-          <div className="text-gray-500 mt-2">Query built from selected month/year</div>
+          <div className="text-gray-500 mt-2">District Wise Shop Allotment — every commodity × type (Regular, Extra, Port, Advance, Adhoc, Extra %)</div>
           <div className="text-gray-700">
-            tr=TC-REG-{distCode}-{session?.fpsId || "SHOPNO"}-{scmMonthYear.month.padStart(2, "0")}-{scmMonthYear.year}-{scmBatchNo || "*"}
+            dist_code={distCode} · afso_code={(session?.fpsId || "").slice(0, 7) || "—"} · month={scmMonthYear.month} · year={scmMonthYear.year}
           </div>
-          <div className="text-gray-700">
-            tdro=RO/REG/{distCode}/{session?.fpsId || "SHOPNO"}/{scmMonthYear.month.padStart(2, "0")}/{scmMonthYear.year}/{scmBatchNo || "*"}
-          </div>
-          {!scmBatchNo && (
-            <div className="text-blue-600 mt-1">* = every batch this month will be fetched</div>
-          )}
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-5">
+        <div className="grid grid-cols-2 gap-4 mb-5">
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">Month</label>
             <select value={scmMonthYear.month}
@@ -441,14 +429,6 @@ export default function SyncPage() {
             <input value={scmMonthYear.year}
               onChange={(e) => setScmMonthYear((s) => ({ ...s, year: e.target.value }))}
               className="input-field" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">
-              Batch No <span className="font-normal text-gray-400">(blank = all)</span>
-            </label>
-            <input value={scmBatchNo}
-              onChange={(e) => setScmBatchNo(e.target.value.replace(/[^0-9]/g, ""))}
-              className="input-field" placeholder="All batches" />
           </div>
         </div>
 
