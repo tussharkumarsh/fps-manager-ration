@@ -18,7 +18,7 @@ test("canonicalCommodity matches inventory item names to register commodities", 
 
 test("govStockByCommodity keys entries by canonical name and totals all receipt kinds", () => {
   const map = govStockByCommodity([entry("Wheat", 1), entry("SAREE", 2)]);
-  assert.deepEqual(map.get("wheat"), { allotted: 0, opening: 1, received: 13, issued: 5, closing: 9 });
+  assert.deepEqual(map.get("wheat"), { allotted: 0, allottedByScheme: {}, opening: 1, received: 13, issued: 5, closing: 9 });
   assert.equal(map.get(canonicalCommodity("Saree Kit"))?.opening, 2);
   assert.equal(map.get("rice"), undefined);
 });
@@ -47,4 +47,10 @@ test("extraGovCommodities skips commodities with no stock movement at all", () =
 test("govStockByCommodity carries the allotment", () => {
   const map = govStockByCommodity([{ ...entry("Wheat", 1), alloted: 4700 }]);
   assert.equal(map.get("wheat")?.allotted, 4700);
+});
+
+test("govStockByCommodity carries the per-scheme allotment", () => {
+  const map = govStockByCommodity([{ ...entry("Wheat", 1), alloted: 3513, allotedByScheme: { PHH: 2358, AAY: 1155 } }]);
+  assert.deepEqual(map.get("wheat")?.allottedByScheme, { PHH: 2358, AAY: 1155 });
+  assert.deepEqual(govStockByCommodity([entry("Rice", 1)]).get("rice")?.allottedByScheme, {});
 });

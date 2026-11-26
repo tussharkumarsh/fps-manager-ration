@@ -3,6 +3,8 @@ import type { GovStockRegisterEntry } from "@/types";
 export interface GovStockFigures {
   /** Regular allotment for the month (from the scheme-wise allotment report). */
   allotted: number;
+  /** Allotment per scheme, e.g. { PHH: 2358, AAY: 1155 }; empty when the report gave no split. */
+  allottedByScheme: Record<string, number>;
   opening: number;
   received: number;
   issued: number;
@@ -28,15 +30,20 @@ export function canonicalCommodity(name: string): string {
  * (regular, extra RO, 6A case).
  */
 export function govStockByCommodity(
-  entries: Pick<GovStockRegisterEntry, "commodity" | "alloted" | "opening" | "receivedRegular" | "receivedExtra" | "receivedMoved" | "issued" | "closing">[]
+  entries: Pick<GovStockRegisterEntry, "commodity" | "alloted" | "allotedByScheme" | "opening" | "receivedRegular" | "receivedExtra" | "receivedMoved" | "issued" | "closing">[]
 ): Map<string, GovStockFigures> {
   const map = new Map<string, GovStockFigures>();
   for (const e of entries) {
     const key = canonicalCommodity(e.commodity);
     const prev = map.get(key);
     const received = (e.receivedRegular || 0) + (e.receivedExtra || 0) + (e.receivedMoved || 0);
+    const allottedByScheme = { ...(prev?.allottedByScheme ?? {}) };
+    for (const [scheme, q] of Object.entries(e.allotedByScheme ?? {})) {
+      allottedByScheme[scheme] = (allottedByScheme[scheme] || 0) + q;
+    }
     map.set(key, {
       allotted: (prev?.allotted ?? 0) + (e.alloted || 0),
+      allottedByScheme,
       opening: (prev?.opening ?? 0) + (e.opening || 0),
       received: (prev?.received ?? 0) + received,
       issued: (prev?.issued ?? 0) + (e.issued || 0),
@@ -59,7 +66,7 @@ export interface ExtraGovCommodity extends GovStockFigures {
  * nothing at all (zero opening, receipts, issues and closing) are left out.
  */
 export function extraGovCommodities(
-  entries: Pick<GovStockRegisterEntry, "commodity" | "unit" | "alloted" | "opening" | "receivedRegular" | "receivedExtra" | "receivedMoved" | "issued" | "closing">[],
+  entries: Pick<GovStockRegisterEntry, "commodity" | "unit" | "alloted" | "allotedByScheme" | "opening" | "receivedRegular" | "receivedExtra" | "receivedMoved" | "issued" | "closing">[],
   coveredKeys: string[]
 ): ExtraGovCommodity[] {
   const covered = new Set(coveredKeys);

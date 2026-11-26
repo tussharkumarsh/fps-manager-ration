@@ -155,6 +155,8 @@ export interface GovStockRegisterEntry {
   commodity: string;
   unit: string;
   alloted: number;
+  /** Allotment per scheme (PHH, AAY, …), from the Detailed Allotment report. */
+  allotedByScheme?: Record<string, number>;
   opening: number;
   receivedRegular: number;
   receivedExtra: number;

@@ -26,6 +26,23 @@ interface ScmSummaryRow {
   closingStock: number;
 }
 
+/** "PHH 2,358 · AAY 1,155" under an allotment total; PHH and AAY first, other schemes after. */
+function SchemeSplit({ split }: { split: Record<string, number> }) {
+  const order = ["PHH", "AAY"];
+  const parts = Object.entries(split)
+    .filter(([, q]) => q)
+    .sort(([a], [b]) => {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+    });
+  if (parts.length === 0) return null;
+  return (
+    <div className="text-[10px] text-gray-400 whitespace-nowrap">
+      {parts.map(([scheme, q]) => `${scheme} ${formatNumber(q)}`).join(" · ")}
+    </div>
+  );
+}
+
 export default function InventoryPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
@@ -101,11 +118,11 @@ export default function InventoryPage() {
   function figuresFor(item: InventoryItem, entry: InventoryLedgerEntry | undefined) {
     const gov = govByCommodity.get(canonicalCommodity(item.name)) ?? (item.txField ? govByCommodity.get(item.txField) : undefined);
     if (gov) {
-      return { allotted: gov.allotted, opening: gov.opening, received: gov.received, distributed: gov.issued, closing: gov.closing, fromGov: true };
+      return { allotted: gov.allotted, allottedByScheme: gov.allottedByScheme, opening: gov.opening, received: gov.received, distributed: gov.issued, closing: gov.closing, fromGov: true };
     }
     const received = receivedFor(item.txField, entry?.received ?? 0);
     const distributed = entry?.distributed ?? 0;
-    return { allotted: 0, opening: 0, received, distributed, closing: received - distributed, fromGov: false };
+    return { allotted: 0, allottedByScheme: {} as Record<string, number>, opening: 0, received, distributed, closing: received - distributed, fromGov: false };
   }
 
   async function loadGovStock() {
@@ -476,7 +493,10 @@ export default function InventoryPage() {
                           {f.fromGov && <span className="ml-1 text-[10px] text-emerald-600" title={t("inventory.govSource")}>● Gov</span>}
                         </td>
                         <td className="px-3 py-2 text-right text-gray-500">{item.unit}</td>
-                        <td className="px-3 py-2 text-right font-mono text-gray-500">{f.fromGov && f.allotted ? formatNumber(f.allotted) : "—"}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-500">
+                          {f.fromGov && f.allotted ? formatNumber(f.allotted) : "—"}
+                          <SchemeSplit split={f.allottedByScheme} />
+                        </td>
                         <td className="px-3 py-2 text-right font-mono text-gray-500">{f.fromGov ? formatNumber(f.opening) : "—"}</td>
                         <td className="px-3 py-2 text-right">
                           {f.fromGov ? (
@@ -514,7 +534,10 @@ export default function InventoryPage() {
                         <span className="ml-1 text-[10px] text-emerald-600" title={t("inventory.govSource")}>● Gov</span>
                       </td>
                       <td className="px-3 py-2 text-right text-gray-500">{e.unit}</td>
-                      <td className="px-3 py-2 text-right font-mono text-gray-500">{e.allotted ? formatNumber(e.allotted) : "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono text-gray-500">
+                        {e.allotted ? formatNumber(e.allotted) : "—"}
+                        <SchemeSplit split={e.allottedByScheme} />
+                      </td>
                       <td className="px-3 py-2 text-right font-mono text-gray-500">{formatNumber(e.opening)}</td>
                       <td className="px-3 py-2 text-right font-mono">{formatNumber(e.received)}</td>
                       <td className="px-3 py-2 text-right font-mono">{formatNumber(e.issued)}</td>
