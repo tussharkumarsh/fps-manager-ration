@@ -7,7 +7,8 @@ import { EmptyState } from "@/components/ui";
 import { apiFetch } from "@/lib/apiFetch";
 import { formatNumber, getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
-import type { InventoryItem, InventoryLedgerEntry } from "@/types";
+import type { GovStockRegisterEntry, InventoryItem, InventoryLedgerEntry } from "@/types";
+import { canonicalCommodity, govStockByCommodity } from "@/lib/govStock";
 
 interface AggregateRow extends InventoryLedgerEntry {
   dealerName: string;
@@ -77,6 +78,64 @@ export default function InventoryPage() {
     if (!txField) return ledgerReceived;
     return scmReceivedByCommodity.get(txField) ?? 0;
   }
+
+  // The government's own stock register is the main source for a dealer's
+  // stock: where it has the commodity, opening/received/issued/closing are
+  // shown exactly as the government records them. Our own figures are the
+  // fallback for anything the register doesn't cover.
+  const [govEntries, setGovEntries] = useState<GovStockRegisterEntry[]>([]);
+  const [govSyncing, setGovSyncing] = useState(false);
+  const [govError, setGovError] = useState("");
+  const govByCommodity = useMemo(() => govStockByCommodity(govEntries), [govEntries]);
+
+  function figuresFor(item: InventoryItem, entry: InventoryLedgerEntry | undefined) {
+    const gov = govByCommodity.get(canonicalCommodity(item.name)) ?? (item.txField ? govByCommodity.get(item.txField) : undefined);
+    if (gov) {
+      return { opening: gov.opening, received: gov.received, distributed: gov.issued, closing: gov.closing, fromGov: true };
+    }
+    const received = receivedFor(item.txField, entry?.received ?? 0);
+    const distributed = entry?.distributed ?? 0;
+    return { opening: 0, received, distributed, closing: received - distributed, fromGov: false };
+  }
+
+  async function loadGovStock() {
+    if (aggregateMode) return;
+    setGovError("");
+    try {
+      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
+      const res = await apiFetch(`/api/inventory/gov-stock?year=${yearFilter}&month=${monthFilter}${viewParam}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load the government stock register");
+      setGovEntries(data.entries || []);
+    } catch (e) {
+      setGovEntries([]);
+      setGovError(e instanceof Error ? e.message : "Failed to load the government stock register");
+    }
+  }
+
+  async function syncGovStock() {
+    setGovSyncing(true);
+    setGovError("");
+    try {
+      const res = await apiFetch("/api/inventory/gov-stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: yearFilter, month: monthFilter, viewFpsId: viewingDealer?.fpsId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to sync the government stock register");
+      setGovEntries(data.entries || []);
+    } catch (e) {
+      setGovError(e instanceof Error ? e.message : "Failed to sync the government stock register");
+    } finally {
+      setGovSyncing(false);
+    }
+  }
+
+  useEffect(() => {
+    loadGovStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthFilter, yearFilter, viewingDealer?.fpsId, aggregateMode]);
 
   async function loadLedger() {
     setLoading(true);
@@ -225,18 +284,11 @@ export default function InventoryPage() {
       return Array.from(byItem.values());
     }
     return inventoryItems.map((item) => {
-      const entry = ledgerByItem.get(item.id);
-      const received = receivedFor(item.txField, entry?.received ?? 0);
-      const distributed = entry?.distributed ?? 0;
-      return {
-        name: item.name,
-        unit: item.unit,
-        received,
-        distributed,
-        closing: received - distributed,
-      };
+      const f = figuresFor(item, ledgerByItem.get(item.id));
+      return { name: item.name, unit: item.unit, received: f.received, distributed: f.distributed, closing: f.closing };
     });
-  }, [aggregateMode, aggregateRows, inventoryItems, ledgerByItem, scmReceivedByCommodity]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregateMode, aggregateRows, inventoryItems, ledgerByItem, scmReceivedByCommodity, govByCommodity]);
 
   const itemSummaryCards = itemSummaries.length > 0 && (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -364,12 +416,23 @@ export default function InventoryPage() {
           {itemSummaryCards}
 
           <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-4">{t("inventory.monthlyStockLedger")}</h3>
+            <div className="flex justify-between items-start gap-3 flex-wrap mb-4">
+              <div>
+                <h3 className="text-sm font-semibold">{t("inventory.monthlyStockLedger")}</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {govEntries.length > 0 ? t("inventory.govSource") : t("inventory.govMissing")}
+                </p>
+              </div>
+              <button onClick={syncGovStock} disabled={govSyncing} className="btn-secondary text-xs disabled:opacity-50 whitespace-nowrap">
+                {govSyncing ? t("common.loading") : `🔄 ${t("inventory.syncGov")}`}
+              </button>
+            </div>
+            {govError && <div className="mb-3 px-4 py-2 rounded-lg text-sm bg-red-50 text-red-600">{govError}</div>}
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    {[t("inventory.item"), t("inventory.unit"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
+                    {[t("inventory.item"), t("inventory.unit"), t("inventory.opening"), t("inventory.received"), t("inventory.distributed"), t("inventory.closing")].map((h) => (
                       <th
                         key={h}
                         className="table-head px-3 py-2.5 whitespace-nowrap text-right first:text-left"
@@ -384,19 +447,24 @@ export default function InventoryPage() {
                     const entry = ledgerByItem.get(item.id);
                     const draft = receivedDrafts[item.id];
                     const linkedToScm = !!item.txField;
-                    const received = receivedFor(item.txField, entry?.received ?? 0);
-                    const distributed = entry?.distributed ?? 0;
+                    const f = figuresFor(item, entry);
                     return (
                       <tr
                         key={item.id}
                         className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
                       >
-                        <td className="px-3 py-2 font-semibold text-gray-800">{item.name}</td>
+                        <td className="px-3 py-2 font-semibold text-gray-800">
+                          {item.name}
+                          {f.fromGov && <span className="ml-1 text-[10px] text-emerald-600" title={t("inventory.govSource")}>● Gov</span>}
+                        </td>
                         <td className="px-3 py-2 text-right text-gray-500">{item.unit}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-500">{f.fromGov ? formatNumber(f.opening) : "—"}</td>
                         <td className="px-3 py-2 text-right">
-                          {linkedToScm ? (
+                          {f.fromGov ? (
+                            <span className="font-mono" title={t("inventory.govSource")}>{formatNumber(f.received)}</span>
+                          ) : linkedToScm ? (
                             <span className="font-mono" title="From SCM inventory (govt portal) sync">
-                              {formatNumber(received)}
+                              {formatNumber(f.received)}
                             </span>
                           ) : (
                             <input
@@ -413,9 +481,9 @@ export default function InventoryPage() {
                             />
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono">{formatNumber(distributed)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNumber(f.distributed)}</td>
                         <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">
-                          {formatNumber(received - distributed)}
+                          {formatNumber(f.closing)}
                         </td>
                       </tr>
                     );
