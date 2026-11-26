@@ -260,11 +260,11 @@ export default function SyncPage() {
         <div className="bg-gray-50 rounded-lg p-4 mb-5 font-mono text-xs space-y-1">
           <div className="text-gray-500">POST</div>
           <div className="text-gray-900 font-medium break-all">
-            https://epos.mahafood.gov.in/FPS_Trans_Details.jsp
+            https://epos.mahafood.gov.in/Epos_Spring/fps/fpstransactionwitoutcatptcha
           </div>
-          <div className="text-gray-500 mt-2">Payload (fps_id / dist_code are fixed to your login)</div>
+          <div className="text-gray-500 mt-2">JSON payload (fps_id is fixed to your login)</div>
           <div className="text-gray-700">
-            dist_code={distCode}&amp;fps_id={fpsId}&amp;month={monthYear.month}&amp;year={monthYear.year}
+            {`{"fps_id":"${fpsId}","month":"${monthYear.month}","year":"${monthYear.year}"}`}
           </div>
         </div>
 
