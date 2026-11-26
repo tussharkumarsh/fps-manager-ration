@@ -1,12 +1,14 @@
 export interface MonthLockInfo {
   month: string;
   status: string;
+  /** Transactions actually stored for the month. A lock can outlive its data (e.g. after a reset). */
+  storedCount?: number;
 }
 
 /**
  * Months of `year` the "Sync missing months" button should fetch: every
  * month up to `now` (all 12 for a past year, none for a future one) that
- * isn't already locked as fully synced — plus the current month always,
+ * isn't already locked as fully synced with records still stored — plus the current month always,
  * since it's still being added to on the gov side.
  */
 export function monthsToBackfill(
@@ -21,7 +23,9 @@ export function monthsToBackfill(
   const isCurrentYear = y === nowYear;
 
   const synced = new Set(
-    locks.filter((l) => l.status === "synced_locked").map((l) => String(parseInt(l.month, 10)))
+    locks
+      .filter((l) => l.status === "synced_locked" && (l.storedCount === undefined || l.storedCount > 0))
+      .map((l) => String(parseInt(l.month, 10)))
   );
 
   const months: string[] = [];

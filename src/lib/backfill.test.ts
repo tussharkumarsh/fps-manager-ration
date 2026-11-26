@@ -29,3 +29,12 @@ test("the current month is included even when locked", () => {
 test("zero-padded lock months are matched", () => {
   assert.deepEqual(monthsToBackfill("2026", locked(["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]), now), ["11"]);
 });
+
+test("a month locked as synced but with no stored records is backfilled", () => {
+  const locks = [
+    { month: "1", status: "synced_locked", storedCount: 0 },
+    { month: "7", status: "synced_locked", storedCount: 0 },
+    { month: "8", status: "synced_locked", storedCount: 282 },
+  ];
+  assert.deepEqual(monthsToBackfill("2025", locks, now), ["1", "2", "3", "4", "5", "6", "7", "9", "10", "11", "12"]);
+});

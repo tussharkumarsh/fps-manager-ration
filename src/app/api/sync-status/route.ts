@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await backendFetch<{ locks: { month: string; status: string; recordCount: number }[] }>(
+    const data = await backendFetch<{ locks: { month: string; status: string; recordCount: number; storedCount: number }[] }>(
       "/transactions/locks",
       { query: { fpsId: session.fpsId, year } }
     );
