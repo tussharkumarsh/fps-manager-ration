@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
+import { useStore } from "@/store/useStore";
 import { cn, formatNumber, getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { FamilySummary, SchemeCount } from "@/lib/familySummary";
@@ -75,6 +76,7 @@ export function FamilySummarySection({
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ListTab>("pending");
+  const ownFps = useStore((st) => st.viewingDealer?.fpsId ?? st.settings.fpsId);
   const [schemeFilter, setSchemeFilter] = useState<SchemeFilter>("ALL");
   const [expanded, setExpanded] = useState(false);
 
@@ -104,7 +106,7 @@ export function FamilySummarySection({
     if (tab === "unlisted") {
       return s.unlistedFamilies.filter((f) => keep(f.scheme)).map((f) => ({
         key: f.srcNo, name: f.name || "—", srcNo: f.srcNo, scheme: f.scheme,
-        extra: `${f.transactions} ${t("dashboard.txns")}`,
+        extra: `${f.transactions} ${t("dashboard.txns")}`, shop: "",
       }));
     }
     return s.disabledFamilies.filter((f) => keep(f.scheme)).map((f) => ({
@@ -177,7 +179,7 @@ export function FamilySummarySection({
                 <ul className="space-y-1 text-xs">
                   {otherShopsByHome.map(([fps, count]) => (
                     <li key={fps || "unknown"} className="flex justify-between gap-2">
-                      <ShopTag fps={fps} className="truncate text-cyan-800" />
+                      <ShopTag fps={fps} className="min-w-0 text-left text-cyan-800" />
                       <span className="font-mono text-gray-500 flex-shrink-0">{formatNumber(count)}</span>
                     </li>
                   ))}
@@ -243,8 +245,12 @@ export function FamilySummarySection({
                   {r.extra && <span className="truncate text-right">{r.extra}</span>}
                 </div>
                 {"shop" in r && (
-                  <div className="mt-1 text-cyan-800 truncate">
-                    🏪 <ShopTag fps={String(r.shop || "")} />
+                  // Wraps rather than truncates: a long shop name must stay readable.
+                  <div className="mt-1 flex items-start gap-1 text-cyan-800 break-words">
+                    <span aria-hidden>🏪</span>
+                    {r.shop
+                      ? <ShopTag fps={String(r.shop)} className="min-w-0 text-left" />
+                      : <span className="text-indigo-700">{t("reports.ownShop")} · <span className="font-mono">{ownFps}</span></span>}
                   </div>
                 )}
               </div>
