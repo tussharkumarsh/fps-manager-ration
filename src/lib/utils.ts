@@ -62,6 +62,7 @@ export function calculateMonthlyStats(transactions: Transaction[]): MonthlyStats
 
 export function calculateDailySummary(transactions: Transaction[]): DailySummary[] {
   const byDate: Record<string, DailySummary> = {};
+  const cardsByDate: Record<string, Set<string>> = {};
 
   transactions.forEach((t) => {
     const d = t.date.split(" ")[0];
@@ -84,8 +85,12 @@ export function calculateDailySummary(transactions: Transaction[]): DailySummary
         totalSugar: 0,
         totalJowar: 0,
         totalTransactions: 0,
+        totalFamilies: 0,
       };
+      cardsByDate[d] = new Set();
     }
+    cardsByDate[d].add(t.srcNo);
+    byDate[d].totalFamilies = cardsByDate[d].size;
 
     byDate[d].totalWheat += t.wheat;
     byDate[d].totalRice += t.rice;

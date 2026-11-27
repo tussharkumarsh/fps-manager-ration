@@ -19,7 +19,9 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
   return `${getMonthName(parseInt(month, 10))} ${year}`;
 }
 
-const DAILY_COLUMNS_STORAGE_KEY = "reports.dailyColumns";
+const DAILY_COLUMNS_STORAGE_KEY = "reports.dailyColumns.v2";
+/** Saved before the Families column existed; read once and carried over with it switched on. */
+const DAILY_COLUMNS_STORAGE_KEY_V1 = "reports.dailyColumns";
 
 export default function ReportsPage() {
   const { data: session } = useSession();
@@ -58,7 +60,12 @@ export default function ReportsPage() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(DAILY_COLUMNS_STORAGE_KEY);
-      if (stored) setDailyColumnKeys(JSON.parse(stored));
+      if (stored) {
+        setDailyColumnKeys(JSON.parse(stored));
+      } else {
+        const old = localStorage.getItem(DAILY_COLUMNS_STORAGE_KEY_V1);
+        if (old) setDailyColumnKeys([...JSON.parse(old), "totalFamilies"]);
+      }
     } catch {
       // Storage unavailable or corrupt — fall back to all columns.
     }
@@ -129,9 +136,11 @@ export default function ReportsPage() {
       totalSugar: dailySummary.reduce((s, r) => s + r.totalSugar, 0),
       totalJowar: dailySummary.reduce((s, r) => s + r.totalJowar, 0),
       totalTransactions: dailySummary.reduce((s, r) => s + r.totalTransactions, 0),
+      // Distinct over the whole period: a family served on two days counts once.
+      totalFamilies: new Set(scopedTransactions.map((t) => t.srcNo)).size,
     };
     return [...dailySummary, totals];
-  }, [dailySummary]);
+  }, [dailySummary, scopedTransactions]);
 
   const monthLabel =
     monthFilter !== "ALL"
@@ -310,6 +319,8 @@ export default function ReportsPage() {
     { key: "totalSugar", label: `${t("reports.total")} ${t("transactions.sugar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
     { key: "totalJowar", label: `${t("reports.total")} ${t("transactions.jowar")}`, align: "right", mono: true, render: (v) => <strong>{formatNumber(Number(v))}</strong> },
     { key: "totalTransactions", label: "Total Txns", align: "right", mono: true },
+    { key: "totalFamilies", label: t("reports.familiesServed"), align: "right", mono: true,
+      render: (v) => <strong className="text-emerald-700">{formatNumber(Number(v))}</strong> },
   ];
 
   // Which daily-summary columns to show and print. Date is always kept; the

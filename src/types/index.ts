@@ -108,6 +108,8 @@ export interface DailySummary {
   totalSugar: number;
   totalJowar: number;
   totalTransactions: number;
+  /** Distinct ration cards (families) served — a family with two visits counts once. */
+  totalFamilies: number;
 }
 
 export interface MonthlyStats {

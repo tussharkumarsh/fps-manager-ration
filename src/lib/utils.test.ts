@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { deduplicateTransactions, getDistinctMonths, rationMonth } from "./utils";
+import { calculateDailySummary, deduplicateTransactions, getDistinctMonths, rationMonth } from "./utils";
 import type { Transaction } from "@/types";
 
 const tx = (receiptNo: string, date: string, extra: Partial<Transaction> = {}): Transaction => ({
@@ -40,4 +40,17 @@ test("deduplicateTransactions lets incoming server rows refresh cached copies", 
   assert.deepEqual(merged.map((t) => t.receiptNo), ["100000000001", "100000000002", "100000000003"]);
   assert.equal(merged[0].month, "4");
   assert.equal(merged[1].month, undefined);
+});
+
+test("calculateDailySummary counts distinct families per day", () => {
+  const rows = calculateDailySummary([
+    tx("1", "2026-11-06 10:00", { srcNo: "A" }),
+    tx("2", "2026-11-06 11:00", { srcNo: "A" }), // second visit, same family
+    tx("3", "2026-11-06 12:00", { srcNo: "B", scheme: "AAY" }),
+    tx("4", "2026-11-07 10:00", { srcNo: "A" }),
+  ]);
+  assert.deepEqual(rows.map((r) => [r.date, r.totalTransactions, r.totalFamilies]), [
+    ["2026-11-06", 3, 2],
+    ["2026-11-07", 1, 1],
+  ]);
 });
