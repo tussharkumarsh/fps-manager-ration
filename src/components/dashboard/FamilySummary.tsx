@@ -1,0 +1,283 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import { Badge } from "@/components/ui";
+import { cn, formatNumber, getMonthName } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/useTranslation";
+import type { FamilySummary, SchemeCount } from "@/lib/familySummary";
+
+const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+function monthLabel(ym: string) {
+  const [y, m] = ym.split("-");
+  return `${getMonthName(parseInt(m, 10))} ${y}`;
+}
+
+function SchemeRows({ count, of }: { count: SchemeCount; of?: SchemeCount }) {
+  const rows: { key: "phh" | "aay"; label: string; bar: string }[] = [
+    { key: "phh", label: "PHH", bar: "bg-blue-600" },
+    { key: "aay", label: "AAY", bar: "bg-amber-500" },
+  ];
+  return (
+    <div className="mt-3 space-y-2">
+      {rows.map((r) => (
+        <div key={r.key}>
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-medium text-gray-600">{r.label}</span>
+            <span className="font-mono font-semibold text-gray-800">
+              {formatNumber(count[r.key])}
+              {of && <span className="font-normal text-gray-400"> / {formatNumber(of[r.key])}</span>}
+            </span>
+          </div>
+          {of && (
+            <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className={cn("h-full rounded-full", r.bar)} style={{ width: `${pct(count[r.key], of[r.key])}%` }} />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Tile({
+  accent, icon, label, value, sub, children, onClick, active,
+}: {
+  accent: string; icon: string; label: string; value: number; sub?: ReactNode;
+  children?: ReactNode; onClick?: () => void; active?: boolean;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        "card p-4 border-l-4",
+        accent,
+        onClick && "cursor-pointer transition-shadow hover:shadow-apple-lg",
+        active && "ring-2 ring-blue-600"
+      )}
+    >
+      <div className="text-[13px] font-medium text-gray-500">{icon} {label}</div>
+      <div className="mt-1 text-[28px] leading-tight font-semibold font-mono text-gray-900">{formatNumber(value)}</div>
+      {sub && <div className="text-xs text-gray-400">{sub}</div>}
+      {children}
+    </div>
+  );
+}
+
+type ListTab = "pending" | "otherShop" | "disabled";
+type SchemeFilter = "ALL" | "PHH" | "AAY";
+
+export function FamilySummarySection({
+  summary, isAllMonths, monthCount,
+}: {
+  summary: FamilySummary; isAllMonths: boolean; monthCount: number;
+}) {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<ListTab>("pending");
+  const [schemeFilter, setSchemeFilter] = useState<SchemeFilter>("ALL");
+  const [expanded, setExpanded] = useState(false);
+
+  const s = summary;
+  const totalServed = s.servedByScheme.total;
+
+  const rows = useMemo(() => {
+    const keep = (scheme: string) => schemeFilter === "ALL" || scheme === schemeFilter;
+    if (tab === "pending") {
+      return s.pendingCustomers.filter((c) => keep(c.scheme)).map((c) => ({
+        key: c.srcNo, name: c.name, srcNo: c.srcNo, scheme: c.scheme, extra: c.mobile || "",
+      }));
+    }
+    if (tab === "otherShop") {
+      return s.otherShopFamilies.filter((f) => keep(f.scheme)).map((f) => ({
+        key: f.srcNo, name: f.name || "—", srcNo: f.srcNo, scheme: f.scheme,
+        extra: `${f.homeFps ? `${t("dashboard.homeFps")} ${f.homeFps} · ` : ""}${f.transactions} ${t("dashboard.txns")}`,
+      }));
+    }
+    return s.disabledFamilies.filter((f) => keep(f.scheme)).map((f) => ({
+      key: f.customer.srcNo, name: f.customer.name, srcNo: f.customer.srcNo, scheme: f.scheme,
+      extra: `${f.transactions} ${t("dashboard.txns")}${f.customer.disabledReason ? ` · ${f.customer.disabledReason}` : ""}`,
+    }));
+  }, [s, tab, schemeFilter, t]);
+
+  const LIMIT = 24;
+  const visible = expanded ? rows : rows.slice(0, LIMIT);
+
+  const tabs: { key: ListTab; label: string; count: number; tone: string }[] = [
+    { key: "pending", label: t("dashboard.notTaken"), count: s.pending.total, tone: "text-red-600" },
+    { key: "otherShop", label: t("dashboard.otherShopFamilies"), count: s.otherShop.total, tone: "text-cyan-700" },
+    { key: "disabled", label: t("dashboard.disabledFamilies"), count: s.disabledServed.total, tone: "text-amber-700" },
+  ];
+  const rowTone: Record<ListTab, string> = {
+    pending: "bg-red-50", otherShop: "bg-cyan-50", disabled: "bg-amber-50",
+  };
+
+  const openList = (next: ListTab) => {
+    setTab(next);
+    setExpanded(false);
+    document.getElementById("family-lists")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <>
+      <div className="card p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+          <div>
+            <h3 className="text-sm font-semibold">👨‍👩‍👧‍👦 {t("dashboard.familySummary")}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t("dashboard.familySummarySub")}</p>
+          </div>
+          <div className="text-xs text-gray-500">
+            {t("dashboard.familiesServed", { count: formatNumber(totalServed) })} ·{" "}
+            {t("dashboard.transactionsCount", { count: formatNumber(s.transactions) })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Tile accent="border-l-violet-500" icon="📋" label={t("dashboard.registeredFamilies")}
+            value={s.registered.total} sub={t("dashboard.activeInMaster")}>
+            <SchemeRows count={s.registered} />
+          </Tile>
+          <Tile accent="border-l-emerald-500" icon="✅" label={t("dashboard.tookRation")}
+            value={s.collected.total}
+            sub={t("dashboard.ofRegisteredPct", {
+              count: formatNumber(s.registered.total), pct: pct(s.collected.total, s.registered.total),
+            })}>
+            <SchemeRows count={s.collected} of={s.registered} />
+          </Tile>
+          <Tile accent="border-l-red-500" icon="⚠️" label={t("dashboard.notTaken")}
+            value={s.pending.total}
+            sub={`${pct(s.pending.total, s.registered.total)}%`}
+            onClick={() => openList("pending")} active={tab === "pending"}>
+            <SchemeRows count={s.pending} of={s.registered} />
+          </Tile>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <Tile accent="border-l-cyan-500" icon="🔁" label={t("dashboard.otherShopFamilies")}
+            value={s.otherShop.total} sub={t("dashboard.otherShopSub")}
+            onClick={() => openList("otherShop")} active={tab === "otherShop"}>
+            <SchemeRows count={s.otherShop} />
+          </Tile>
+          <Tile accent="border-l-amber-500" icon="🚫" label={t("dashboard.disabledFamilies")}
+            value={s.disabledServed.total} sub={t("dashboard.disabledSub")}
+            onClick={() => openList("disabled")} active={tab === "disabled"}>
+            <SchemeRows count={s.disabledServed} />
+          </Tile>
+        </div>
+
+        {isAllMonths && monthCount > 1 && (
+          <p className="mt-4 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">ℹ️ {t("dashboard.allMonthsNote")}</p>
+        )}
+      </div>
+
+      <div id="family-lists" className="card p-5 scroll-mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex flex-wrap gap-1 bg-gray-100 rounded-xl p-1">
+            {tabs.map((tb) => (
+              <button key={tb.key} onClick={() => { setTab(tb.key); setExpanded(false); }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition",
+                  tab === tb.key ? "bg-white shadow-sm " + tb.tone : "text-gray-500 hover:text-gray-700"
+                )}>
+                {tb.label} <span className="font-mono">({formatNumber(tb.count)})</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {(["ALL", "PHH", "AAY"] as SchemeFilter[]).map((f) => (
+              <button key={f} onClick={() => { setSchemeFilter(f); setExpanded(false); }}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[11px] font-medium border transition",
+                  schemeFilter === f ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                )}>
+                {f === "ALL" ? t("dashboard.all") : f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="text-center text-xs text-gray-400 py-6">{t("dashboard.noneHere")}</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {visible.map((r) => (
+              <div key={r.key} className={cn("px-3 py-2 rounded-lg text-xs", rowTone[tab])}>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-semibold text-gray-800 truncate">{r.name}</span>
+                  <Badge text={r.scheme} />
+                </div>
+                <div className="flex justify-between gap-2 mt-0.5 text-gray-500">
+                  <span className="font-mono">{r.srcNo}</span>
+                  {r.extra && <span className="truncate text-right">{r.extra}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {rows.length > LIMIT && (
+          <button onClick={() => setExpanded((v) => !v)} className="mt-3 text-xs text-blue-600 hover:underline">
+            {expanded ? t("dashboard.showLess") : t("dashboard.showAll", { count: formatNumber(rows.length) })}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+export function MonthWiseFamilyTable({
+  rows, selected, onSelect,
+}: {
+  rows: { month: string; summary: FamilySummary }[];
+  selected: string;
+  onSelect: (month: string) => void;
+}) {
+  const { t } = useTranslation();
+  const th = "px-3 py-2 text-right font-semibold whitespace-nowrap";
+  const td = "px-3 py-2 text-right font-mono whitespace-nowrap";
+  return (
+    <div className="card p-5">
+      <h3 className="text-sm font-semibold">📅 {t("dashboard.monthWise")}</h3>
+      <p className="text-xs text-gray-400 mt-0.5 mb-3">{t("dashboard.monthWiseNote")}</p>
+      <div className="overflow-x-auto -mx-5 px-5">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
+              <th className="px-3 py-2 text-left font-semibold" rowSpan={2}>{t("dashboard.month")}</th>
+              <th className={th} rowSpan={2}>{t("dashboard.registeredShort")}</th>
+              <th className={cn(th, "text-center text-emerald-700")} colSpan={3}>{t("dashboard.tookRation")}</th>
+              <th className={cn(th, "text-center text-red-600")} colSpan={3}>{t("dashboard.notTaken")}</th>
+              <th className={cn(th, "text-cyan-700")} rowSpan={2}>{t("dashboard.otherShopFamilies")}</th>
+              <th className={cn(th, "text-amber-700")} rowSpan={2}>{t("dashboard.disabledFamilies")}</th>
+            </tr>
+            <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
+              <th className={th}>PHH</th><th className={th}>AAY</th><th className={th}>{t("dashboard.all")}</th>
+              <th className={th}>PHH</th><th className={th}>AAY</th><th className={th}>{t("dashboard.all")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ month, summary: s }) => (
+              <tr key={month} onClick={() => onSelect(month)}
+                className={cn(
+                  "border-b border-gray-100 cursor-pointer hover:bg-blue-50/60",
+                  month === selected && "bg-blue-50"
+                )}>
+                <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{monthLabel(month)}</td>
+                <td className={td}>{formatNumber(s.registered.total)}</td>
+                <td className={td}>{formatNumber(s.collected.phh)}</td>
+                <td className={td}>{formatNumber(s.collected.aay)}</td>
+                <td className={cn(td, "font-semibold text-emerald-700")}>
+                  {formatNumber(s.collected.total)}
+                  <span className="ml-1 font-normal text-gray-400">{pct(s.collected.total, s.registered.total)}%</span>
+                </td>
+                <td className={td}>{formatNumber(s.pending.phh)}</td>
+                <td className={td}>{formatNumber(s.pending.aay)}</td>
+                <td className={cn(td, "font-semibold text-red-600")}>{formatNumber(s.pending.total)}</td>
+                <td className={td}>{formatNumber(s.otherShop.total)}</td>
+                <td className={td}>{formatNumber(s.disabledServed.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

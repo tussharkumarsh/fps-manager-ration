@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { monthsToBackfill } from "./backfill";
+import { monthsToBackfill, noAllocationMonths } from "./backfill";
 
 const now = { year: "2026", month: "11" };
 const locked = (months: string[]) => months.map((month) => ({ month, status: "synced_locked" }));
@@ -37,4 +37,17 @@ test("a month locked as synced but with no stored records is backfilled", () => 
     { month: "8", status: "synced_locked", storedCount: 282 },
   ];
   assert.deepEqual(monthsToBackfill("2025", locks, now), ["1", "2", "3", "4", "5", "6", "7", "9", "10", "11", "12"]);
+});
+
+test("months with no allocation of their own are skipped and listed", () => {
+  const locks = [
+    ...locked(["1", "2", "3", "4", "7", "8", "9", "10"]),
+    { month: "5", status: "no_allocation", storedCount: 0, coveredBy: { year: "2026", month: "4" } },
+    { month: "6", status: "no_allocation", storedCount: 0, coveredBy: { year: "2026", month: "4" } },
+  ];
+  assert.deepEqual(monthsToBackfill("2026", locks, now), ["11"]);
+  assert.deepEqual(noAllocationMonths(locks), [
+    { month: "5", coveredBy: { year: "2026", month: "4" } },
+    { month: "6", coveredBy: { year: "2026", month: "4" } },
+  ]);
 });

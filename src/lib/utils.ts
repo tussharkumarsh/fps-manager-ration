@@ -142,10 +142,14 @@ export function deduplicateTransactions(
   existing: Transaction[],
   incoming: Transaction[]
 ): Transaction[] {
-  const validIncoming = incoming.filter((t) => isValidReceiptNo(t.receiptNo));
-  const existingIds = new Set(existing.map((t) => t.receiptNo));
-  const newTxns = validIncoming.filter((t) => !existingIds.has(t.receiptNo));
-  return [...existing, ...newTxns];
+  // Incoming records come from the server/portal and replace a cached copy
+  // of the same receipt, so browser-cached rows pick up fields added later
+  // (e.g. the ration month) instead of staying stale forever.
+  const byReceipt = new Map(existing.map((t) => [t.receiptNo, t]));
+  for (const t of incoming) {
+    if (isValidReceiptNo(t.receiptNo)) byReceipt.set(t.receiptNo, { ...byReceipt.get(t.receiptNo), ...t });
+  }
+  return Array.from(byReceipt.values());
 }
 
 export function generateId(): string {
@@ -157,6 +161,17 @@ export function dateOnly(dateStr: string): string {
   return dateStr.split(" ")[0];
 }
 
+/**
+ * "YYYY-MM" of the ration (allocation) month a transaction belongs to — the
+ * month it was synced under. Falls back to the calendar month of its date
+ * for records that don't carry one.
+ */
+export function rationMonth(t: Pick<Transaction, "date" | "year" | "month">): string {
+  const m = parseInt(t.month ?? "", 10);
+  if (t.year && m >= 1 && m <= 12) return `${t.year}-${String(m).padStart(2, "0")}`;
+  return dateOnly(t.date).slice(0, 7);
+}
+
 /** Current "YYYY-MM" per local device time. */
 export function getCurrentMonth(): string {
   const now = new Date();
@@ -164,12 +179,12 @@ export function getCurrentMonth(): string {
 }
 
 /**
- * Distinct "YYYY-MM" values present in a transaction list, newest first, with a display label.
+ * Distinct ration months ("YYYY-MM") present in a transaction list, newest first, with a display label.
  * Always includes the current month so month-filter defaults can select it even before any
  * transaction exists for it yet.
  */
 export function getDistinctMonths(transactions: Transaction[]): { value: string; label: string }[] {
-  const set = new Set(transactions.map((t) => dateOnly(t.date).slice(0, 7)));
+  const set = new Set(transactions.map(rationMonth));
   set.add(getCurrentMonth());
   return Array.from(set)
     .sort((a, b) => b.localeCompare(a))

@@ -52,6 +52,13 @@ export interface Transaction {
   authTransTime?: string;
   customerName?: string;
   monthDate?: string;
+  /**
+   * Allocation (ration) month the record belongs to on the portal, as
+   * synced. Not always the calendar month of `date`: one allocation can be
+   * distributed over several months (e.g. April 2026's covered April–June).
+   */
+  year?: string;
+  month?: string;
 }
 
 export interface FPSSettings {

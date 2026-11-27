@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, TabGroup, EmptyState, ColumnPicker, type Column } from "@/components/ui";
-import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth, activeCustomers } from "@/lib/utils";
+import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth, activeCustomers, rationMonth } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
@@ -81,7 +81,7 @@ export default function ReportsPage() {
 
   const scopedTransactions = useMemo(() => {
     let result = transactions;
-    if (monthFilter !== "ALL") result = result.filter((t) => dateOnly(t.date).slice(0, 7) === monthFilter);
+    if (monthFilter !== "ALL") result = result.filter((t) => rationMonth(t) === monthFilter);
     if (fromDate) result = result.filter((t) => dateOnly(t.date) >= fromDate);
     if (toDate) result = result.filter((t) => dateOnly(t.date) <= toDate);
     return result;
@@ -244,7 +244,7 @@ export default function ReportsPage() {
     transactions.forEach((tx) => {
       if (pivotScheme !== "ALL" && tx.scheme !== pivotScheme) return;
       const day = dateOnly(tx.date);
-      const ym = day.slice(0, 7);
+      const ym = rationMonth(tx);
       if (!map[tx.srcNo]) map[tx.srcNo] = {};
       map[tx.srcNo][ym] = day;
     });

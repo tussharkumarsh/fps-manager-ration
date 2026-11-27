@@ -7,8 +7,10 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
 } from "recharts";
 import { useStore } from "@/store/useStore";
-import { KPICard, Badge, EmptyState } from "@/components/ui";
-import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, dateOnly, activeCustomers } from "@/lib/utils";
+import { EmptyState } from "@/components/ui";
+import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, rationMonth } from "@/lib/utils";
+import { familySummary, monthlyFamilySummary } from "@/lib/familySummary";
+import { FamilySummarySection, MonthWiseFamilyTable } from "@/components/dashboard/FamilySummary";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
@@ -116,8 +118,7 @@ function useScmReceived(month: string, year: string, viewingFpsId: string | unde
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { transactions, customers: allCustomers, settings, viewingDealer } = useStore();
-  const customers = useMemo(() => activeCustomers(allCustomers), [allCustomers]);
+  const { transactions, customers, settings, viewingDealer } = useStore();
   const { t } = useTranslation();
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const scopeLabel = aggregateMode
@@ -140,18 +141,24 @@ export default function DashboardPage() {
 
   const scopedTransactions = useMemo(() => {
     if (monthFilter === "ALL") return transactions;
-    return transactions.filter((t) => dateOnly(t.date).slice(0, 7) === monthFilter);
+    return transactions.filter((t) => rationMonth(t) === monthFilter);
   }, [transactions, monthFilter]);
 
   const stats = useMemo(() => calculateMonthlyStats(scopedTransactions), [scopedTransactions]);
   const chartData = useMemo(() => calculateChartData(scopedTransactions), [scopedTransactions]);
 
+  // Family figures are matched against Customer Master: distinct ration
+  // cards, never transaction counts. familySummary itself separates active,
+  // disabled and other-shop (portability) families.
+  const families = useMemo(() => familySummary(scopedTransactions, customers), [scopedTransactions, customers]);
+  const monthlyFamilies = useMemo(() => monthlyFamilySummary(transactions, customers), [transactions, customers]);
+
   const schemeData = useMemo(
     () => [
-      { name: "PHH", value: stats.phhCount },
-      { name: "AAY", value: stats.aayCount },
+      { name: "PHH", value: families.servedByScheme.phh },
+      { name: "AAY", value: families.servedByScheme.aay },
     ],
-    [stats]
+    [families]
   );
 
   const authData = useMemo(
@@ -163,12 +170,10 @@ export default function DashboardPage() {
     [stats]
   );
 
-  const pendingCustomers = useMemo(() => {
-    const collected = new Set(
-      scopedTransactions.filter((t) => t.wheat > 0).map((t) => t.srcNo)
-    );
-    return customers.filter((c) => !collected.has(c.srcNo));
-  }, [scopedTransactions, customers]);
+  const periodLabel =
+    monthFilter === "ALL"
+      ? t("dashboard.allMonths")
+      : `${getMonthName(parseInt(monthFilter.slice(5), 10))} ${monthFilter.slice(0, 4)}`;
 
   const stockAsOfLabel =
     monthFilter === "ALL"
@@ -262,7 +267,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-xl font-bold">📊 {t("dashboard.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {scopeLabel} · {getMonthName(parseInt(settings.month))} {settings.year} · {formatNumber(scopedTransactions.length)} record(s)
+            {scopeLabel} · {periodLabel} · {formatNumber(scopedTransactions.length)} record(s)
           </p>
         </div>
 
@@ -289,14 +294,17 @@ export default function DashboardPage() {
       {/* Item cards: received (SCM govt data) / distributed (transactions) / remaining */}
       {itemCardsSection}
 
-      {/* Family KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <KPICard label={t("dashboard.aayFamilies")} value={stats.aayCount} sub={t("dashboard.antyodaya")} color="yellow" icon="🎯" />
-        <KPICard label={t("dashboard.phhFamilies")} value={stats.phhCount} sub={t("dashboard.priorityHousehold")} color="blue" icon="🏠" />
-        <KPICard label={t("dashboard.totalFamilies")} value={customers.length} sub={t("dashboard.registered")} color="purple" icon="👨‍👩‍👧‍👦" />
-        <KPICard label={t("dashboard.collected")} value={stats.uniqueCustomers} sub={t("dashboard.ofRegistered", { count: customers.length })} color="green" icon="✅" />
-        <KPICard label={t("dashboard.pending")} value={pendingCustomers.length} sub={t("dashboard.notCollected")} color="red" icon="⚠️" />
-      </div>
+      {/* Family summary: matched against active Customer Master families */}
+      <FamilySummarySection
+        key={monthFilter}
+        summary={families}
+        isAllMonths={monthFilter === "ALL"}
+        monthCount={monthlyFamilies.length}
+      />
+
+      {monthlyFamilies.length > 1 && (
+        <MonthWiseFamilyTable rows={monthlyFamilies} selected={monthFilter} onSelect={setMonthFilter} />
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -318,7 +326,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="card p-5">
-          <h3 className="text-sm font-semibold mb-4">{t("dashboard.schemeSplit")}</h3>
+          <h3 className="text-sm font-semibold mb-4">{t("dashboard.schemeSplitFamilies")}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={schemeData} cx="50%" cy="45%" innerRadius={45} outerRadius={75} dataKey="value"
@@ -360,27 +368,6 @@ export default function DashboardPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Pending Customers */}
-      {pendingCustomers.length > 0 && (
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold mb-3 text-red-600">
-            ⚠️ {t("dashboard.pendingCollection")} — {pendingCustomers.length}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-            {pendingCustomers.slice(0, 16).map((c) => (
-              <div key={c.srcNo} className="flex justify-between items-center px-3 py-2 bg-red-50 rounded-lg text-xs">
-                <span className="font-semibold text-gray-800">{c.name}</span>
-                <span className="text-gray-500 font-mono">{c.srcNo.slice(-6)}</span>
-              </div>
-            ))}
-            {pendingCustomers.length > 16 && (
-              <div className="flex items-center justify-center px-3 py-2 bg-red-50 rounded-lg text-xs text-red-600 font-medium">
-                +{pendingCustomers.length - 16} more
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { DataTable, Badge, EmptyState } from "@/components/ui";
-import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth } from "@/lib/utils";
+import { getMonthName, formatNumber, formatDate, dateOnly, getDistinctMonths, getCurrentMonth, rationMonth } from "@/lib/utils";
 import { exportRowsToPdf } from "@/lib/pdfExport";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -45,7 +45,7 @@ export default function TransactionsPage() {
     let result = enriched;
     if (schemeFilter !== "ALL") result = result.filter((t) => t.scheme === schemeFilter);
     if (authFilter !== "ALL") result = result.filter((t) => t.availType === authFilter);
-    if (monthFilter !== "ALL") result = result.filter((t) => dateOnly(t.date).slice(0, 7) === monthFilter);
+    if (monthFilter !== "ALL") result = result.filter((t) => rationMonth(t) === monthFilter);
     if (fromDate) result = result.filter((t) => dateOnly(t.date) >= fromDate);
     if (toDate) result = result.filter((t) => dateOnly(t.date) <= toDate);
     return result;

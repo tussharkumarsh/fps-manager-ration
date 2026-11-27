@@ -7,7 +7,7 @@ import { Badge, DataTable } from "@/components/ui";
 import { getMonthName } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { apiFetch } from "@/lib/apiFetch";
-import { monthsToBackfill, currentIstYearMonth } from "@/lib/backfill";
+import { monthsToBackfill, noAllocationMonths, currentIstYearMonth } from "@/lib/backfill";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { DayComparison } from "@/app/api/transactions/verify/route";
 import type { SyncLog, ScmSyncLog } from "@/types";
@@ -52,7 +52,7 @@ export default function SyncPage() {
   // quantities are saved (extraItems) but the dealer should know they exist.
   const [unknownColumns, setUnknownColumns] = useState<string[]>([]);
   const [backfillRunning, setBackfillRunning] = useState(false);
-  const [backfillLines, setBackfillLines] = useState<{ month: string; ok: boolean; text: string }[]>([]);
+  const [backfillLines, setBackfillLines] = useState<{ month: string; kind: "ok" | "failed" | "skipped"; text: string }[]>([]);
   const [backfillSummary, setBackfillSummary] = useState("");
   const [verifyRunning, setVerifyRunning] = useState(false);
   const [verifyError, setVerifyError] = useState("");
@@ -107,6 +107,18 @@ export default function SyncPage() {
       const statusData = await statusRes.json();
       if (!statusRes.ok || !statusData.success) throw new Error(statusData.error || "Failed to read sync status");
 
+      // Months an earlier allocation was distributed through have no report
+      // of their own on the portal — listed as skipped, never fetched.
+      const skipped = noAllocationMonths(statusData.locks).map(({ month, coveredBy }) => ({
+        month,
+        kind: "skipped" as const,
+        text: t("sync.backfillNoAllocation", {
+          month: `${getMonthName(Number(month))} ${monthYear.year}`,
+          coveredBy: `${getMonthName(Number(coveredBy.month))} ${coveredBy.year}`,
+        }),
+      }));
+      setBackfillLines(skipped);
+
       const months = monthsToBackfill(monthYear.year, statusData.locks, currentIstYearMonth());
       if (months.length === 0) {
         setBackfillSummary(t("sync.backfillNothing"));
@@ -129,7 +141,7 @@ export default function SyncPage() {
           addTransactions(data.transactions);
           noteUnknownColumns(data.unknownColumns);
           ok++;
-          setBackfillLines((prev) => [...prev, { month, ok: true, text: `${label}: ${data.count} record(s)` }]);
+          setBackfillLines((prev) => [...prev, { month, kind: "ok", text: `${label}: ${data.count} record(s)` }]);
           addSyncLog({
             timestamp: new Date().toISOString(),
             month,
@@ -141,7 +153,7 @@ export default function SyncPage() {
         } catch (err) {
           failed++;
           const errMsg = err instanceof Error ? err.message : "Failed to fetch";
-          setBackfillLines((prev) => [...prev, { month, ok: false, text: `${label}: ${errMsg}` }]);
+          setBackfillLines((prev) => [...prev, { month, kind: "failed", text: `${label}: ${errMsg}` }]);
           addSyncLog({
             timestamp: new Date().toISOString(),
             month,
@@ -388,8 +400,13 @@ export default function SyncPage() {
           {backfillLines.length > 0 && (
             <ul className="mt-2 space-y-1 text-xs font-mono">
               {backfillLines.map((line) => (
-                <li key={line.month} className={line.ok ? "text-emerald-700" : "text-red-700"}>
-                  {line.ok ? "✅" : "❌"} {line.text}
+                <li
+                  key={line.month}
+                  className={
+                    line.kind === "ok" ? "text-emerald-700" : line.kind === "failed" ? "text-red-700" : "text-gray-500"
+                  }
+                >
+                  {line.kind === "ok" ? "✅" : line.kind === "failed" ? "❌" : "⏭️"} {line.text}
                 </li>
               ))}
             </ul>
