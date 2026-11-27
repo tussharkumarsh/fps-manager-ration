@@ -11,6 +11,7 @@ import type { Customer, Transaction } from "@/types";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { useOtherShops } from "@/store/useOtherShops";
 import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
+import { customersWithTransactions } from "@/lib/familySummary";
 
 const PAGE_SIZE = 25;
 
@@ -44,7 +45,7 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 export default function CustomersPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { customers: allCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer } = useStore();
+  const { customers: masterCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer } = useStore();
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
   const showDealerColumn = isAdmin && !viewingDealer;
@@ -73,6 +74,16 @@ export default function CustomersPage() {
     }
     return m;
   }, [transactions]);
+
+  // A dealer sees only the master cards with at least one transaction in
+  // the database; cards that never took ration are left out of the list and
+  // every count. Until transactions load there is nothing to check against,
+  // so the full master shows. The admin's all-dealers view is not filtered.
+  const allCustomers = useMemo(
+    () => (showDealerColumn ? masterCustomers : customersWithTransactions(masterCustomers, transactions)),
+    [showDealerColumn, masterCustomers, transactions]
+  );
+  const hiddenNoTxn = masterCustomers.length - allCustomers.length;
 
   // Families that took ration here but aren't in Customer Master, built
   // from their transactions: other shops' cards (portability names another
@@ -242,6 +253,11 @@ export default function CustomersPage() {
           <p className="text-sm text-gray-500 mt-1">
             {t("customers.subtitle")}
           </p>
+          {hiddenNoTxn > 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              ℹ️ {t("customers.hiddenNoTxn", { count: formatNumber(hiddenNoTxn) })}
+            </p>
+          )}
         </div>
         {!readOnly && (
           <div className="flex gap-2">

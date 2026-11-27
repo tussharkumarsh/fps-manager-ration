@@ -1,6 +1,19 @@
 import type { Customer, Transaction } from "@/types";
 import { rationMonth } from "./utils";
 
+/**
+ * The Customer Master cards that have at least one transaction in the
+ * given (full, all-months) transaction list. Cards that never took ration
+ * are left out of the dealer's customer list and every family count.
+ * With no transactions loaded there is nothing to check against, so the
+ * master is returned as is.
+ */
+export function customersWithTransactions(customers: Customer[], transactions: Transaction[]): Customer[] {
+  if (transactions.length === 0) return customers;
+  const seen = new Set(transactions.map((t) => t.srcNo));
+  return customers.filter((c) => seen.has(c.srcNo));
+}
+
 /** A family count split by scheme. */
 export interface SchemeCount {
   total: number;

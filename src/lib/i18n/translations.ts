@@ -141,6 +141,7 @@ const en = {
     dealer: "Dealer",
   },
   customers: {
+    hiddenNoTxn: "{count} customers with no transaction yet are hidden",
     unlistedSub: "Your cards that took ration — add them",
     addToMaster: "Add to Master",
     otherShopFamilies: "Other-Shop Families",
@@ -576,6 +577,7 @@ const hi: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    hiddenNoTxn: "{count} ग्राहक जिनका कोई लेन-देन नहीं हुआ, छिपाए गए हैं",
     unlistedSub: "आपके कार्ड जिन्होंने राशन लिया — इन्हें जोड़ें",
     addToMaster: "मास्टर में जोड़ें",
     otherShopFamilies: "दूसरी दुकान के परिवार",
@@ -1011,6 +1013,7 @@ const mr: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    hiddenNoTxn: "{count} ग्राहक ज्यांचा एकही व्यवहार नाही, लपवले आहेत",
     unlistedSub: "तुमची कार्डे ज्यांनी रेशन घेतले — त्यांना जोडा",
     addToMaster: "मास्टरमध्ये जोडा",
     otherShopFamilies: "इतर दुकानाची कुटुंबे",

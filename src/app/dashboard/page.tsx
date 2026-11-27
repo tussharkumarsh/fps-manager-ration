@@ -9,7 +9,7 @@ import {
 import { useStore } from "@/store/useStore";
 import { EmptyState } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, rationMonth } from "@/lib/utils";
-import { familySummary, monthlyFamilySummary } from "@/lib/familySummary";
+import { customersWithTransactions, familySummary, monthlyFamilySummary } from "@/lib/familySummary";
 import { transactionBreakdown, type TransactionBreakdown } from "@/lib/multiTransactions";
 import Link from "next/link";
 import { FamilySummarySection, MonthWiseFamilyTable } from "@/components/dashboard/FamilySummary";
@@ -120,7 +120,7 @@ function useScmReceived(month: string, year: string, viewingFpsId: string | unde
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const { transactions, customers, settings, viewingDealer } = useStore();
+  const { transactions, customers: masterCustomers, settings, viewingDealer } = useStore();
   const { t } = useTranslation();
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const scopeLabel = aggregateMode
@@ -152,6 +152,11 @@ export default function DashboardPage() {
   // Family figures are matched against Customer Master: distinct ration
   // cards, never transaction counts. familySummary itself separates active,
   // disabled and other-shop (portability) families.
+  // Only master cards with at least one transaction (in any month) count.
+  const customers = useMemo(
+    () => (aggregateMode ? masterCustomers : customersWithTransactions(masterCustomers, transactions)),
+    [aggregateMode, masterCustomers, transactions]
+  );
   const families = useMemo(() => familySummary(scopedTransactions, customers), [scopedTransactions, customers]);
   const monthlyFamilies = useMemo(() => monthlyFamilySummary(transactions, customers), [transactions, customers]);
 

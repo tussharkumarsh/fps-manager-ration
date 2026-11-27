@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { familySummary, monthlyFamilySummary } from "./familySummary";
+import { customersWithTransactions, familySummary, monthlyFamilySummary } from "./familySummary";
 import type { Customer, Transaction } from "@/types";
 
 const cust = (srcNo: string, scheme: "PHH" | "AAY", disabled = false): Customer => ({
@@ -116,4 +116,11 @@ test("own cards missing from Customer Master are not counted as other shops", ()
     ["MIX", "151209500228"],
   ]);
   assert.equal(s.servedByScheme.total, 3);
+});
+
+test("customersWithTransactions keeps only master cards that ever transacted", () => {
+  const txs = [tx("A1", "AAY", "2026-06-01 10:00"), tx("D1", "PHH", "2026-05-01 10:00"), tx("X9", "PHH", "2026-06-02 10:00")];
+  assert.deepEqual(customersWithTransactions(customers, txs).map((c) => c.srcNo), ["A1", "D1"]);
+  // Nothing loaded yet: nothing to check against, the master stays whole.
+  assert.equal(customersWithTransactions(customers, []).length, customers.length);
 });
