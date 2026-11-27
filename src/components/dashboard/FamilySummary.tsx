@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui";
+import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { cn, formatNumber, getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { FamilySummary, SchemeCount } from "@/lib/familySummary";
@@ -80,6 +81,13 @@ export function FamilySummarySection({
   const s = summary;
   const totalServed = s.servedByScheme.total;
 
+  // Other-shop families per home shop, most families first.
+  const otherShopsByHome = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of s.otherShopFamilies) m.set(f.homeFps, (m.get(f.homeFps) || 0) + 1);
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [s]);
+
   const rows = useMemo(() => {
     const keep = (scheme: string) => schemeFilter === "ALL" || scheme === schemeFilter;
     if (tab === "pending") {
@@ -90,7 +98,7 @@ export function FamilySummarySection({
     if (tab === "otherShop") {
       return s.otherShopFamilies.filter((f) => keep(f.scheme)).map((f) => ({
         key: f.srcNo, name: f.name || "—", srcNo: f.srcNo, scheme: f.scheme,
-        extra: `${f.homeFps ? `${t("dashboard.homeFps")} ${f.homeFps} · ` : ""}${f.transactions} ${t("dashboard.txns")}`,
+        extra: `${f.transactions} ${t("dashboard.txns")}`, shop: f.homeFps,
       }));
     }
     return s.disabledFamilies.filter((f) => keep(f.scheme)).map((f) => ({
@@ -156,6 +164,19 @@ export function FamilySummarySection({
             value={s.otherShop.total} sub={t("dashboard.otherShopSub")}
             onClick={() => openList("otherShop")} active={tab === "otherShop"}>
             <SchemeRows count={s.otherShop} />
+            {otherShopsByHome.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="text-[11px] font-medium text-gray-400 mb-1">{t("dashboard.homeShops")}</div>
+                <ul className="space-y-1 text-xs">
+                  {otherShopsByHome.map(([fps, count]) => (
+                    <li key={fps || "unknown"} className="flex justify-between gap-2">
+                      <ShopTag fps={fps} className="truncate text-cyan-800" />
+                      <span className="font-mono text-gray-500 flex-shrink-0">{formatNumber(count)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Tile>
           <Tile accent="border-l-amber-500" icon="🚫" label={t("dashboard.disabledFamilies")}
             value={s.disabledServed.total} sub={t("dashboard.disabledSub")}
@@ -209,6 +230,11 @@ export function FamilySummarySection({
                   <span className="font-mono">{r.srcNo}</span>
                   {r.extra && <span className="truncate text-right">{r.extra}</span>}
                 </div>
+                {"shop" in r && (
+                  <div className="mt-1 text-cyan-800 truncate">
+                    🏪 <ShopTag fps={String(r.shop || "")} />
+                  </div>
+                )}
               </div>
             ))}
           </div>

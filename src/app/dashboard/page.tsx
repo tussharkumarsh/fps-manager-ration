@@ -10,6 +10,8 @@ import { useStore } from "@/store/useStore";
 import { EmptyState } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, rationMonth } from "@/lib/utils";
 import { familySummary, monthlyFamilySummary } from "@/lib/familySummary";
+import { transactionBreakdown, type TransactionBreakdown } from "@/lib/multiTransactions";
+import Link from "next/link";
 import { FamilySummarySection, MonthWiseFamilyTable } from "@/components/dashboard/FamilySummary";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -152,6 +154,31 @@ export default function DashboardPage() {
   // disabled and other-shop (portability) families.
   const families = useMemo(() => familySummary(scopedTransactions, customers), [scopedTransactions, customers]);
   const monthlyFamilies = useMemo(() => monthlyFamilySummary(transactions, customers), [transactions, customers]);
+
+  // Repeat visits are counted within each ration month: over "All Months"
+  // every family naturally has one transaction per month.
+  const txnBreakdown = useMemo(() => {
+    if (monthFilter !== "ALL") return transactionBreakdown(scopedTransactions);
+    const byMonth = new Map<string, typeof scopedTransactions>();
+    for (const t of scopedTransactions) {
+      const ym = rationMonth(t);
+      byMonth.set(ym, [...(byMonth.get(ym) ?? []), t]);
+    }
+    const sum: TransactionBreakdown = {
+      transactions: 0, families: 0, singleFamilies: 0, multiFamilies: 0,
+      multiTransactions: 0, extraTransactions: 0, byCount: {},
+    };
+    for (const list of Array.from(byMonth.values())) {
+      const b = transactionBreakdown(list);
+      sum.transactions += b.transactions;
+      sum.families += b.families;
+      sum.singleFamilies += b.singleFamilies;
+      sum.multiFamilies += b.multiFamilies;
+      sum.multiTransactions += b.multiTransactions;
+      sum.extraTransactions += b.extraTransactions;
+    }
+    return sum;
+  }, [scopedTransactions, monthFilter]);
 
   const schemeData = useMemo(
     () => [
@@ -301,6 +328,41 @@ export default function DashboardPage() {
         isAllMonths={monthFilter === "ALL"}
         monthCount={monthlyFamilies.length}
       />
+
+      {/* Transactions reconciled with families: single vs repeat visits */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+          <h3 className="text-sm font-semibold">🧾 {t("dashboard.txnReconcile")}</h3>
+          {txnBreakdown.multiFamilies > 0 && (
+            <Link href={`/reports?tab=multiTxn&month=${encodeURIComponent(monthFilter)}`}
+              className="text-xs text-blue-600 hover:underline">
+              {t("dashboard.viewMultiReport")}
+            </Link>
+          )}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            { label: t("otherShops.transactions"), value: txnBreakdown.transactions, tone: "text-gray-900" },
+            { label: t("otherShops.families"), value: txnBreakdown.families, tone: "text-gray-900" },
+            { label: t("reports.singleTxnFamilies"), value: txnBreakdown.singleFamilies, tone: "text-emerald-700" },
+            { label: t("reports.multiTxnFamilies"), value: txnBreakdown.multiFamilies, tone: "text-amber-600" },
+            { label: t("reports.extraTxns"), value: txnBreakdown.extraTransactions, tone: "text-amber-600" },
+          ].map((x) => (
+            <div key={x.label} className="rounded-xl bg-gray-50 px-3 py-2">
+              <div className="text-[11px] text-gray-500">{x.label}</div>
+              <div className={`text-xl font-semibold font-mono ${x.tone}`}>{formatNumber(x.value)}</div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-gray-500 font-mono">
+          {t("dashboard.txnEquation", {
+            txns: formatNumber(txnBreakdown.transactions),
+            single: formatNumber(txnBreakdown.singleFamilies),
+            multi: formatNumber(txnBreakdown.multiFamilies),
+            multiTxns: formatNumber(txnBreakdown.multiTransactions),
+          })}
+        </p>
+      </div>
 
       {monthlyFamilies.length > 1 && (
         <MonthWiseFamilyTable rows={monthlyFamilies} selected={monthFilter} onSelect={setMonthFilter} />

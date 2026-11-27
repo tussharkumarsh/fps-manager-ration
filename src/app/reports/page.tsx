@@ -9,6 +9,7 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
 import type { DailySummary, Transaction, Customer, ManualGoshwara } from "@/types";
+import { MultiTransactionReport } from "@/components/reports/MultiTransactionReport";
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
 function lastDispatchedMonth(txns: { date: string }[]): string {
@@ -42,6 +43,15 @@ export default function ReportsPage() {
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [printScheme, setPrintScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
   const [disableReason, setDisableReason] = useState("");
+  // Deep link from the dashboard: /reports?tab=multiTxn&month=YYYY-MM (or ALL).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const tab = q.get("tab");
+    const month = q.get("month");
+    if (tab === "multiTxn") setReportType(tab);
+    if (month && (month === "ALL" || /^\d{4}-\d{2}$/.test(month))) setMonthFilter(month);
+  }, []);
+
   // null = all daily-summary columns (the default before any choice is made).
   const [dailyColumnKeys, setDailyColumnKeys] = useState<string[] | null>(null);
 
@@ -367,6 +377,7 @@ export default function ReportsPage() {
             { id: "pending", label: t("reports.pendingList") },
             { id: "goshwara", label: t("reports.goshwara") },
             { id: "monthlyDates", label: t("reports.monthlyDates") },
+            { id: "multiTxn", label: t("reports.multiTxn") },
           ]}
           active={reportType}
           onChange={setReportType}
@@ -800,6 +811,15 @@ export default function ReportsPage() {
       )}
 
       {/* Monthly Dates (Customer x Month pivot) */}
+      {reportType === "multiTxn" && (
+        <MultiTransactionReport
+          transactions={scopedTransactions}
+          customers={allCustomers}
+          scopeLabel={scopeLabel}
+          periodLabel={monthFilter === "ALL" ? t("dashboard.allMonths") : monthLabel}
+        />
+      )}
+
       {reportType === "monthlyDates" && (
         <div className="card p-6">
           <div className="no-print flex flex-wrap items-center gap-3 mb-4">

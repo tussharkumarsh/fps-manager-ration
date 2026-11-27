@@ -9,6 +9,9 @@ import { exportRowsToPdf } from "@/lib/pdfExport";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { Transaction } from "@/types";
+import { ShopTag } from "@/components/otherShops/ShopDialog";
+import { useOtherShops } from "@/store/useOtherShops";
+import { shopLabel } from "@/lib/otherShops";
 
 type TransactionRow = Transaction & { customerName?: string; dealerName?: string };
 
@@ -16,6 +19,7 @@ export default function TransactionsPage() {
   const { data: session } = useSession();
   const { transactions, customers, settings, viewingDealer } = useStore();
   const { t } = useTranslation();
+  const { byFps: shopsByFps } = useOtherShops();
   const showDealerColumn = session?.role === "admin" && !viewingDealer;
   useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
@@ -93,7 +97,7 @@ export default function TransactionsPage() {
         saree: t.saree,
         jowar: t.jowar,
         amount: t.amount,
-        portability: t.portability,
+        portability: t.portability && t.portability !== "Self" ? shopLabel(t.portability, shopsByFps) : t.portability,
       })),
       `transactions-${settings.fpsId}-${new Date().toISOString().slice(0, 10)}.pdf`
     );
@@ -215,7 +219,7 @@ export default function TransactionsPage() {
           { key: "portability", label: t("transactions.portability"),
             render: (v) =>
               v === "Self" ? <Badge text="Self" /> : (
-                <span className="text-xs font-semibold text-blue-600">{String(v)}</span>
+                <ShopTag fps={String(v)} className="text-xs font-semibold text-blue-600" />
               ),
           },
         ]}

@@ -21,6 +21,7 @@ export default function Sidebar() {
     { href: "/customers", label: t("nav.customers"), icon: "👥" },
     { href: "/inventory", label: t("nav.inventory"), icon: "📦" },
     { href: "/reports", label: t("nav.reports"), icon: "📑" },
+    { href: "/other-shops", label: t("nav.otherShops"), icon: "🏪" },
     { href: "/sync", label: t("nav.sync"), icon: "🔄" },
     { href: "/profile", label: t("nav.profile"), icon: "👤" },
   ];
