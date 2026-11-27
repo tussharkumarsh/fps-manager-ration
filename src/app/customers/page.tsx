@@ -7,11 +7,21 @@ import { Badge, KPICard, EmptyState } from "@/components/ui";
 import { formatNumber, dateOnly, getMonthName } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslation } from "@/lib/i18n/useTranslation";
-import type { Customer } from "@/types";
+import type { Customer, Transaction } from "@/types";
+import { ShopTag } from "@/components/otherShops/ShopDialog";
+import { useOtherShops } from "@/store/useOtherShops";
+import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
 
 const PAGE_SIZE = 25;
 
 type CustomerWithDealer = Customer & { dealerName?: string };
+
+/** The FPS a card belongs to per its latest transaction's portability column ("" = this shop). */
+function latestHomeFps(txns: Transaction[]): string {
+  if (txns.length === 0) return "";
+  const latest = txns.reduce((max, t) => (t.date > max.date ? t : max));
+  return homeFpsOf(latest);
+}
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "—" if none. */
 function lastDispatchedMonth(txns: { date: string }[]): string {
@@ -36,18 +46,43 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled">("all");
+  const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled" | "otherShop">("all");
+  const { byFps: shopsByFps, directory: shopDirectory } = useOtherShops();
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
   const [mobileTarget, setMobileTarget] = useState<Customer | null>(null);
   const [mobileValue, setMobileValue] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const customers = useMemo(() => {
+  const txnsBySrcNo = useMemo(() => {
+    const m = new Map<string, Transaction[]>();
+    for (const t of transactions) {
+      const list = m.get(t.srcNo);
+      if (list) list.push(t);
+      else m.set(t.srcNo, [t]);
+    }
+    return m;
+  }, [transactions]);
+
+  // Families that took ration here but aren't in Customer Master: ration
+  // cards of other shops (portability), built from their transactions.
+  const otherShopFamilies = useMemo<(Customer & { isOtherShop: true })[]>(() => {
+    const master = new Set(allCustomers.map((c) => c.srcNo));
+    const out: (Customer & { isOtherShop: true })[] = [];
+    for (const [srcNo, txns] of Array.from(txnsBySrcNo.entries())) {
+      if (master.has(srcNo)) continue;
+      const latest = txns.reduce((max, t) => (t.date > max.date ? t : max));
+      out.push({ srcNo, name: latest.customerName || "", scheme: latest.scheme, isOtherShop: true });
+    }
+    return out.sort((a, b) => a.srcNo.localeCompare(b.srcNo));
+  }, [allCustomers, txnsBySrcNo]);
+
+  const customers = useMemo<(Customer & { isOtherShop?: boolean })[]>(() => {
     if (cardFilter === "active") return allCustomers.filter((c) => !c.disabled);
     if (cardFilter === "disabled") return allCustomers.filter((c) => c.disabled);
+    if (cardFilter === "otherShop") return otherShopFamilies;
     return allCustomers;
-  }, [allCustomers, cardFilter]);
+  }, [allCustomers, cardFilter, otherShopFamilies]);
   const disabledCount = useMemo(() => allCustomers.filter((c) => c.disabled).length, [allCustomers]);
   const activeCount = allCustomers.length - disabledCount;
   const activeCollectedCount = useMemo(() => {
@@ -57,10 +92,11 @@ export default function CustomersPage() {
 
   const customerStats = useMemo(() => {
     return customers.map((c) => {
-      const txns = transactions.filter((t) => t.srcNo === c.srcNo);
+      const txns = txnsBySrcNo.get(c.srcNo) ?? [];
       const collected = txns.some((t) => t.wheat > 0);
       return {
         ...c,
+        homeFps: latestHomeFps(txns),
         collectionStatus: collected ? "Collected" : "Pending",
         txnCount: txns.length,
         totalWheat: txns.reduce((s, t) => s + t.wheat, 0),
@@ -71,7 +107,7 @@ export default function CustomersPage() {
         lastDispatched: lastDispatchedMonth(txns),
       };
     });
-  }, [customers, transactions]);
+  }, [customers, txnsBySrcNo]);
 
   const collectedCount = customerStats.filter((c) => c.collectionStatus === "Collected").length;
 
@@ -79,9 +115,13 @@ export default function CustomersPage() {
     if (!search) return customerStats;
     const q = search.toLowerCase();
     return customerStats.filter(
-      (c) => c.srcNo.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)
+      (c) =>
+        c.srcNo.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        (!!c.homeFps &&
+          (c.homeFps.includes(q) || shopDisplayName(c.homeFps, shopsByFps, shopDirectory).toLowerCase().includes(q)))
     );
-  }, [customerStats, search]);
+  }, [customerStats, search, shopsByFps, shopDirectory]);
 
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -211,7 +251,7 @@ export default function CustomersPage() {
       )}
 
       {/* KPIs — click a card to filter the list below; Registered (all) is the default */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KPICard
           label={t("customers.registered")}
           value={allCustomers.length}
@@ -233,6 +273,16 @@ export default function CustomersPage() {
           onClick={() => { setCardFilter("disabled"); setPage(0); }}
           active={cardFilter === "disabled"}
         />
+        {!showDealerColumn && (
+          <KPICard
+            label={t("customers.otherShopFamilies")}
+            value={otherShopFamilies.length}
+            sub={t("customers.otherShopSub")}
+            color="cyan" icon="🔁"
+            onClick={() => { setCardFilter("otherShop"); setPage(0); }}
+            active={cardFilter === "otherShop"}
+          />
+        )}
         <KPICard
           label={t("customers.coverage")}
           value={activeCount > 0 ? `${((activeCollectedCount / activeCount) * 100).toFixed(1)}%` : "—"}
@@ -275,7 +325,7 @@ export default function CustomersPage() {
       )}
 
       {/* Customer table */}
-      {customers.length === 0 ? (
+      {customers.length === 0 && cardFilter !== "otherShop" ? (
         <EmptyState
           icon="👥"
           title={t("customers.noCustomersTitle")}
@@ -293,7 +343,7 @@ export default function CustomersPage() {
               />
               {cardFilter !== "all" && (
                 <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : t("customers.disabledCustomers")}</strong>
+                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : t("customers.otherShopFamilies")}</strong>
                   <button onClick={() => { setCardFilter("all"); setPage(0); }} className="text-brand-600 hover:underline">
                     {t("common.clearFilters")}
                   </button>
@@ -315,6 +365,7 @@ export default function CustomersPage() {
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.status")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.areaType")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.familyHead")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.homeShop")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.mobile")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.lastDispatched")}</th>
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.txns")}</th>
@@ -352,7 +403,7 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.sNo ?? "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.srcNo}</td>
                         <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          {readOnly ? (
+                          {readOnly || c.isOtherShop ? (
                             c.scheme ? <Badge text={c.scheme} /> : <span className="text-gray-400">{t("customers.otherScheme")}</span>
                           ) : (
                             <select
@@ -367,16 +418,25 @@ export default function CustomersPage() {
                           )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs">
-                          {c.disabled
-                            ? <span title={c.disabledReason || ""}><Badge text={t("customers.disabled")} variant="error" /></span>
-                            : (c.status || "—")}
+                          {c.isOtherShop
+                            ? <Badge text={t("customers.notInMaster")} />
+                            : c.disabled
+                              ? <span title={c.disabledReason || ""}><Badge text={t("customers.disabled")} variant="error" /></span>
+                              : (c.status || "—")}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{c.areaType || "—"}</td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-800">{c.name}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-800">{c.name || "—"}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs" onClick={(e) => e.stopPropagation()}>
+                          {c.homeFps
+                            ? <ShopTag fps={c.homeFps} className="text-cyan-800" />
+                            : c.isOtherShop
+                              ? <span className="text-gray-400">{t("otherShops.unknownShop")}</span>
+                              : <span className="text-gray-400">{t("reports.ownShop")}</span>}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono text-xs text-gray-600">{c.mobile || "—"}</span>
-                            {!readOnly && (
+                            {!readOnly && !c.isOtherShop && (
                               <button
                                 onClick={() => { setMobileTarget(c); setMobileValue(c.mobile || ""); }}
                                 className="text-blue-600 hover:text-blue-800 text-xs"
@@ -395,7 +455,7 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalSaree)}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalJowar)}</td>
                         <td className="px-3 py-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          {!readOnly && (
+                          {!readOnly && !c.isOtherShop && (
                             <div className="flex items-center justify-center gap-2">
                               {c.disabled ? (
                                 <button onClick={() => patchCustomer(c.srcNo, { disabled: false, disabledReason: "", disabledAt: "" })}
@@ -421,7 +481,7 @@ export default function CustomersPage() {
                       </tr>
                       {isOpen && hasMembers && (
                         <tr key={`${c.srcNo}-members`} className="bg-gray-50">
-                          <td colSpan={showDealerColumn ? 17 : 16} className="px-6 py-3">
+                          <td colSpan={showDealerColumn ? 18 : 17} className="px-6 py-3">
                             <div className="text-xs font-semibold text-gray-500 mb-2">
                               {t("customers.familyMembers")} ({c.members!.length})
                             </div>
@@ -473,7 +533,7 @@ export default function CustomersPage() {
                 })}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={showDealerColumn ? 17 : 16} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={showDealerColumn ? 18 : 17} className="px-4 py-12 text-center text-gray-400">
                       {t("customers.noRecordsFound")}
                     </td>
                   </tr>

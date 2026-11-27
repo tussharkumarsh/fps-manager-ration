@@ -139,6 +139,10 @@ const en = {
     dealer: "Dealer",
   },
   customers: {
+    otherShopFamilies: "Other-Shop Families",
+    otherShopSub: "Not in master — took ration here",
+    homeShop: "Shop",
+    notInMaster: "Not in master",
     title: "Customer Master",
     subtitle: "Manage Ration Card / SRC No → Customer mapping — import KGS_Master or the FPS Beneficiary Detail Drill-Down file to enrich records",
     addCustomer: "+ Add Customer",
@@ -566,6 +570,10 @@ const hi: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    otherShopFamilies: "दूसरी दुकान के परिवार",
+    otherShopSub: "मास्टर में नहीं — यहाँ से राशन लिया",
+    homeShop: "दुकान",
+    notInMaster: "मास्टर में नहीं",
     title: "ग्राहक मास्टर",
     subtitle: "राशन कार्ड / एसआरसी नंबर → ग्राहक मैपिंग प्रबंधित करें — रिकॉर्ड समृद्ध करने के लिए KGS_Master या FPS लाभार्थी विवरण फ़ाइल आयात करें",
     addCustomer: "+ ग्राहक जोड़ें",
@@ -993,6 +1001,10 @@ const mr: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    otherShopFamilies: "इतर दुकानाची कुटुंबे",
+    otherShopSub: "मास्टरमध्ये नाही — येथून रेशन घेतले",
+    homeShop: "दुकान",
+    notInMaster: "मास्टरमध्ये नाही",
     title: "ग्राहक मास्टर",
     subtitle: "रेशन कार्ड / एसआरसी क्रमांक → ग्राहक मॅपिंग व्यवस्थापित करा — नोंदी समृद्ध करण्यासाठी KGS_Master किंवा FPS लाभार्थी तपशील फाइल आयात करा",
     addCustomer: "+ ग्राहक जोडा",
