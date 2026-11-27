@@ -66,6 +66,32 @@ function Tile({
   );
 }
 
+/**
+ * Spells out how the family figures add up: every family served at this
+ * shop is exactly one of own customer, disabled, other shop or own card
+ * not in master; and registered = took ration + not taken.
+ */
+function FamilyEquations({ s }: { s: FamilySummary }) {
+  const { t } = useTranslation();
+  const n = (v: number) => <b className="font-semibold text-gray-900">{formatNumber(v)}</b>;
+  return (
+    <div className="mb-4 space-y-1.5 rounded-lg bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
+      <div>
+        🏪 {n(s.servedByScheme.total)} {t("dashboard.eqServedAtShop")} ={" "}
+        <span className="text-emerald-700">{n(s.collected.total)} {t("dashboard.eqMyCustomers")}</span>
+        {" + "}<span className="text-amber-700">{n(s.disabledServed.total)} {t("dashboard.eqDisabled")}</span>
+        {" + "}<span className="text-cyan-700">{n(s.otherShop.total)} {t("dashboard.eqOtherShop")}</span>
+        {" + "}<span className="text-indigo-700">{n(s.unlisted.total)} {t("dashboard.eqNotInMaster")}</span>
+      </div>
+      <div>
+        👥 {n(s.registered.total)} {t("dashboard.eqRegistered")} ={" "}
+        <span className="text-emerald-700">{n(s.collected.total)} {t("dashboard.eqTook")}</span>
+        {" + "}<span className="text-red-600">{n(s.pending.total)} {t("dashboard.eqNotTaken")}</span>
+      </div>
+    </div>
+  );
+}
+
 type ListTab = "pending" | "otherShop" | "unlisted" | "disabled";
 type SchemeFilter = "ALL" | "PHH" | "AAY";
 
@@ -147,6 +173,8 @@ export function FamilySummarySection({
             {t("dashboard.transactionsCount", { count: formatNumber(s.transactions) })}
           </div>
         </div>
+
+        <FamilyEquations s={s} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Tile accent="border-l-violet-500" icon="📋" label={t("dashboard.registeredFamilies")}
@@ -284,43 +312,54 @@ export function MonthWiseFamilyTable({
       <div className="overflow-x-auto -mx-5 px-5">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
-              <th className="px-3 py-2 text-left font-semibold" rowSpan={2}>{t("dashboard.month")}</th>
-              <th className={th} rowSpan={2}>{t("dashboard.registeredShort")}</th>
-              <th className={cn(th, "text-center text-emerald-700")} colSpan={3}>{t("dashboard.tookRation")}</th>
-              <th className={cn(th, "text-center text-red-600")} colSpan={3}>{t("dashboard.notTaken")}</th>
-              <th className={cn(th, "text-cyan-700")} rowSpan={2}>{t("dashboard.otherShopFamilies")}</th>
-              <th className={cn(th, "text-indigo-700")} rowSpan={2}>{t("dashboard.unlistedFamilies")}</th>
-              <th className={cn(th, "text-amber-700")} rowSpan={2}>{t("dashboard.disabledFamilies")}</th>
+            <tr className="bg-gray-50 text-gray-500">
+              <th className="px-3 pt-2 text-left font-semibold" rowSpan={2}>{t("dashboard.month")}</th>
+              <th className={cn(th, "text-center text-gray-700 border-b border-gray-200")} colSpan={5}>
+                🏪 {t("dashboard.servedAtShop")}
+              </th>
+              <th className="w-3" rowSpan={2} />
+              <th className={cn(th, "text-center text-gray-700 border-b border-gray-200")} colSpan={3}>
+                👥 {t("dashboard.masterGroup")}
+              </th>
             </tr>
             <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
-              <th className={th}>PHH</th><th className={th}>AAY</th><th className={th}>{t("dashboard.all")}</th>
-              <th className={th}>PHH</th><th className={th}>AAY</th><th className={th}>{t("dashboard.all")}</th>
+              <th className={cn(th, "text-gray-800")}>{t("dashboard.total")}</th>
+              <th className={cn(th, "text-emerald-700")}>= {t("dashboard.myCustomers")}</th>
+              <th className={cn(th, "text-amber-700")}>+ {t("dashboard.disabledShort")}</th>
+              <th className={cn(th, "text-cyan-700")}>+ {t("dashboard.otherShopShort")}</th>
+              <th className={cn(th, "text-indigo-700")}>+ {t("dashboard.notInMasterShort")}</th>
+              <th className={th}>{t("dashboard.registeredShort")}</th>
+              <th className={cn(th, "text-emerald-700")}>= {t("dashboard.tookRation")}</th>
+              <th className={cn(th, "text-red-600")}>+ {t("dashboard.notTaken")}</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ month, summary: s }) => (
-              <tr key={month} onClick={() => onSelect(month)}
-                className={cn(
-                  "border-b border-gray-100 cursor-pointer hover:bg-blue-50/60",
-                  month === selected && "bg-blue-50"
-                )}>
-                <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{monthLabel(month)}</td>
-                <td className={td}>{formatNumber(s.registered.total)}</td>
-                <td className={td}>{formatNumber(s.collected.phh)}</td>
-                <td className={td}>{formatNumber(s.collected.aay)}</td>
-                <td className={cn(td, "font-semibold text-emerald-700")}>
-                  {formatNumber(s.collected.total)}
-                  <span className="ml-1 font-normal text-gray-400">{pct(s.collected.total, s.registered.total)}%</span>
-                </td>
-                <td className={td}>{formatNumber(s.pending.phh)}</td>
-                <td className={td}>{formatNumber(s.pending.aay)}</td>
-                <td className={cn(td, "font-semibold text-red-600")}>{formatNumber(s.pending.total)}</td>
-                <td className={td}>{formatNumber(s.otherShop.total)}</td>
-                <td className={td}>{formatNumber(s.unlisted.total)}</td>
-                <td className={td}>{formatNumber(s.disabledServed.total)}</td>
-              </tr>
-            ))}
+            {rows.map(({ month, summary: s }) => {
+              const split = (c: SchemeCount) => `PHH ${c.phh} · AAY ${c.aay}`;
+              return (
+                <tr key={month} onClick={() => onSelect(month)}
+                  className={cn(
+                    "border-b border-gray-100 cursor-pointer hover:bg-blue-50/60",
+                    month === selected && "bg-blue-50"
+                  )}>
+                  <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{monthLabel(month)}</td>
+                  <td className={cn(td, "font-semibold text-gray-900")} title={split(s.servedByScheme)}>
+                    {formatNumber(s.servedByScheme.total)}
+                  </td>
+                  <td className={cn(td, "text-emerald-700")} title={split(s.collected)}>{formatNumber(s.collected.total)}</td>
+                  <td className={td} title={split(s.disabledServed)}>{formatNumber(s.disabledServed.total)}</td>
+                  <td className={td} title={split(s.otherShop)}>{formatNumber(s.otherShop.total)}</td>
+                  <td className={td} title={split(s.unlisted)}>{formatNumber(s.unlisted.total)}</td>
+                  <td />
+                  <td className={td} title={split(s.registered)}>{formatNumber(s.registered.total)}</td>
+                  <td className={cn(td, "text-emerald-700")} title={split(s.collected)}>
+                    {formatNumber(s.collected.total)}
+                    <span className="ml-1 text-gray-400">{pct(s.collected.total, s.registered.total)}%</span>
+                  </td>
+                  <td className={cn(td, "font-semibold text-red-600")} title={split(s.pending)}>{formatNumber(s.pending.total)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
