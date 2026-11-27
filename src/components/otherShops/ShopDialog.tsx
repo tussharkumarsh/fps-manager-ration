@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { useOtherShops, type OtherShopDetails } from "@/store/useOtherShops";
 import { useStore } from "@/store/useStore";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
+import { shopDisplayName } from "@/lib/otherShops";
 
 const EMPTY: OtherShopDetails = { shopName: "", dealerName: "", mobile: "", altMobile: "", address: "", notes: "" };
 
@@ -14,9 +15,10 @@ const EMPTY: OtherShopDetails = { shopName: "", dealerName: "", mobile: "", altM
  */
 export function ShopDialog({ shopFpsId, onClose }: { shopFpsId: string; onClose: () => void }) {
   const { t } = useTranslation();
-  const { byFps, save, remove, readOnly } = useOtherShops();
+  const { byFps, directory, save, remove, readOnly } = useOtherShops();
   const ownFps = useStore((s) => s.settings.fpsId);
   const existing = shopFpsId ? byFps.get(shopFpsId) : undefined;
+  const portal = directory.get(shopFpsId || "");
   const [fps, setFps] = useState(shopFpsId);
   const [form, setForm] = useState<OtherShopDetails>(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -27,7 +29,7 @@ export function ShopDialog({ shopFpsId, onClose }: { shopFpsId: string; onClose:
     setForm(existing ? {
       shopName: existing.shopName, dealerName: existing.dealerName, mobile: existing.mobile,
       altMobile: existing.altMobile, address: existing.address, notes: existing.notes,
-    } : EMPTY);
+    } : { ...EMPTY, dealerName: portal?.ownerName ?? "" });
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopFpsId, existing?.updatedAt]);
@@ -82,6 +84,27 @@ export function ShopDialog({ shopFpsId, onClose }: { shopFpsId: string; onClose:
         <h3 className="text-base font-semibold mb-4">
           🏪 {existing || shopFpsId ? t("otherShops.editShop") : t("otherShops.addShop")}
         </h3>
+        {portal && (
+          <div className="mb-4 rounded-xl bg-gray-50 px-3 py-2 text-xs">
+            <div className="font-semibold text-gray-500 mb-1">{t("otherShops.fromPortal")}</div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+              <dt className="text-gray-400">{t("otherShops.owner")}</dt><dd className="font-medium text-gray-800">{portal.ownerName || "—"}</dd>
+              <dt className="text-gray-400">{t("otherShops.office")}</dt><dd>{[portal.afsoName, portal.distName].filter(Boolean).join(", ") || "—"}</dd>
+              <dt className="text-gray-400">{t("otherShops.mobile")}</dt><dd className="font-mono">{portal.mobileMasked || "—"}</dd>
+              <dt className="text-gray-400">{t("otherShops.terminal")}</dt><dd className="font-mono">{portal.terminalId || "—"}</dd>
+              <dt className="text-gray-400">{t("otherShops.totalCards")}</dt><dd className="font-mono">{formatNumber(portal.totalCards)}</dd>
+              {portal.latitude !== null && portal.longitude !== null && (
+                <>
+                  <dt className="text-gray-400">{t("otherShops.location")}</dt>
+                  <dd>
+                    <a href={`https://www.google.com/maps?q=${portal.latitude},${portal.longitude}`} target="_blank" rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline">📍 {t("otherShops.openMap")}</a>
+                  </dd>
+                </>
+              )}
+            </dl>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block sm:col-span-2">
             <span className="text-xs font-medium text-gray-500">{t("otherShops.fpsNo")}</span>
@@ -126,18 +149,20 @@ export function ShopDialog({ shopFpsId, onClose }: { shopFpsId: string; onClose:
  */
 export function ShopTag({ fps, className }: { fps: string; className?: string }) {
   const { t } = useTranslation();
-  const { byFps } = useOtherShops();
+  const { byFps, directory } = useOtherShops();
   const [open, setOpen] = useState(false);
   if (!fps) return <span className={className}>{t("otherShops.unknownShop")}</span>;
   const shop = byFps.get(fps);
+  const portal = directory.get(fps);
+  const name = shopDisplayName(fps, byFps, directory);
   return (
     <>
       <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-        title={shop ? [shop.dealerName, shop.mobile].filter(Boolean).join(" · ") || shop.shopName : t("otherShops.addDetails")}
+        title={[shop?.dealerName || portal?.ownerName, shop?.mobile || portal?.mobileMasked, portal?.afsoName].filter(Boolean).join(" · ") || t("otherShops.addDetails")}
         className={cn("text-left hover:underline", className)}>
         <span className="font-mono">{fps}</span>
-        {shop?.shopName
-          ? <span className="font-medium"> · {shop.shopName}</span>
+        {name
+          ? <span className="font-medium"> · {name}</span>
           : <span className="text-gray-400"> · {t("otherShops.addDetails")}</span>}
       </button>
       {open && <ShopDialog shopFpsId={fps} onClose={() => setOpen(false)} />}

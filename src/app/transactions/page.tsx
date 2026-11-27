@@ -19,7 +19,7 @@ export default function TransactionsPage() {
   const { data: session } = useSession();
   const { transactions, customers, settings, viewingDealer } = useStore();
   const { t } = useTranslation();
-  const { byFps: shopsByFps } = useOtherShops();
+  const { byFps: shopsByFps, directory: shopDirectory } = useOtherShops();
   const showDealerColumn = session?.role === "admin" && !viewingDealer;
   useAutoLoadMonth(settings.month, settings.year);
   const [schemeFilter, setSchemeFilter] = useState<"ALL" | "PHH" | "AAY">("ALL");
@@ -97,7 +97,7 @@ export default function TransactionsPage() {
         saree: t.saree,
         jowar: t.jowar,
         amount: t.amount,
-        portability: t.portability && t.portability !== "Self" ? shopLabel(t.portability, shopsByFps) : t.portability,
+        portability: t.portability && t.portability !== "Self" ? shopLabel(t.portability, shopsByFps, shopDirectory) : t.portability,
       })),
       `transactions-${settings.fpsId}-${new Date().toISOString().slice(0, 10)}.pdf`
     );

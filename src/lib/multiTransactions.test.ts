@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { itemsOf, multiTransactionFamilies, transactionBreakdown } from "./multiTransactions";
 import { homeFpsOf, seenOtherShops, shopLabel } from "./otherShops";
-import type { OtherShop, Transaction } from "@/types";
+import type { FpsDirectoryEntry, OtherShop, Transaction } from "@/types";
 
 let seq = 0;
 const tx = (srcNo: string, date: string, q: Partial<Transaction> = {}): Transaction => ({
@@ -67,10 +67,16 @@ test("other shops are collected from the portability column, skipping own cards"
   assert.equal(homeFpsOf({ portability: " self " }), "");
 });
 
-test("shopLabel adds the saved name when there is one", () => {
+test("shopLabel prefers the saved shop name, then the portal owner name", () => {
   const map = new Map<string, OtherShop>([
     ["151209500218", { shopFpsId: "151209500218", shopName: "Ram Ration", dealerName: "", mobile: "", altMobile: "", address: "", notes: "", updatedAt: "" }],
   ]);
   assert.equal(shopLabel("151209500218", map), "151209500218 · Ram Ration");
   assert.equal(shopLabel("151209500228", map), "151209500228");
+  const dir = new Map([
+    ["151209500218", { shopFpsId: "151209500218", ownerName: "Prakash Vithoba Rajguru" }],
+    ["151209500228", { shopFpsId: "151209500228", ownerName: "JAYSHRI GULAB PARGHANE" }],
+  ] as [string, FpsDirectoryEntry][]);
+  assert.equal(shopLabel("151209500218", map, dir), "151209500218 · Ram Ration");
+  assert.equal(shopLabel("151209500228", map, dir), "151209500228 · JAYSHRI GULAB PARGHANE");
 });

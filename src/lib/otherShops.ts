@@ -1,4 +1,4 @@
-import type { Customer, OtherShop, Transaction } from "@/types";
+import type { Customer, FpsDirectoryEntry, OtherShop, Transaction } from "@/types";
 
 /**
  * The FPS number a transaction's ration card belongs to when it isn't this
@@ -9,9 +9,25 @@ export function homeFpsOf(t: Pick<Transaction, "portability">): string {
   return p && p.toLowerCase() !== "self" ? p : "";
 }
 
-/** "151209500218 · Ram Ration Shop" — or just the number when no name is saved. */
-export function shopLabel(fpsId: string, shops: Map<string, OtherShop>): string {
-  const name = shops.get(fpsId)?.shopName;
+/**
+ * The name to show for another shop: the shop name the dealer saved, else
+ * the owner name from the portal directory, else "".
+ */
+export function shopDisplayName(
+  fpsId: string,
+  shops: Map<string, OtherShop>,
+  directory?: Map<string, FpsDirectoryEntry>
+): string {
+  return shops.get(fpsId)?.shopName || directory?.get(fpsId)?.ownerName || "";
+}
+
+/** "151209500218 · Ram Ration Shop" — or just the number when no name is known. */
+export function shopLabel(
+  fpsId: string,
+  shops: Map<string, OtherShop>,
+  directory?: Map<string, FpsDirectoryEntry>
+): string {
+  const name = shopDisplayName(fpsId, shops, directory);
   return name ? `${fpsId} · ${name}` : fpsId;
 }
 

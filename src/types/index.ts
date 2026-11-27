@@ -198,3 +198,20 @@ export interface OtherShop {
   notes: string;
   updatedAt: string;
 }
+
+/** A shop from the portal's public FPS directory ("FPS Details" per AFSO office). */
+export interface FpsDirectoryEntry {
+  shopFpsId: string;
+  /** AFSO office code — the first 7 digits of the FPS number. */
+  officeCode: string;
+  ownerName: string;
+  terminalId: string;
+  /** The portal only ever shows it masked, e.g. "XXXXX-X9211". */
+  mobileMasked: string;
+  distName: string;
+  afsoName: string;
+  totalCards: number;
+  longitude: number | null;
+  latitude: number | null;
+  fetchedAt: string;
+}
