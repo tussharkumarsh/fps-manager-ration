@@ -16,11 +16,21 @@ const PAGE_SIZE = 25;
 
 type CustomerWithDealer = Customer & { dealerName?: string };
 
-/** The FPS a card belongs to per its latest transaction's portability column ("" = this shop). */
+/**
+ * The FPS a card belongs to, from the latest of its transactions whose
+ * portability column names another shop ("" = this shop's own card).
+ */
 function latestHomeFps(txns: Transaction[]): string {
-  if (txns.length === 0) return "";
-  const latest = txns.reduce((max, t) => (t.date > max.date ? t : max));
-  return homeFpsOf(latest);
+  let home = "";
+  let at = "";
+  for (const t of txns) {
+    const fps = homeFpsOf(t);
+    if (fps && t.date >= at) {
+      home = fps;
+      at = t.date;
+    }
+  }
+  return home;
 }
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "—" if none. */
@@ -46,7 +56,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled" | "otherShop">("all");
+  const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled" | "otherShop" | "unlisted">("all");
   const { byFps: shopsByFps, directory: shopDirectory } = useOtherShops();
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
@@ -64,25 +74,30 @@ export default function CustomersPage() {
     return m;
   }, [transactions]);
 
-  // Families that took ration here but aren't in Customer Master: ration
-  // cards of other shops (portability), built from their transactions.
-  const otherShopFamilies = useMemo<(Customer & { isOtherShop: true })[]>(() => {
+  // Families that took ration here but aren't in Customer Master, built
+  // from their transactions: other shops' cards (portability names another
+  // FPS), and this shop's own cards missing from the master ("Self").
+  const { otherShopFamilies, unlistedCards } = useMemo(() => {
     const master = new Set(allCustomers.map((c) => c.srcNo));
-    const out: (Customer & { isOtherShop: true })[] = [];
+    const other: (Customer & { notInMaster: true })[] = [];
+    const unlisted: (Customer & { notInMaster: true })[] = [];
     for (const [srcNo, txns] of Array.from(txnsBySrcNo.entries())) {
       if (master.has(srcNo)) continue;
       const latest = txns.reduce((max, t) => (t.date > max.date ? t : max));
-      out.push({ srcNo, name: latest.customerName || "", scheme: latest.scheme, isOtherShop: true });
+      const row = { srcNo, name: latest.customerName || "", scheme: latest.scheme, notInMaster: true as const };
+      (latestHomeFps(txns) ? other : unlisted).push(row);
     }
-    return out.sort((a, b) => a.srcNo.localeCompare(b.srcNo));
+    const bySrc = (a: Customer, b: Customer) => a.srcNo.localeCompare(b.srcNo);
+    return { otherShopFamilies: other.sort(bySrc), unlistedCards: unlisted.sort(bySrc) };
   }, [allCustomers, txnsBySrcNo]);
 
-  const customers = useMemo<(Customer & { isOtherShop?: boolean })[]>(() => {
+  const customers = useMemo<(Customer & { notInMaster?: boolean })[]>(() => {
     if (cardFilter === "active") return allCustomers.filter((c) => !c.disabled);
     if (cardFilter === "disabled") return allCustomers.filter((c) => c.disabled);
     if (cardFilter === "otherShop") return otherShopFamilies;
+    if (cardFilter === "unlisted") return unlistedCards;
     return allCustomers;
-  }, [allCustomers, cardFilter, otherShopFamilies]);
+  }, [allCustomers, cardFilter, otherShopFamilies, unlistedCards]);
   const disabledCount = useMemo(() => allCustomers.filter((c) => c.disabled).length, [allCustomers]);
   const activeCount = allCustomers.length - disabledCount;
   const activeCollectedCount = useMemo(() => {
@@ -251,7 +266,7 @@ export default function CustomersPage() {
       )}
 
       {/* KPIs — click a card to filter the list below; Registered (all) is the default */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPICard
           label={t("customers.registered")}
           value={allCustomers.length}
@@ -281,6 +296,16 @@ export default function CustomersPage() {
             color="cyan" icon="🔁"
             onClick={() => { setCardFilter("otherShop"); setPage(0); }}
             active={cardFilter === "otherShop"}
+          />
+        )}
+        {!showDealerColumn && (
+          <KPICard
+            label={t("dashboard.unlistedFamilies")}
+            value={unlistedCards.length}
+            sub={t("customers.unlistedSub")}
+            color="purple" icon="🆕"
+            onClick={() => { setCardFilter("unlisted"); setPage(0); }}
+            active={cardFilter === "unlisted"}
           />
         )}
         <KPICard
@@ -325,7 +350,7 @@ export default function CustomersPage() {
       )}
 
       {/* Customer table */}
-      {customers.length === 0 && cardFilter !== "otherShop" ? (
+      {customers.length === 0 && cardFilter !== "otherShop" && cardFilter !== "unlisted" ? (
         <EmptyState
           icon="👥"
           title={t("customers.noCustomersTitle")}
@@ -343,7 +368,7 @@ export default function CustomersPage() {
               />
               {cardFilter !== "all" && (
                 <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : t("customers.otherShopFamilies")}</strong>
+                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : cardFilter === "unlisted" ? t("dashboard.unlistedFamilies") : t("customers.otherShopFamilies")}</strong>
                   <button onClick={() => { setCardFilter("all"); setPage(0); }} className="text-brand-600 hover:underline">
                     {t("common.clearFilters")}
                   </button>
@@ -403,7 +428,7 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.sNo ?? "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{c.srcNo}</td>
                         <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          {readOnly || c.isOtherShop ? (
+                          {readOnly || c.notInMaster ? (
                             c.scheme ? <Badge text={c.scheme} /> : <span className="text-gray-400">{t("customers.otherScheme")}</span>
                           ) : (
                             <select
@@ -418,7 +443,7 @@ export default function CustomersPage() {
                           )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs">
-                          {c.isOtherShop
+                          {c.notInMaster
                             ? <Badge text={t("customers.notInMaster")} />
                             : c.disabled
                               ? <span title={c.disabledReason || ""}><Badge text={t("customers.disabled")} variant="error" /></span>
@@ -429,14 +454,12 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 whitespace-nowrap text-xs" onClick={(e) => e.stopPropagation()}>
                           {c.homeFps
                             ? <ShopTag fps={c.homeFps} className="text-cyan-800" />
-                            : c.isOtherShop
-                              ? <span className="text-gray-400">{t("otherShops.unknownShop")}</span>
-                              : <span className="text-gray-400">{t("reports.ownShop")}</span>}
+                            : <span className="text-gray-400">{t("reports.ownShop")}</span>}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono text-xs text-gray-600">{c.mobile || "—"}</span>
-                            {!readOnly && !c.isOtherShop && (
+                            {!readOnly && !c.notInMaster && (
                               <button
                                 onClick={() => { setMobileTarget(c); setMobileValue(c.mobile || ""); }}
                                 className="text-blue-600 hover:text-blue-800 text-xs"
@@ -455,7 +478,20 @@ export default function CustomersPage() {
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalSaree)}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{formatNumber(c.totalJowar)}</td>
                         <td className="px-3 py-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          {!readOnly && !c.isOtherShop && (
+                          {!readOnly && c.notInMaster && !c.homeFps && (
+                            <button
+                              onClick={() => {
+                                setNewSrc(c.srcNo);
+                                setNewName(c.name || "");
+                                setShowAdd(true);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              + {t("customers.addToMaster")}
+                            </button>
+                          )}
+                          {!readOnly && !c.notInMaster && (
                             <div className="flex items-center justify-center gap-2">
                               {c.disabled ? (
                                 <button onClick={() => patchCustomer(c.srcNo, { disabled: false, disabledReason: "", disabledAt: "" })}

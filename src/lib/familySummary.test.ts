@@ -99,3 +99,21 @@ test("monthlyFamilySummary groups by ration month, not transaction date", () => 
   assert.deepEqual(rows.map((r) => r.month), ["2026-04"]);
   assert.deepEqual(rows[0].summary.collected, { total: 3, phh: 2, aay: 1 });
 });
+
+test("own cards missing from Customer Master are not counted as other shops", () => {
+  const txs = [
+    tx("NEW1", "PHH", "2026-11-19 09:47"), // portability "Self", not in master
+    tx("X1", "PHH", "2026-11-01 10:00", "151209500218"),
+    tx("MIX", "AAY", "2026-11-01 10:00", "151209500228"),
+    tx("MIX", "AAY", "2026-11-05 10:00"), // later visit recorded as Self
+  ];
+  const s = familySummary(txs, customers);
+  assert.deepEqual(s.unlisted, { total: 1, phh: 1, aay: 0 });
+  assert.deepEqual(s.unlistedFamilies.map((f) => f.srcNo), ["NEW1"]);
+  assert.deepEqual(s.otherShop, { total: 2, phh: 1, aay: 1 });
+  assert.deepEqual(s.otherShopFamilies.map((f) => [f.srcNo, f.homeFps]), [
+    ["X1", "151209500218"],
+    ["MIX", "151209500228"],
+  ]);
+  assert.equal(s.servedByScheme.total, 3);
+});

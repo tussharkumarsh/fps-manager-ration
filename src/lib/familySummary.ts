@@ -31,13 +31,19 @@ export interface FamilySummary {
   /** Active registered families with no transaction in the period. */
   pending: SchemeCount;
   pendingCustomers: (Customer & { scheme: "PHH" | "AAY" })[];
-  /** Families not in Customer Master that took ration here (ration card portability). */
+  /** Cards of other shops (portability column names another FPS) that took ration here. */
   otherShop: SchemeCount;
   otherShopFamilies: OtherShopFamily[];
+  /**
+   * This shop's own cards (portability "Self") that took ration but are
+   * missing from Customer Master — e.g. new cards issued after the import.
+   */
+  unlisted: SchemeCount;
+  unlistedFamilies: OtherShopFamily[];
   /** Disabled Customer Master families that still took ration here. */
   disabledServed: SchemeCount;
   disabledFamilies: DisabledFamily[];
-  /** Every distinct family served in the period: collected + other-shop + disabled. */
+  /** Every distinct family served in the period: collected + other-shop + unlisted + disabled. */
   servedByScheme: SchemeCount;
   transactions: number;
 }
@@ -67,14 +73,22 @@ function normScheme(s: string | undefined): "PHH" | "AAY" | undefined {
 export function familySummary(transactions: Transaction[], customers: Customer[]): FamilySummary {
   const master = new Map(customers.map((c) => [c.srcNo, c]));
 
-  // srcNo -> transactions in the period, plus the latest one (for scheme / home FPS).
-  const served = new Map<string, { count: number; latest: Transaction }>();
+  // srcNo -> transactions in the period, the latest one (for scheme), and
+  // the home FPS from the latest transaction that names one.
+  const served = new Map<string, { count: number; latest: Transaction; homeFps: string; homeDate: string }>();
   for (const t of transactions) {
+    const port = (t.portability || "").trim();
+    const home = port && port.toLowerCase() !== "self" ? port : "";
     const prev = served.get(t.srcNo);
-    if (!prev) served.set(t.srcNo, { count: 1, latest: t });
-    else {
-      prev.count++;
-      if (t.date > prev.latest.date) prev.latest = t;
+    if (!prev) {
+      served.set(t.srcNo, { count: 1, latest: t, homeFps: home, homeDate: home ? t.date : "" });
+      continue;
+    }
+    prev.count++;
+    if (t.date > prev.latest.date) prev.latest = t;
+    if (home && t.date >= prev.homeDate) {
+      prev.homeFps = home;
+      prev.homeDate = t.date;
     }
   }
 
@@ -85,6 +99,8 @@ export function familySummary(transactions: Transaction[], customers: Customer[]
     pendingCustomers: [],
     otherShop: zero(),
     otherShopFamilies: [],
+    unlisted: zero(),
+    unlistedFamilies: [],
     disabledServed: zero(),
     disabledFamilies: [],
     servedByScheme: zero(),
@@ -115,20 +131,20 @@ export function familySummary(transactions: Transaction[], customers: Customer[]
       s.disabledFamilies.push({ customer: c, scheme, transactions: hit.count });
     } else {
       const scheme = normScheme(hit.latest.scheme) ?? "PHH";
-      add(s.otherShop, scheme);
       add(s.servedByScheme, scheme);
-      const port = (hit.latest.portability || "").trim();
-      s.otherShopFamilies.push({
-        srcNo,
-        name: hit.latest.customerName,
-        scheme,
-        homeFps: port && port.toLowerCase() !== "self" ? port : "",
-        transactions: hit.count,
-      });
+      const family = { srcNo, name: hit.latest.customerName, scheme, homeFps: hit.homeFps, transactions: hit.count };
+      if (hit.homeFps) {
+        add(s.otherShop, scheme);
+        s.otherShopFamilies.push(family);
+      } else {
+        add(s.unlisted, scheme);
+        s.unlistedFamilies.push(family);
+      }
     }
   }
 
   s.otherShopFamilies.sort((a, b) => a.homeFps.localeCompare(b.homeFps) || a.srcNo.localeCompare(b.srcNo));
+  s.unlistedFamilies.sort((a, b) => a.srcNo.localeCompare(b.srcNo));
   s.pendingCustomers.sort((a, b) => a.scheme.localeCompare(b.scheme) || a.name.localeCompare(b.name));
   return s;
 }

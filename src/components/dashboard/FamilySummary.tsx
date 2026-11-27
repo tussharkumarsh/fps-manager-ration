@@ -65,7 +65,7 @@ function Tile({
   );
 }
 
-type ListTab = "pending" | "otherShop" | "disabled";
+type ListTab = "pending" | "otherShop" | "unlisted" | "disabled";
 type SchemeFilter = "ALL" | "PHH" | "AAY";
 
 export function FamilySummarySection({
@@ -101,6 +101,12 @@ export function FamilySummarySection({
         extra: `${f.transactions} ${t("dashboard.txns")}`, shop: f.homeFps,
       }));
     }
+    if (tab === "unlisted") {
+      return s.unlistedFamilies.filter((f) => keep(f.scheme)).map((f) => ({
+        key: f.srcNo, name: f.name || "—", srcNo: f.srcNo, scheme: f.scheme,
+        extra: `${f.transactions} ${t("dashboard.txns")}`,
+      }));
+    }
     return s.disabledFamilies.filter((f) => keep(f.scheme)).map((f) => ({
       key: f.customer.srcNo, name: f.customer.name, srcNo: f.customer.srcNo, scheme: f.scheme,
       extra: `${f.transactions} ${t("dashboard.txns")}${f.customer.disabledReason ? ` · ${f.customer.disabledReason}` : ""}`,
@@ -113,10 +119,11 @@ export function FamilySummarySection({
   const tabs: { key: ListTab; label: string; count: number; tone: string }[] = [
     { key: "pending", label: t("dashboard.notTaken"), count: s.pending.total, tone: "text-red-600" },
     { key: "otherShop", label: t("dashboard.otherShopFamilies"), count: s.otherShop.total, tone: "text-cyan-700" },
+    { key: "unlisted", label: t("dashboard.unlistedFamilies"), count: s.unlisted.total, tone: "text-indigo-700" },
     { key: "disabled", label: t("dashboard.disabledFamilies"), count: s.disabledServed.total, tone: "text-amber-700" },
   ];
   const rowTone: Record<ListTab, string> = {
-    pending: "bg-red-50", otherShop: "bg-cyan-50", disabled: "bg-amber-50",
+    pending: "bg-red-50", otherShop: "bg-cyan-50", unlisted: "bg-indigo-50", disabled: "bg-amber-50",
   };
 
   const openList = (next: ListTab) => {
@@ -159,7 +166,7 @@ export function FamilySummarySection({
           </Tile>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <Tile accent="border-l-cyan-500" icon="🔁" label={t("dashboard.otherShopFamilies")}
             value={s.otherShop.total} sub={t("dashboard.otherShopSub")}
             onClick={() => openList("otherShop")} active={tab === "otherShop"}>
@@ -177,6 +184,11 @@ export function FamilySummarySection({
                 </ul>
               </div>
             )}
+          </Tile>
+          <Tile accent="border-l-indigo-500" icon="🆕" label={t("dashboard.unlistedFamilies")}
+            value={s.unlisted.total} sub={t("dashboard.unlistedSub")}
+            onClick={() => openList("unlisted")} active={tab === "unlisted"}>
+            <SchemeRows count={s.unlisted} />
           </Tile>
           <Tile accent="border-l-amber-500" icon="🚫" label={t("dashboard.disabledFamilies")}
             value={s.disabledServed.total} sub={t("dashboard.disabledSub")}
@@ -272,6 +284,7 @@ export function MonthWiseFamilyTable({
               <th className={cn(th, "text-center text-emerald-700")} colSpan={3}>{t("dashboard.tookRation")}</th>
               <th className={cn(th, "text-center text-red-600")} colSpan={3}>{t("dashboard.notTaken")}</th>
               <th className={cn(th, "text-cyan-700")} rowSpan={2}>{t("dashboard.otherShopFamilies")}</th>
+              <th className={cn(th, "text-indigo-700")} rowSpan={2}>{t("dashboard.unlistedFamilies")}</th>
               <th className={cn(th, "text-amber-700")} rowSpan={2}>{t("dashboard.disabledFamilies")}</th>
             </tr>
             <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
@@ -298,6 +311,7 @@ export function MonthWiseFamilyTable({
                 <td className={td}>{formatNumber(s.pending.aay)}</td>
                 <td className={cn(td, "font-semibold text-red-600")}>{formatNumber(s.pending.total)}</td>
                 <td className={td}>{formatNumber(s.otherShop.total)}</td>
+                <td className={td}>{formatNumber(s.unlisted.total)}</td>
                 <td className={td}>{formatNumber(s.disabledServed.total)}</td>
               </tr>
             ))}
