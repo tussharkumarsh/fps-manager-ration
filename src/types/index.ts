@@ -46,6 +46,36 @@ export interface Customer {
   portalMobile?: string;
 }
 
+export interface SchemeCounts {
+  rcs: number;
+  m1anarc: number;
+  units: number;
+  anam: number;
+}
+
+/**
+ * One shop's row from the government "FPS Wise Scheme Wise UID Count"
+ * report, as of the report's "Updated On" time.
+ */
+export interface ShopProfile {
+  shopFpsId: string;
+  officeCode: string;
+  dealerName: string;
+  mobile: string;
+  shopNo: string;
+  village: string;
+  tehsil: string;
+  licenseNo: string;
+  shopType: string;
+  district: string;
+  dfso: string;
+  tfso: string;
+  reportUpdatedOn: string;
+  reportUpdatedAt: string;
+  counts: Record<"na" | "aay" | "phh" | "total", SchemeCounts>;
+  uploadedAt: string;
+}
+
 /** The FPS and offices a beneficiary file belongs to (its header lines). */
 export interface BeneficiaryMeta {
   sourceFpsId: string;
