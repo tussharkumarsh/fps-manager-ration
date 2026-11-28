@@ -151,3 +151,13 @@ test("hiddenWithoutTransactions counts own cards without a transaction, not othe
   const txs = [tx("A1", "PHH", "2026-11-01 10:00")];
   assert.equal(hiddenWithoutTransactions(master, txs, "151209500212"), 1);
 });
+
+test("families outside the counted master take their name from the whole master", () => {
+  const counted = [cust("A1", "AAY")];
+  const everyone = [...counted, { srcNo: "B1", name: "OTHER FPS FAMILY", sourceFpsId: "151209500218" }];
+  const txs = [tx("A1", "AAY", "2026-11-01 10:00"), tx("B1", "PHH", "2026-11-02 10:00", "151209500218"), tx("U1", "PHH", "2026-11-03 10:00")];
+  const s = familySummary(txs, counted, everyone);
+  assert.equal(s.otherShopFamilies[0].name, "OTHER FPS FAMILY");
+  // A card in no master keeps the transaction's name (none here).
+  assert.equal(s.unlistedFamilies[0].name, undefined);
+});

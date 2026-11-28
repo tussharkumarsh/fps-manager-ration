@@ -120,17 +120,27 @@ export default function CustomersPage() {
   // FPS), and this shop's own cards missing from the master ("Self").
   const { otherShopFamilies, unlistedCards } = useMemo(() => {
     const master = new Set(allCustomers.map((c) => c.srcNo));
+    // Another FPS's uploaded file may hold the card: its name, members and
+    // file details come from there (transactions carry no name).
+    const fullCard = new Map(masterCustomers.map((c) => [c.srcNo, c]));
     const other: (Customer & { notInMaster: true })[] = [];
     const unlisted: (Customer & { notInMaster: true })[] = [];
     for (const [srcNo, txns] of Array.from(txnsBySrcNo.entries())) {
       if (master.has(srcNo)) continue;
       const latest = txns.reduce((max, t) => (t.date > max.date ? t : max));
-      const row = { srcNo, name: latest.customerName || "", scheme: latest.scheme, notInMaster: true as const };
+      const card = fullCard.get(srcNo);
+      const row = {
+        ...card,
+        srcNo,
+        name: card?.name || latest.customerName || "",
+        scheme: card?.scheme ?? latest.scheme,
+        notInMaster: true as const,
+      };
       (latestHomeFps(txns) ? other : unlisted).push(row);
     }
     const bySrc = (a: Customer, b: Customer) => a.srcNo.localeCompare(b.srcNo);
     return { otherShopFamilies: other.sort(bySrc), unlistedCards: unlisted.sort(bySrc) };
-  }, [allCustomers, txnsBySrcNo]);
+  }, [allCustomers, masterCustomers, txnsBySrcNo]);
 
   const customers = useMemo<(Customer & { notInMaster?: boolean })[]>(() => {
     if (cardFilter === "active") return allCustomers.filter((c) => !c.disabled);

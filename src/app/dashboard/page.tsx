@@ -160,8 +160,15 @@ export default function DashboardPage() {
         : customersWithTransactions(masterCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId),
     [aggregateMode, masterCustomers, transactions, viewingDealer?.fpsId, settings.fpsId]
   );
-  const families = useMemo(() => familySummary(scopedTransactions, customers), [scopedTransactions, customers]);
-  const monthlyFamilies = useMemo(() => monthlyFamilySummary(transactions, customers), [transactions, customers]);
+  // The whole master (incl. other FPSs' cards) only supplies names.
+  const families = useMemo(
+    () => familySummary(scopedTransactions, customers, masterCustomers),
+    [scopedTransactions, customers, masterCustomers]
+  );
+  const monthlyFamilies = useMemo(
+    () => monthlyFamilySummary(transactions, customers, masterCustomers),
+    [transactions, customers, masterCustomers]
+  );
 
   // Repeat visits are counted within each ration month: over "All Months"
   // every family naturally has one transaction per month.

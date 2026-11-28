@@ -108,9 +108,18 @@ function normScheme(s: string | undefined): "PHH" | "AAY" | undefined {
  * period, counts once. Registered families take their scheme from Customer
  * Master; families not in the master fall back to the scheme on their
  * latest transaction.
+ *
+ * `customers` are the cards that count (the dealer's own). `allCustomers`
+ * is the whole master, including other FPSs' cards, and only supplies
+ * names for families outside the counted cards (transactions carry none).
  */
-export function familySummary(transactions: Transaction[], customers: Customer[]): FamilySummary {
+export function familySummary(
+  transactions: Transaction[],
+  customers: Customer[],
+  allCustomers: Customer[] = customers
+): FamilySummary {
   const master = new Map(customers.map((c) => [c.srcNo, c]));
+  const nameOf = new Map(allCustomers.map((c) => [c.srcNo, c.name]));
 
   // srcNo -> transactions in the period, the latest one (for scheme), and
   // the home FPS from the latest transaction that names one.
@@ -171,7 +180,8 @@ export function familySummary(transactions: Transaction[], customers: Customer[]
     } else {
       const scheme = normScheme(hit.latest.scheme) ?? "PHH";
       add(s.servedByScheme, scheme);
-      const family = { srcNo, name: hit.latest.customerName, scheme, homeFps: hit.homeFps, transactions: hit.count };
+      const name = nameOf.get(srcNo) || hit.latest.customerName;
+      const family = { srcNo, name, scheme, homeFps: hit.homeFps, transactions: hit.count };
       if (hit.homeFps) {
         add(s.otherShop, scheme);
         s.otherShopFamilies.push(family);
@@ -191,7 +201,8 @@ export function familySummary(transactions: Transaction[], customers: Customer[]
 /** One familySummary per ration month ("YYYY-MM") present in the transactions, newest first. */
 export function monthlyFamilySummary(
   transactions: Transaction[],
-  customers: Customer[]
+  customers: Customer[],
+  allCustomers: Customer[] = customers
 ): { month: string; summary: FamilySummary }[] {
   const byMonth = new Map<string, Transaction[]>();
   for (const t of transactions) {
@@ -202,5 +213,5 @@ export function monthlyFamilySummary(
   }
   return Array.from(byMonth.keys())
     .sort((a, b) => b.localeCompare(a))
-    .map((month) => ({ month, summary: familySummary(byMonth.get(month)!, customers) }));
+    .map((month) => ({ month, summary: familySummary(byMonth.get(month)!, customers, allCustomers) }));
 }
