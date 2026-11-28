@@ -8,18 +8,12 @@ import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
-import { withView } from "@/lib/viewParam";
-import type { DailySummary, Transaction, Customer, ManualGoshwara } from "@/types";
+import type { DailySummary, Transaction } from "@/types";
 import { myCustomers } from "@/lib/familySummary";
 import { MultiTransactionReport } from "@/components/reports/MultiTransactionReport";
-
-/** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
-function lastDispatchedMonth(txns: { date: string }[]): string {
-  if (txns.length === 0) return "";
-  const latest = txns.reduce((max, t) => (dateOnly(t.date) > dateOnly(max.date) ? t : max));
-  const [year, month] = dateOnly(latest.date).split("-");
-  return `${getMonthName(parseInt(month, 10))} ${year}`;
-}
+import { PendingListTab } from "@/components/reports/PendingListTab";
+import { GoshwaraTab } from "@/components/reports/GoshwaraTab";
+import { MonthlyDatesTab } from "@/components/reports/MonthlyDatesTab";
 
 const DAILY_COLUMNS_STORAGE_KEY = "reports.dailyColumns.v2";
 /** Saved before the Families column existed; read once and carried over with it switched on. */
@@ -28,7 +22,7 @@ const DAILY_COLUMNS_STORAGE_KEY_V1 = "reports.dailyColumns";
 export default function ReportsPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { transactions, customers: allCustomers, settings, viewingDealer, updateCustomer } = useStore();
+  const { transactions, customers: allCustomers, settings, viewingDealer } = useStore();
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
   const aggregateMode = isAdmin && !viewingDealer;
@@ -51,12 +45,7 @@ export default function ReportsPage() {
   const [monthFilter, setMonthFilter] = useState<string>(getCurrentMonth());
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
-  const [pivotScheme, setPivotScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
-  const [pivotMonths, setPivotMonths] = useState<string[]>(["", "", ""]);
-  const [pivotSort, setPivotSort] = useState<"asc" | "desc" | null>(null);
-  const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [printScheme, setPrintScheme] = useState<"ALL" | "PHH" | "AAY">("ALL");
-  const [disableReason, setDisableReason] = useState("");
   // Deep link from the dashboard: /reports?tab=multiTxn&month=YYYY-MM (or ALL).
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -89,20 +78,6 @@ export default function ReportsPage() {
       localStorage.setItem(DAILY_COLUMNS_STORAGE_KEY, JSON.stringify(keys));
     } catch {
       // Non-fatal — the choice just won't be remembered.
-    }
-  };
-
-  const patchCustomer = async (srcNo: string, patch: Partial<Customer>) => {
-    try {
-      const res = await apiFetch("/api/customers", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ srcNo, ...patch }),
-      });
-      if (!res.ok) return;
-      updateCustomer(srcNo, patch);
-    } catch {
-      // Non-fatal — local state stays unchanged, matching what's actually stored.
     }
   };
 
@@ -158,146 +133,6 @@ export default function ReportsPage() {
     monthFilter !== "ALL"
       ? monthOptions.find((m) => m.value === monthFilter)?.label || monthFilter
       : `${getMonthName(parseInt(settings.month))} ${settings.year}`;
-
-  const pendingCustomers = useMemo(() => {
-    const collected = new Set(scopedTransactions.filter((t) => t.wheat > 0).map((t) => t.srcNo));
-    return customers
-      .filter((c) => !collected.has(c.srcNo))
-      .map((c) => {
-        const txns = transactions.filter((tr) => tr.srcNo === c.srcNo);
-        const lastDispatched = lastDispatchedMonth(txns);
-        return { ...c, lastDispatched };
-      });
-  }, [scopedTransactions, customers, transactions]);
-
-  const goshwaraRows = useMemo(() => {
-    const phh = enriched.filter((t) => t.scheme === "PHH");
-    const aay = enriched.filter((t) => t.scheme === "AAY");
-    return [
-      { key: "families", label: t("reports.familiesServed"), phh: phh.filter((t) => t.wheat > 0).length, aay: aay.filter((t) => t.wheat > 0).length },
-      { key: "wheat", label: t("reports.wheatDistributed"), phh: phh.reduce((s, t) => s + t.wheat, 0), aay: aay.reduce((s, t) => s + t.wheat, 0) },
-      { key: "rice", label: t("reports.riceDistributed"), phh: phh.reduce((s, t) => s + t.rice, 0), aay: aay.reduce((s, t) => s + t.rice, 0) },
-      { key: "sugar", label: `${t("transactions.sugar")} (Kg)`, phh: phh.reduce((s, t) => s + t.sugar, 0), aay: aay.reduce((s, t) => s + t.sugar, 0) },
-      { key: "jowar", label: `${t("transactions.jowar")} (Kg)`, phh: phh.reduce((s, t) => s + t.jowar, 0), aay: aay.reduce((s, t) => s + t.jowar, 0) },
-      { key: "saree", label: `${t("transactions.saree")} (Pkts)`, phh: 0, aay: aay.reduce((s, t) => s + t.saree, 0) },
-      { key: "portability", label: t("reports.portabilityTxns"), phh: phh.filter((t) => t.portability !== "Self").length, aay: aay.filter((t) => t.portability !== "Self").length },
-      { key: "activeDays", label: t("reports.activeDays"), phh: new Set(phh.map((t) => dateOnly(t.date))).size, aay: new Set(aay.map((t) => dateOnly(t.date))).size },
-    ];
-  }, [enriched, t]);
-
-  // Manual goshwara: hand-entered figures for the selected month, stored per
-  // FPS per month and shown beside the one computed from transactions.
-  const manualEnabled = monthFilter !== "ALL" && !aggregateMode;
-  const [manualValues, setManualValues] = useState<Record<string, { phh: string; aay: string }>>({});
-  const [manualUpdatedAt, setManualUpdatedAt] = useState("");
-  const [manualStatus, setManualStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [goshwaraPrint, setGoshwaraPrint] = useState<"both" | "system" | "manual">("both");
-  const [savedManual, setSavedManual] = useState<ManualGoshwara | null>(null);
-  // A month with saved figures opens read-only (like the computed card); the
-  // inputs only show for a month with nothing saved yet, or after Edit.
-  const [manualEditing, setManualEditing] = useState(true);
-
-  const applyManual = (g: ManualGoshwara | null) => {
-    const values: Record<string, { phh: string; aay: string }> = {};
-    for (const [key, v] of Object.entries(g?.entries ?? {})) {
-      values[key] = { phh: String(v.phh), aay: String(v.aay) };
-    }
-    setManualValues(values);
-    setManualUpdatedAt(g?.updatedAt ?? "");
-    setSavedManual(g);
-    setManualEditing(!g);
-  };
-
-  const cancelManualEdit = () => {
-    applyManual(savedManual);
-    setManualStatus("idle");
-  };
-
-  useEffect(() => {
-    if (reportType !== "goshwara" || !manualEnabled) return;
-    let cancelled = false;
-    const [year, month] = monthFilter.split("-");
-    setManualStatus("idle");
-    applyManual(null);
-    apiFetch(withView(`/api/goshwara?year=${year}&month=${month}`, viewingDealer?.fpsId))
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (!cancelled && data) applyManual(data.goshwara); })
-      .catch(() => { /* Non-fatal — the form just starts empty. */ });
-    return () => { cancelled = true; };
-  }, [reportType, manualEnabled, monthFilter, viewingDealer?.fpsId]);
-
-  const manualNum = (key: string, scheme: "phh" | "aay") => Number(manualValues[key]?.[scheme]) || 0;
-
-  const setManualValue = (key: string, scheme: "phh" | "aay", value: string) => {
-    setManualStatus("idle");
-    setManualValues((prev) => ({
-      ...prev,
-      [key]: { phh: prev[key]?.phh ?? "", aay: prev[key]?.aay ?? "", [scheme]: value },
-    }));
-  };
-
-  const saveManual = async () => {
-    const [year, month] = monthFilter.split("-");
-    const entries = Object.fromEntries(
-      goshwaraRows.map((row) => [row.key, { phh: manualNum(row.key, "phh"), aay: manualNum(row.key, "aay") }])
-    );
-    setManualStatus("saving");
-    try {
-      const res = await apiFetch("/api/goshwara", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ year, month, entries }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      applyManual(data.goshwara);
-      setManualStatus("saved");
-    } catch {
-      setManualStatus("error");
-    }
-  };
-
-  const printGoshwara = (target: "both" | "system" | "manual") => {
-    setGoshwaraPrint(target);
-    // Let React apply the print-visibility classes before the dialog opens.
-    setTimeout(() => window.print(), 0);
-  };
-
-  const effectivePivotMonths = useMemo(() => {
-    const filled = pivotMonths.filter(Boolean);
-    if (filled.length > 0) return pivotMonths;
-    return monthOptions.slice(0, 3).map((m) => m.value);
-  }, [pivotMonths, monthOptions]);
-
-  const pivotDatesByCustomer = useMemo(() => {
-    const map: Record<string, Record<string, string>> = {};
-    transactions.forEach((tx) => {
-      if (pivotScheme !== "ALL" && tx.scheme !== pivotScheme) return;
-      const day = dateOnly(tx.date);
-      const ym = rationMonth(tx);
-      if (!map[tx.srcNo]) map[tx.srcNo] = {};
-      map[tx.srcNo][ym] = day;
-    });
-    return map;
-  }, [transactions, pivotScheme]);
-
-  const pivotRows = useMemo(() => {
-    const rows = customers
-      .filter((c) => pivotScheme === "ALL" || c.scheme === pivotScheme)
-      .map((c) => ({
-        srcNo: c.srcNo,
-        name: c.name,
-        mobile: c.mobile,
-        memberCount: c.memberCount,
-        dates: effectivePivotMonths.map((ym) => (ym ? pivotDatesByCustomer[c.srcNo]?.[ym] || "" : "")),
-      }));
-    if (pivotSort) {
-      rows.sort((a, b) =>
-        pivotSort === "asc" ? a.srcNo.localeCompare(b.srcNo) : b.srcNo.localeCompare(a.srcNo)
-      );
-    }
-    return rows;
-  }, [customers, pivotScheme, pivotDatesByCustomer, effectivePivotMonths, pivotSort]);
 
   /** Render the print-only tables for the chosen scheme(s), then open the print dialog. */
   const printSchemeReport = (scheme: "ALL" | "PHH" | "AAY") => {
@@ -586,253 +421,28 @@ export default function ReportsPage() {
         </>
       )}
 
-      {/* Pending */}
       {reportType === "pending" && (
-        <div className="card p-6">
-          <div className="no-print flex items-center justify-between gap-3 mb-4 flex-wrap">
-            <div className="bg-red-50 rounded-xl px-4 py-3">
-              <p className="text-sm font-semibold text-red-700">
-                {pendingCustomers.length} customers have not collected ration for {monthLabel}
-              </p>
-            </div>
-            <button onClick={() => window.print()} className="btn-secondary text-xs">
-              🖨️ {t("reports.printReport")}
-            </button>
-          </div>
-
-          <h3 className="text-base font-bold text-center text-brand-700 mb-5">
-            {t("reports.pendingList")} — {monthLabel}
-          </h3>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="table-head">
-                  <th className="px-4 py-3 text-left font-semibold">{t("reports.srNo")}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t("transactions.srcNo")}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t("transactions.customerName")}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t("customers.mobile")}</th>
-                  <th className="px-4 py-3 text-left font-semibold">{t("customers.lastDispatched")}</th>
-                  {!readOnly && (
-                    <th className="no-print px-4 py-3 text-center font-semibold">{t("common.actions")}</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {pendingCustomers.map((c, i) => (
-                  <tr key={c.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                    <td className="px-4 py-3 font-mono">{i + 1}</td>
-                    <td className="px-4 py-3 font-mono">{c.srcNo}</td>
-                    <td className="px-4 py-3">{c.name}</td>
-                    <td className="px-4 py-3 font-mono text-gray-500">{c.mobile || "—"}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.lastDispatched || "—"}</td>
-                    {!readOnly && (
-                      <td className="no-print px-4 py-3 text-center">
-                        {c.disabled ? (
-                          <button
-                            onClick={() => patchCustomer(c.srcNo, { disabled: false, disabledReason: "", disabledAt: "" })}
-                            className="text-emerald-600 hover:text-emerald-800 text-xs font-medium"
-                          >
-                            {t("customers.enable")}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => { setDisableTarget(c); setDisableReason(""); }}
-                            className="text-amber-600 hover:text-amber-800 text-xs font-medium"
-                          >
-                            {t("customers.disable")}
-                          </button>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {pendingCustomers.length === 0 && (
-                  <tr>
-                    <td colSpan={readOnly ? 5 : 6} className="px-4 py-12 text-center text-gray-400">
-                      {t("customers.noRecordsFound")}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {disableTarget && (
-            <div className="no-print fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-              onClick={() => setDisableTarget(null)}>
-              <div className="card p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-sm font-semibold mb-1">{t("customers.disableCustomer")}</h3>
-                <p className="text-xs text-gray-500 mb-3">
-                  {disableTarget.name} ({disableTarget.srcNo})
-                </p>
-                <label className="text-xs font-medium text-gray-500 block mb-1">{t("customers.disableReasonLabel")}</label>
-                <textarea
-                  value={disableReason}
-                  onChange={(e) => setDisableReason(e.target.value)}
-                  placeholder={t("customers.disableReasonPlaceholder")}
-                  className="input-field w-full mb-4"
-                  rows={3}
-                  autoFocus
-                />
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setDisableTarget(null)} className="btn-secondary text-xs">
-                    {t("common.cancel")}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (!disableTarget || !disableReason.trim()) return;
-                      await patchCustomer(disableTarget.srcNo, {
-                        disabled: true,
-                        disabledReason: disableReason.trim(),
-                        disabledAt: new Date().toISOString(),
-                      });
-                      setDisableTarget(null);
-                      setDisableReason("");
-                    }}
-                    disabled={!disableReason.trim()}
-                    className="btn-primary text-xs disabled:opacity-40"
-                  >
-                    {t("customers.disable")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <PendingListTab
+          customers={customers}
+          scopedTransactions={scopedTransactions}
+          transactions={transactions}
+          monthLabel={monthLabel}
+          readOnly={readOnly}
+        />
       )}
 
-      {/* Goshwara */}
       {reportType === "goshwara" && (
-        <>
-        {goshwaraPrint === "both" && <style>{"@media print { @page { size: landscape; } }"}</style>}
-        {manualEnabled && (
-          <div className="no-print flex justify-end">
-            <button onClick={() => printGoshwara("both")} className="btn-secondary text-xs">
-              🖨️ {t("reports.printReport")} ({t("reports.systemGoshwara")} + {t("reports.manualGoshwara")})
-            </button>
-          </div>
-        )}
-        <div className={`grid gap-6 xl:grid-cols-2 items-start ${goshwaraPrint === "both" ? "print:grid-cols-2" : "print:block"}`}>
-        <div className={`card p-6 ${goshwaraPrint === "manual" ? "print:hidden" : ""}`}>
-          <h3 className="text-base font-bold text-center text-brand-700 mb-1">
-            गोषवारा — {t("reports.monthlySummary")} ({monthLabel})
-          </h3>
-          <p className="text-xs text-center text-gray-500 mb-5">
-            {scopeLabel} · {t("reports.systemGoshwara")}
-          </p>
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="table-head">
-                <th className="px-4 py-3 text-left font-semibold">{t("reports.particulars")}</th>
-                <th className="px-4 py-3 text-right font-semibold">PHH</th>
-                <th className="px-4 py-3 text-right font-semibold">AAY</th>
-                <th className="px-4 py-3 text-right font-semibold">{t("reports.total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {goshwaraRows.map((row, i) => (
-                <tr key={i} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                  <td className="px-4 py-3 font-medium">{row.label}</td>
-                  <td className="px-4 py-3 text-right font-mono">{formatNumber(row.phh)}</td>
-                  <td className="px-4 py-3 text-right font-mono">{formatNumber(row.aay)}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold">{formatNumber(row.phh + row.aay)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="no-print mt-4 flex justify-end">
-            <button onClick={() => printGoshwara("system")} className="btn-secondary text-xs">
-              🖨️ {t("reports.printReport")}
-            </button>
-          </div>
-        </div>
-
-        {/* Manual goshwara for the same month */}
-        <div className={`card p-6 ${goshwaraPrint === "system" ? "print:hidden" : ""} ${manualEnabled ? "" : "no-print"}`}>
-          <h3 className="text-base font-bold text-center text-brand-700 mb-1">
-            गोषवारा — {t("reports.manualGoshwara")} ({monthLabel})
-          </h3>
-          <p className="text-xs text-center text-gray-500 mb-5">
-            {scopeLabel}
-            {manualUpdatedAt && <span className="no-print"> · {t("reports.lastSaved")}: {formatDate(manualUpdatedAt)}</span>}
-          </p>
-          {!manualEnabled ? (
-            <p className="text-sm text-center text-gray-500 py-8">{t("reports.selectMonthForManual")}</p>
-          ) : (
-            <>
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="table-head">
-                    <th className="px-4 py-3 text-left font-semibold">{t("reports.particulars")}</th>
-                    <th className="px-4 py-3 text-right font-semibold">PHH</th>
-                    <th className="px-4 py-3 text-right font-semibold">AAY</th>
-                    <th className="px-4 py-3 text-right font-semibold">{t("reports.total")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {goshwaraRows.map((row, i) => (
-                    <tr key={row.key} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                      <td className="px-4 py-3 font-medium">{row.label}</td>
-                      {(["phh", "aay"] as const).map((scheme) => (
-                        <td key={scheme} className={`px-4 ${!readOnly && manualEditing ? "py-2" : "py-3"} text-right font-mono`}>
-                          {readOnly || !manualEditing ? (
-                            formatNumber(manualNum(row.key, scheme))
-                          ) : (
-                            <>
-                              <input
-                                type="number"
-                                min={0}
-                                step="any"
-                                inputMode="decimal"
-                                value={manualValues[row.key]?.[scheme] ?? ""}
-                                onChange={(e) => setManualValue(row.key, scheme, e.target.value)}
-                                placeholder="0"
-                                aria-label={`${row.label} ${scheme.toUpperCase()}`}
-                                className="input-field w-24 ml-auto text-right font-mono py-1 print:hidden"
-                              />
-                              <span className="hidden print:inline">{formatNumber(manualNum(row.key, scheme))}</span>
-                            </>
-                          )}
-                        </td>
-                      ))}
-                      <td className="px-4 py-3 text-right font-mono font-bold">
-                        {formatNumber(manualNum(row.key, "phh") + manualNum(row.key, "aay"))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="no-print mt-4 flex items-center justify-end gap-3">
-                {manualStatus === "saved" && <span className="text-xs text-green-600">✓ {t("reports.manualSaved")}</span>}
-                {manualStatus === "error" && <span className="text-xs text-red-600">{t("reports.manualSaveFailed")}</span>}
-                {!readOnly && manualEditing && savedManual && (
-                  <button onClick={cancelManualEdit} disabled={manualStatus === "saving"} className="btn-secondary text-xs">
-                    {t("common.cancel")}
-                  </button>
-                )}
-                {!readOnly && manualEditing && (
-                  <button onClick={saveManual} disabled={manualStatus === "saving"} className="btn-primary text-xs">
-                    {manualStatus === "saving" ? t("common.loading") : t("common.save")}
-                  </button>
-                )}
-                {!readOnly && !manualEditing && (
-                  <button onClick={() => { setManualEditing(true); setManualStatus("idle"); }} className="btn-secondary text-xs">
-                    ✏️ {t("common.edit")}
-                  </button>
-                )}
-                <button onClick={() => printGoshwara("manual")} className="btn-secondary text-xs">
-                  🖨️ {t("reports.printReport")}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        </div>
-        </>
+        <GoshwaraTab
+          scopedTransactions={scopedTransactions}
+          monthFilter={monthFilter}
+          monthLabel={monthLabel}
+          scopeLabel={scopeLabel}
+          readOnly={readOnly}
+          aggregateMode={aggregateMode}
+          viewFpsId={viewingDealer?.fpsId}
+        />
       )}
 
-      {/* Monthly Dates (Customer x Month pivot) */}
       {reportType === "multiTxn" && (
         <MultiTransactionReport
           transactions={scopedTransactions}
@@ -843,91 +453,7 @@ export default function ReportsPage() {
       )}
 
       {reportType === "monthlyDates" && (
-        <div className="card p-6">
-          <div className="no-print flex flex-wrap items-center gap-3 mb-4">
-            <select
-              value={pivotScheme}
-              onChange={(e) => setPivotScheme(e.target.value as "ALL" | "PHH" | "AAY")}
-              className="input-field w-36 text-xs"
-            >
-              <option value="ALL">{t("reports.schemeAll")}</option>
-              <option value="PHH">PHH</option>
-              <option value="AAY">AAY</option>
-            </select>
-
-            {[0, 1, 2].map((idx) => (
-              <select
-                key={idx}
-                value={effectivePivotMonths[idx] || ""}
-                onChange={(e) => {
-                  const next = [...effectivePivotMonths];
-                  next[idx] = e.target.value;
-                  setPivotMonths(next);
-                }}
-                className="input-field w-36 text-xs"
-                aria-label={`${t("reports.selectMonth")} ${idx + 1}`}
-              >
-                <option value="">{t("reports.selectMonth")} {idx + 1}</option>
-                {monthOptions.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-            ))}
-
-            <button onClick={() => window.print()} className="btn-secondary text-xs">
-              🖨️ {t("reports.printReport")}
-            </button>
-          </div>
-
-          <h3 className="text-base font-bold text-center text-brand-700 mb-5">
-            {t("reports.monthlyDates")} — {pivotScheme === "ALL" ? t("reports.schemeAll") : pivotScheme}
-          </h3>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm monthly-dates-table">
-              <thead>
-                <tr className="table-head">
-                  <th className="px-2 py-1.5 text-left font-semibold">{t("reports.srNo")}</th>
-                  <th
-                    className="px-2 py-1.5 text-left font-semibold cursor-pointer select-none"
-                    onClick={() =>
-                      setPivotSort((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"))
-                    }
-                  >
-                    {t("reports.customerId")}
-                    <span className="ml-1 text-xs">
-                      {pivotSort === "asc" ? "▲" : pivotSort === "desc" ? "▼" : "⇅"}
-                    </span>
-                  </th>
-                  <th className="px-2 py-1.5 text-left font-semibold">{t("reports.customerName")}</th>
-                  <th className="px-2 py-1.5 text-left font-semibold">{t("customers.mobile")}</th>
-                  <th className="px-2 py-1.5 text-right font-semibold">{t("reports.units")}</th>
-                  {effectivePivotMonths.map((ym, idx) => (
-                    <th key={idx} className="px-2 py-1.5 text-right font-semibold">
-                      {ym ? getMonthName(parseInt(ym.split("-")[1], 10)) : "—"}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pivotRows.map((row, i) => (
-                  <tr key={row.srcNo} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                    <td className="px-2 py-1 font-mono">{i + 1}</td>
-                    <td className="px-2 py-1 font-mono">{row.srcNo}</td>
-                    <td className="px-2 py-1">{row.name}</td>
-                    <td className="px-2 py-1 font-mono text-gray-500">{row.mobile || "—"}</td>
-                    <td className="px-2 py-1 text-right font-mono">{row.memberCount ?? "—"}</td>
-                    {row.dates.map((d, idx) => (
-                      <td key={idx} className="px-2 py-1 text-right font-mono">
-                        {d ? formatDate(d) : "—"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <MonthlyDatesTab customers={customers} transactions={transactions} monthOptions={monthOptions} />
       )}
     </div>
   );

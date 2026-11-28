@@ -291,6 +291,7 @@ const en = {
     issued: "Issued",
   },
   reports: {
+    pendingCount: "{count} customers have not collected ration for {month}",
     title: "Reports",
     noDataTitle: "No data for reports",
     noDataDesc: "Fetch transactions first to generate reports.",
@@ -802,6 +803,7 @@ const hi: typeof en = {
     issued: "जारी किया गया",
   },
   reports: {
+    pendingCount: "{count} ग्राहकों ने {month} का राशन नहीं लिया",
     title: "रिपोर्ट",
     noDataTitle: "रिपोर्ट के लिए कोई डेटा नहीं",
     noDataDesc: "रिपोर्ट बनाने के लिए पहले लेन-देन प्राप्त करें।",
@@ -1313,6 +1315,7 @@ const mr: typeof en = {
     issued: "जारी केलेले",
   },
   reports: {
+    pendingCount: "{count} ग्राहकांनी {month} चे रेशन घेतले नाही",
     title: "अहवाल",
     noDataTitle: "अहवालासाठी डेटा नाही",
     noDataDesc: "अहवाल तयार करण्यासाठी आधी व्यवहार मिळवा.",
