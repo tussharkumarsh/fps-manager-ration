@@ -6,16 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "tsc --noEmit -p ."
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
-    "next": "^15.1.0",
+    "next": "^16.4.6",
     "next-auth": "^5.0.0-beta.32",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "recharts": "^2.15.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.3"
@@ -23,8 +23,8 @@
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.9",
     "@types/node": "^22.10.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.20",
     "dotenv": "^17.4.2",
     "postcss": "^8.4.49",
