@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { auth } from "@/auth";
 import { backendFetch } from "@/server/backendClient";
-import { isBeneficiaryDrillDownSheet, parseBeneficiaryDrillDown } from "@/lib/beneficiaryParser";
-import type { Customer } from "@/types";
+import { isBeneficiaryDrillDownSheet, parseBeneficiaryFile } from "@/lib/beneficiaryParser";
+import type { BeneficiaryImport, Customer } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -81,23 +81,32 @@ function chunkBySize(customers: Customer[]): Customer[][] {
  * concurrent writes to the same dealer can't race each other's
  * upsert-then-verify cycle in TransactionService.importCustomers.
  */
-async function importInChunks(fpsId: string, customers: Customer[]): Promise<number> {
+async function importInChunks(
+  fpsId: string,
+  customers: Customer[],
+  importedAt?: string
+): Promise<{ savedCount: number; newCards: number; updatedCards: number }> {
   const chunks = chunkBySize(customers);
-  let savedCount = 0;
+  const total = { savedCount: 0, newCards: 0, updatedCards: 0 };
   for (const chunk of chunks) {
-    const { savedCount: chunkSaved } = await backendFetch<{ savedCount: number }>("/customers/import", {
-      method: "POST",
-      body: { fpsId, customers: chunk },
-    });
-    savedCount += chunkSaved;
+    const r = await backendFetch<{ savedCount: number; newCards?: number; updatedCards?: number }>(
+      "/customers/import",
+      { method: "POST", body: { fpsId, customers: chunk, ...(importedAt ? { importedAt } : {}) } }
+    );
+    total.savedCount += r.savedCount;
+    total.newCards += r.newCards ?? 0;
+    total.updatedCards += r.updatedCards ?? 0;
   }
-  return savedCount;
+  return total;
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.fpsId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  if (session.role === "admin") {
+    return NextResponse.json({ error: "Admin view is read-only" }, { status: 403 });
   }
 
   try {
@@ -112,6 +121,7 @@ export async function POST(req: NextRequest) {
     let customers: Customer[];
     let sheetName: string;
     let format: "beneficiary_drilldown" | "kgs_master";
+    let beneficiary: ReturnType<typeof parseBeneficiaryFile> | null = null;
 
     try {
       const buffer = await file.arrayBuffer();
@@ -120,7 +130,14 @@ export async function POST(req: NextRequest) {
       if (looksLikeBeneficiaryDrillDown(workbook)) {
         format = "beneficiary_drilldown";
         sheetName = workbook.SheetNames[0];
-        customers = parseBeneficiaryDrillDown(workbook);
+        beneficiary = parseBeneficiaryFile(workbook);
+        customers = beneficiary.customers;
+        if (!beneficiary.meta) {
+          return NextResponse.json(
+            { error: "This file has no \"FPS Detail\" line, so it can't tell which FPS it belongs to." },
+            { status: 400 }
+          );
+        }
       } else {
         format = "kgs_master";
         const parsed = parseKgsMaster(workbook);
@@ -133,7 +150,44 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const savedCount = await importInChunks(session.fpsId, customers);
+      if (beneficiary?.meta) {
+        // One upload = one stamp: every card it touches gets this time, and
+        // the summary row records it after all chunks are in.
+        const importedAt = new Date().toISOString();
+        const { savedCount, newCards, updatedCards } = await importInChunks(session.fpsId, customers, importedAt);
+        const { import: upload } = await backendFetch<{ import: BeneficiaryImport }>("/customers/imports", {
+          method: "POST",
+          body: {
+            fpsId: session.fpsId,
+            upload: {
+              ...beneficiary.meta,
+              fileName: file.name || "",
+              importedAt,
+              cards: customers.length,
+              members: customers.reduce((s, c) => s + (c.memberCount || 0), 0),
+              aayCards: customers.filter((c) => c.scheme === "AAY").length,
+              phhCards: customers.filter((c) => c.scheme === "PHH").length,
+              footer: beneficiary.footer,
+              newCards,
+              updatedCards,
+            },
+          },
+        });
+        return NextResponse.json({
+          success: true,
+          format,
+          sheetName,
+          count: customers.length,
+          savedCount,
+          meta: beneficiary.meta,
+          newCards,
+          updatedCards,
+          missingCards: upload.missingCards,
+          importedAt,
+        });
+      }
+
+      const { savedCount } = await importInChunks(session.fpsId, customers);
       return NextResponse.json({
         success: true,
         customers,
