@@ -1,4 +1,5 @@
 import type { Transaction } from "@/types";
+import { homeFpsOf } from "./portability";
 
 /** How a period's transactions split across families: single visits vs repeat visits. */
 export interface TransactionBreakdown {
@@ -89,11 +90,10 @@ export function multiTransactionFamilies(transactions: Transaction[]): MultiTran
       }
     }
     const latest = sorted[sorted.length - 1];
-    const portability = (latest.portability || "").trim();
     out.push({
       srcNo,
       scheme: latest.scheme === "AAY" ? "AAY" : "PHH",
-      homeFps: portability && portability.toLowerCase() !== "self" ? portability : "",
+      homeFps: homeFpsOf(latest),
       transactions: sorted,
       repeatedItems: ITEM_FIELDS.filter((f) => (seen.get(f) || 0) > 1),
       totals,

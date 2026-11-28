@@ -1,14 +1,9 @@
 import type { Customer, FpsDirectoryEntry, OtherShop, Transaction } from "@/types";
 import { isOwnCard, legacyOtherShopCards } from "./familySummary";
 
-/**
- * The FPS number a transaction's ration card belongs to when it isn't this
- * shop's own (the ePOS portability column), or "" for the shop's own cards.
- */
-export function homeFpsOf(t: Pick<Transaction, "portability">): string {
-  const p = (t.portability || "").trim();
-  return p && p.toLowerCase() !== "self" ? p : "";
-}
+import { homeFpsOf } from "./portability";
+
+export { homeFpsOf };
 
 /**
  * The name to show for another shop: the shop name the dealer saved, else

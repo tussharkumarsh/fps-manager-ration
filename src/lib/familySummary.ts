@@ -1,5 +1,6 @@
 import type { Customer, Transaction } from "@/types";
 import { rationMonth } from "./utils";
+import { homeFpsOf } from "./portability";
 
 /**
  * The Customer Master cards that have at least one transaction in the
@@ -73,11 +74,6 @@ export function hiddenWithoutTransactions(
   return customers.filter((c) => isOwnCard(c, dealerFpsId) && !seen.has(c.srcNo)).length;
 }
 
-const homeOf = (t: Transaction) => {
-  const port = (t.portability || "").trim();
-  return port && port.toLowerCase() !== "self" ? port : "";
-};
-
 /**
  * Old master cards (no government file confirms them: empty source) whose
  * latest transaction names another FPS in its portability column. They are
@@ -94,7 +90,7 @@ export function legacyOtherShopCards(customers: Customer[], transactions: Transa
     if (!prev || t.date > prev.date) latest.set(t.srcNo, t);
   }
   const out = new Set<string>();
-  for (const [srcNo, t] of Array.from(latest.entries())) if (homeOf(t)) out.add(srcNo);
+  for (const [srcNo, t] of Array.from(latest.entries())) if (homeFpsOf(t)) out.add(srcNo);
   return out;
 }
 
@@ -195,8 +191,7 @@ export function familySummary(
   // the home FPS from the latest transaction that names one.
   const served = new Map<string, { count: number; latest: Transaction; homeFps: string; homeDate: string }>();
   for (const t of transactions) {
-    const port = (t.portability || "").trim();
-    const home = port && port.toLowerCase() !== "self" ? port : "";
+    const home = homeFpsOf(t);
     const prev = served.get(t.srcNo);
     if (!prev) {
       served.set(t.srcNo, { count: 1, latest: t, homeFps: home, homeDate: home ? t.date : "" });
