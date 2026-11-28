@@ -118,6 +118,13 @@ test("a missing footer label or an #Error cell gives null, never a throw", () =>
   assert.equal(f.maleHofn, null);
 });
 
+test("the FPS name keeps its letters and loses doubled spaces", () => {
+  const wb = sheet();
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  ws["A12"] = { t: "s", v: "FPS Detail:guruprasad  mahila bachat gat(151209500218)" };
+  assert.equal(parseBeneficiaryFile(wb).meta?.sourceFpsName, "guruprasad mahila bachat gat");
+});
+
 test("a sheet without an FPS Detail line has no meta", () => {
   assert.equal(parseBeneficiaryFile(sheet(false)).meta, null);
 });

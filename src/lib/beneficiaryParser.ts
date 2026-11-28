@@ -187,7 +187,7 @@ export function parseBeneficiaryFile(workbook: XLSX.WorkBook): {
       if (m) {
         meta = {
           sourceFpsId: m[2],
-          sourceFpsName: m[1].replace(/s+/g, " ").trim(),
+          sourceFpsName: m[1].replace(/\s+/g, " ").trim(),
           district: district.name,
           dfso: dfso.name,
           tfso: tfso.name,
