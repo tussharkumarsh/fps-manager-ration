@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useMemo, useRef, Fragment } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { Badge, KPICard, EmptyState } from "@/components/ui";
-import { formatNumber, dateOnly, getMonthName } from "@/lib/utils";
+import { formatNumber, formatDate, dateOnly, getMonthName } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslation } from "@/lib/i18n/useTranslation";
-import type { Customer, Transaction } from "@/types";
+import type { BeneficiaryImport, Customer, Transaction } from "@/types";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { useOtherShops } from "@/store/useOtherShops";
 import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
-import { customersWithTransactions } from "@/lib/familySummary";
+import { customersWithTransactions, isOwnCard } from "@/lib/familySummary";
+import { isNotInLatestFile, latestBySource } from "@/lib/fpsSummary";
+import { FpsSummary } from "@/components/customers/FpsSummary";
 
 const PAGE_SIZE = 25;
 
@@ -45,7 +47,7 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 export default function CustomersPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { customers: masterCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer, settings } = useStore();
+  const { customers: masterCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer, settings, setCustomers } = useStore();
   const dealerFpsId = viewingDealer?.fpsId ?? settings.fpsId;
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
@@ -58,7 +60,23 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [cardFilter, setCardFilter] = useState<"all" | "active" | "disabled" | "otherShop" | "unlisted">("all");
+  const [cardFilter, setCardFilter] = useState<
+    "all" | "active" | "disabled" | "otherShop" | "unlisted" | "otherFps" | "notInLatest"
+  >("all");
+  const [imports, setImports] = useState<BeneficiaryImport[]>([]);
+  const viewParam = viewingDealer ? `?viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
+
+  // Latest beneficiary-file upload per source FPS (the FPS-wise summary).
+  const loadImports = useCallback(async () => {
+    try {
+      const res = await apiFetch(`/api/customers/imports${viewParam}`);
+      const data = await res.json();
+      if (res.ok && data.success) setImports(data.imports);
+    } catch {
+      // Non-fatal — the summary just stays as it was.
+    }
+  }, [viewParam]);
+  useEffect(() => { loadImports(); }, [loadImports]);
   const { byFps: shopsByFps, directory: shopDirectory } = useOtherShops();
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
   const [disableReason, setDisableReason] = useState("");
@@ -86,6 +104,17 @@ export default function CustomersPage() {
   );
   const hiddenNoTxn = masterCustomers.length - allCustomers.length;
 
+  // Cards from another FPS's beneficiary file: kept for names, never counted.
+  const otherFpsCards = useMemo(
+    () => (showDealerColumn ? [] : masterCustomers.filter((c) => !isOwnCard(c, dealerFpsId))),
+    [showDealerColumn, masterCustomers, dealerFpsId]
+  );
+  // Own cards (that took ration) missing from their FPS's latest uploaded file.
+  const notInLatestCards = useMemo(() => {
+    const latest = latestBySource(imports);
+    return allCustomers.filter((c) => isNotInLatestFile(c, latest, dealerFpsId));
+  }, [allCustomers, imports, dealerFpsId]);
+
   // Families that took ration here but aren't in Customer Master, built
   // from their transactions: other shops' cards (portability names another
   // FPS), and this shop's own cards missing from the master ("Self").
@@ -108,8 +137,10 @@ export default function CustomersPage() {
     if (cardFilter === "disabled") return allCustomers.filter((c) => c.disabled);
     if (cardFilter === "otherShop") return otherShopFamilies;
     if (cardFilter === "unlisted") return unlistedCards;
+    if (cardFilter === "otherFps") return otherFpsCards;
+    if (cardFilter === "notInLatest") return notInLatestCards;
     return allCustomers;
-  }, [allCustomers, cardFilter, otherShopFamilies, unlistedCards]);
+  }, [allCustomers, cardFilter, otherShopFamilies, unlistedCards, otherFpsCards, notInLatestCards]);
   const disabledCount = useMemo(() => allCustomers.filter((c) => c.disabled).length, [allCustomers]);
   const activeCount = allCustomers.length - disabledCount;
   const activeCollectedCount = useMemo(() => {
@@ -180,7 +211,18 @@ export default function CustomersPage() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.format === "beneficiary_drilldown") {
+        setImportResult(t("customers.importMerged", {
+          fps: data.meta.sourceFpsId, name: data.meta.sourceFpsName,
+          count: formatNumber(data.count), updated: formatNumber(data.updatedCards),
+          added: formatNumber(data.newCards), missing: formatNumber(data.missingCards),
+        }));
+        // Show what was stored (the merge), not the parsed file.
+        const fresh = await apiFetch("/api/customers");
+        const stored = await fresh.json();
+        if (fresh.ok && stored.success) setCustomers(stored.customers);
+        loadImports();
+      } else if (data.success) {
         importCustomers(data.customers);
         setImportResult(`Imported ${data.count} customers from "${data.sheetName}"`);
       } else {
@@ -282,6 +324,8 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {!showDealerColumn && <FpsSummary imports={imports} customers={masterCustomers} ownFpsId={dealerFpsId} />}
+
       {/* KPIs — click a card to filter the list below; Registered (all) is the default */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPICard
@@ -323,6 +367,26 @@ export default function CustomersPage() {
             color="purple" icon="🆕"
             onClick={() => { setCardFilter("unlisted"); setPage(0); }}
             active={cardFilter === "unlisted"}
+          />
+        )}
+        {!showDealerColumn && otherFpsCards.length > 0 && (
+          <KPICard
+            label={t("customers.otherFpsCards")}
+            value={otherFpsCards.length}
+            sub={t("customers.otherFpsCardsSub")}
+            color="cyan" icon="🏪"
+            onClick={() => { setCardFilter("otherFps"); setPage(0); }}
+            active={cardFilter === "otherFps"}
+          />
+        )}
+        {!showDealerColumn && imports.length > 0 && (
+          <KPICard
+            label={t("customers.notInLatestFile")}
+            value={notInLatestCards.length}
+            sub={t("customers.notInLatestSub")}
+            color="red" icon="⚠️"
+            onClick={() => { setCardFilter("notInLatest"); setPage(0); }}
+            active={cardFilter === "notInLatest"}
           />
         )}
         <KPICard
@@ -367,7 +431,7 @@ export default function CustomersPage() {
       )}
 
       {/* Customer table */}
-      {customers.length === 0 && cardFilter !== "otherShop" && cardFilter !== "unlisted" ? (
+      {customers.length === 0 && cardFilter === "all" ? (
         <EmptyState
           icon="👥"
           title={t("customers.noCustomersTitle")}
@@ -385,7 +449,7 @@ export default function CustomersPage() {
               />
               {cardFilter !== "all" && (
                 <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : cardFilter === "unlisted" ? t("dashboard.unlistedFamilies") : t("customers.otherShopFamilies")}</strong>
+                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : cardFilter === "unlisted" ? t("dashboard.unlistedFamilies") : cardFilter === "otherFps" ? t("customers.otherFpsCards") : cardFilter === "notInLatest" ? t("customers.notInLatestFile") : t("customers.otherShopFamilies")}</strong>
                   <button onClick={() => { setCardFilter("all"); setPage(0); }} className="text-brand-600 hover:underline">
                     {t("common.clearFilters")}
                   </button>
@@ -408,6 +472,8 @@ export default function CustomersPage() {
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.areaType")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.familyHead")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.homeShop")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.sourceFps")}</th>
+                  <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.updated")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.mobile")}</th>
                   <th className="px-3 py-2.5 text-left whitespace-nowrap">{t("customers.lastDispatched")}</th>
                   <th className="px-3 py-2.5 text-right whitespace-nowrap">{t("customers.txns")}</th>
@@ -473,6 +539,16 @@ export default function CustomersPage() {
                             ? <ShopTag fps={c.homeFps} className="text-cyan-800" />
                             : <span className="text-gray-400">{t("reports.ownShop")}</span>}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs" onClick={(e) => e.stopPropagation()}>
+                          {c.sourceFpsId && c.sourceFpsId !== dealerFpsId
+                            ? <ShopTag fps={c.sourceFpsId} className="text-cyan-800" />
+                            : c.sourceFpsId
+                              ? <span className="text-gray-500">{t("customers.ownFps")}</span>
+                              : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                          {c.portalSyncedAt ? formatDate(c.portalSyncedAt) : "—"}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono text-xs text-gray-600">{c.mobile || "—"}</span>
@@ -534,7 +610,15 @@ export default function CustomersPage() {
                       </tr>
                       {isOpen && hasMembers && (
                         <tr key={`${c.srcNo}-members`} className="bg-gray-50">
-                          <td colSpan={showDealerColumn ? 18 : 17} className="px-6 py-3">
+                          <td colSpan={showDealerColumn ? 20 : 19} className="px-6 py-3">
+                            {(c.approvalDate || c.approvedBy || c.portalMobile || c.sourceFpsName) && (
+                              <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-600">
+                                {c.sourceFpsName && <span>{t("customers.sourceFps")}: <b>{c.sourceFpsName}</b> <span className="font-mono">({c.sourceFpsId})</span></span>}
+                                {c.approvalDate && <span>{t("customers.approvalDate")}: <b className="font-mono">{c.approvalDate}</b></span>}
+                                {c.approvedBy && <span>{t("customers.approvedBy")}: <b>{c.approvedBy}</b></span>}
+                                {c.portalMobile && <span>{t("customers.fileMobile")}: <b className="font-mono">{c.portalMobile}</b></span>}
+                              </div>
+                            )}
                             <div className="text-xs font-semibold text-gray-500 mb-2">
                               {t("customers.familyMembers")} ({c.members!.length})
                             </div>
@@ -586,7 +670,7 @@ export default function CustomersPage() {
                 })}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={showDealerColumn ? 18 : 17} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={showDealerColumn ? 20 : 19} className="px-4 py-12 text-center text-gray-400">
                       {t("customers.noRecordsFound")}
                     </td>
                   </tr>
