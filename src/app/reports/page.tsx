@@ -9,6 +9,7 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
 import type { DailySummary, Transaction, Customer, ManualGoshwara } from "@/types";
+import { customersWithTransactions } from "@/lib/familySummary";
 import { MultiTransactionReport } from "@/components/reports/MultiTransactionReport";
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
@@ -27,10 +28,15 @@ export default function ReportsPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
   const { transactions, customers: allCustomers, settings, viewingDealer, updateCustomer } = useStore();
-  const customers = useMemo(() => activeCustomers(allCustomers), [allCustomers]);
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
   const aggregateMode = isAdmin && !viewingDealer;
+  // Active master cards with at least one transaction (in any month): cards
+  // that never took ration stay out of the pending list and every report.
+  const customers = useMemo(
+    () => activeCustomers(aggregateMode ? allCustomers : customersWithTransactions(allCustomers, transactions)),
+    [aggregateMode, allCustomers, transactions]
+  );
   const scopeLabel = aggregateMode
     ? t("common.allDealersCollective")
     : `FPS ${viewingDealer?.fpsId ?? settings.fpsId}`;
@@ -106,9 +112,9 @@ export default function ReportsPage() {
 
   const customerMap = useMemo(() => {
     const m: Record<string, string> = {};
-    customers.forEach((c) => { m[c.srcNo] = c.name; });
+    allCustomers.forEach((c) => { m[c.srcNo] = c.name; });
     return m;
-  }, [customers]);
+  }, [allCustomers]);
 
   const enriched = useMemo(
     () => scopedTransactions.map((t) => ({ ...t, customerName: customerMap[t.srcNo] || "" })),

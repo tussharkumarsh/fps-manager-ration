@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { getMonthName } from "@/lib/utils";
+import { customersWithTransactions } from "@/lib/familySummary";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
@@ -154,7 +155,7 @@ export default function SettingsPage() {
             <div className="text-xs text-gray-500 mt-1">{t("nav.transactions")}</div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-2xl font-bold font-mono text-emerald-600">{customers.length}</div>
+            <div className="text-2xl font-bold font-mono text-emerald-600">{customersWithTransactions(customers, transactions).length}</div>
             <div className="text-xs text-gray-500 mt-1">{t("nav.customers")}</div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
