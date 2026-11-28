@@ -32,6 +32,53 @@ export interface Customer {
   disabled?: boolean;
   disabledReason?: string;
   disabledAt?: string;
+  // From the government beneficiary file ("FPS-wise RC & Member Details").
+  /** FPS whose file this card last came from (empty = own, imported before this existed). */
+  sourceFpsId?: string;
+  sourceFpsName?: string;
+  /** When this card was last present in an uploaded file (ISO). */
+  portalSyncedAt?: string;
+  approvalDate?: string;
+  approvedBy?: string;
+  /** "A" (Verified and Approved) / "U" (Yet to be Scanned). */
+  statusCode?: string;
+  /** The head's mobile exactly as in the file, usually masked. */
+  portalMobile?: string;
+}
+
+/** The FPS and offices a beneficiary file belongs to (its header lines). */
+export interface BeneficiaryMeta {
+  sourceFpsId: string;
+  sourceFpsName: string;
+  district: string;
+  dfso: string;
+  tfso: string;
+  officeCode: string;
+}
+
+/** The footer summary printed at the bottom of a beneficiary file; null = not in the file. */
+export type BeneficiaryFooter = Record<
+  | "totalCards" | "femaleHof" | "maleHof" | "totalMembers"
+  | "age0to5" | "age5to12" | "age12to60" | "age60plus"
+  | "validUid" | "invalidUid" | "validMobile" | "invalidMobile"
+  | "female" | "male",
+  number | null
+> & { maleHofn: string | null; femaleHofn: string | null };
+
+/** One beneficiary-file upload: the file's header and footer, and what the merge did. */
+export interface BeneficiaryImport extends BeneficiaryMeta {
+  id: string;
+  fpsId: string;
+  fileName: string;
+  importedAt: string;
+  cards: number;
+  members: number;
+  aayCards: number;
+  phhCards: number;
+  footer: BeneficiaryFooter;
+  newCards: number;
+  updatedCards: number;
+  missingCards: number;
 }
 
 export interface Transaction {

@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { Customer, FamilyMember } from "@/types";
+import type { BeneficiaryFooter, BeneficiaryMeta, Customer, FamilyMember } from "@/types";
 
 /**
  * Parses the "FPS-wise RC & Member Details" export (downloaded from the
@@ -8,6 +8,10 @@ import type { Customer, FamilyMember } from "@/types";
  * card's first data row carries the RC No / Status / Area Type, and its
  * member rows below it leave those columns blank (forward-fill), grouped
  * under section headers like "Scheme Name : AAY [2]".
+ *
+ * Above the table: District / DFSO / TFSO lines; just below the header,
+ * "FPS Detail:<dealer name>(<FPS number>)" names the FPS the file is for.
+ * Below the table: a footer row of summary figures and a note row.
  *
  * Column layout (0-indexed), from the header row containing "S.No."/"Ration
  * Card No.":
@@ -20,16 +24,32 @@ import type { Customer, FamilyMember } from "@/types";
  *   18 Gender
  *
  * The Ration Card No. is the same 12-digit identifier used as `srcNo`
- * elsewhere in this app (transactions, existing customer imports), so this
- * import enriches/overwrites existing Customer rows keyed by that number.
+ * elsewhere in this app (transactions, existing customer imports).
  *
  * Displayed customer name: the "Family Head" column value for that ration
  * card if present, otherwise the name of the member whose M.S. No. is 1.
+ * The head's file mobile (usually masked) goes to `portalMobile`; the
+ * dealer's own `mobile` is never set from a file.
  */
 
-function cleanStatus(raw: string): string {
-  // "Verified and Approved [A]\nApproval Date: ...\nApproved By: ..." -> "Verified and Approved"
-  return String(raw).split("\n")[0].replace(/\s*\[[^\]]*\]\s*$/, "").trim();
+/**
+ * Splits a Status cell — " Verified and Approved [A]\nApproval Date:
+ * 31/08/2024 16:11:28\nApproved By: N/A" — into its parts.
+ */
+export function parseStatusCell(raw: string): {
+  status: string; statusCode: string; approvalDate: string; approvedBy: string;
+} {
+  const lines = String(raw ?? "").split("\n").map((l) => l.trim());
+  const first = lines[0] || "";
+  const code = first.match(/\[([^\]]*)\]\s*$/);
+  const line = (label: string) =>
+    lines.find((l) => l.toLowerCase().startsWith(label))?.slice(label.length).replace(/^:\s*/, "").trim() || "";
+  return {
+    status: first.replace(/\s*\[[^\]]*\]\s*$/, "").trim(),
+    statusCode: code ? code[1].trim() : "",
+    approvalDate: line("approval date"),
+    approvedBy: line("approved by"),
+  };
 }
 
 function cleanSchemeLabel(raw: string): string {
@@ -47,21 +67,77 @@ export function isBeneficiaryDrillDownSheet(headerRow: unknown[]): boolean {
   return joined.includes("Ration Card No.") && joined.includes("S.No.");
 }
 
-export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
-  const sheetName = workbook.SheetNames[0];
-  const ws = workbook.Sheets[sheetName];
+/** Reads every footer figure; a label not in the cells (or an #Error cell) gives null. */
+export function parseFooter(cells: string[]): BeneficiaryFooter {
+  const text = cells.map((c) => String(c ?? "")).join("\n");
+  const num = (re: RegExp): number | null => {
+    const m = text.match(re);
+    return m ? Number(m[1]) : null;
+  };
+  const word = (re: RegExp): string | null => {
+    const m = text.match(re);
+    return m ? m[1].trim() : null;
+  };
+  return {
+    totalCards: num(/Total Ration Cards:\s*(\d+)/i),
+    femaleHof: num(/Female HoF:\s*(\d+)/i),
+    // "Female HoF" contains "male HoF": the lookbehinds keep them apart.
+    maleHof: num(/(?<!Fe)Male HoF:\s*(\d+)/i),
+    maleHofn: word(/(?<!Fe)Male HOFN:\s*([^\n]+)/i),
+    femaleHofn: word(/Female HOFN:\s*([^\n]+)/i),
+    totalMembers: num(/Total Members:\s*(\d+)/i),
+    age0to5: num(/\(0 yrs < Age of member <= 5 yrs\)\s*=\s*(\d+)/i),
+    age5to12: num(/\(5 yrs < Age of member <= 12 yrs\)\s*=\s*(\d+)/i),
+    age12to60: num(/\(12 yrs < Age of member <= 60 yrs\)\s*=\s*(\d+)/i),
+    age60plus: num(/\(60 yrs < Age of member\)\s*=\s*(\d+)/i),
+    validUid: num(/(?<!In)Valid Uid:\s*(\d+)/i),
+    invalidUid: num(/Invalid Uid:\s*(\d+)/i),
+    validMobile: num(/(?<!In)Valid Mobile No\.:\s*(\d+)/i),
+    invalidMobile: num(/Invalid Mobile No\.:\s*(\d+)/i),
+    female: num(/(?:^|\n)F:\s*(\d+)/),
+    male: num(/(?:^|\n)M:\s*(\d+)/),
+  };
+}
+
+/** "TFSO: TAHSIL OFFICE HINGOLI[1512095]" -> { name, code } */
+function headerLine(rows: unknown[][], label: RegExp): { name: string; code: string } {
+  for (const r of rows) {
+    const m = String(r[0] ?? "").trim().match(label);
+    if (m) {
+      const value = m[1].trim();
+      const code = value.match(/\[(\d+)\]\s*$/);
+      return { name: value.replace(/\s*\[\d+\]\s*$/, "").trim(), code: code ? code[1] : "" };
+    }
+  }
+  return { name: "", code: "" };
+}
+
+export function parseBeneficiaryFile(workbook: XLSX.WorkBook): {
+  customers: Customer[];
+  meta: BeneficiaryMeta | null;
+  footer: BeneficiaryFooter;
+} {
+  const ws = workbook.Sheets[workbook.SheetNames[0]];
   const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
   const headerIdx = rows.findIndex((r) => isBeneficiaryDrillDownSheet(r));
-  if (headerIdx === -1) return [];
+  if (headerIdx === -1) return { customers: [], meta: null, footer: parseFooter([]) };
 
+  const top = rows.slice(0, headerIdx);
+  const district = headerLine(top, /^District::?\s*(.*)$/i);
+  const dfso = headerLine(top, /^DFSO:\s*(.*)$/i);
+  const tfso = headerLine(top, /^TFSO:\s*(.*)$/i);
+
+  let meta: BeneficiaryMeta | null = null;
+  let footer = parseFooter([]);
   const customers: Customer[] = [];
   let currentScheme = "";
 
   let group: {
     sNo: number;
     rcNo: string;
-    status: string;
+    scheme: string;
+    statusRaw: string;
     areaType: string;
     familyHeadField: string;
     members: FamilyMember[];
@@ -74,19 +150,25 @@ export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
       const name = !isBlankHeadField
         ? group.familyHeadField
         : msNo1?.nameEng || group.members[0]?.nameEng || "Unknown";
-      const headMobile = msNo1?.mobile || group.members[0]?.mobile || undefined;
+      const headMobile = msNo1?.mobile || group.members[0]?.mobile || "";
+      const st = parseStatusCell(group.statusRaw);
 
       customers.push({
         srcNo: group.rcNo,
         name,
         sNo: group.sNo,
-        scheme: currentScheme === "AAY" || currentScheme === "PHH" ? currentScheme : undefined,
+        scheme: group.scheme === "AAY" || group.scheme === "PHH" ? group.scheme : undefined,
         areaType: group.areaType || undefined,
-        status: group.status || undefined,
+        status: st.status || undefined,
+        statusCode: st.statusCode || undefined,
+        approvalDate: st.approvalDate || undefined,
+        approvedBy: st.approvedBy || undefined,
         memberCount: group.members.length || undefined,
-        mobile: headMobile,
+        portalMobile: isBlankField(headMobile) ? undefined : headMobile,
         familyHead: !isBlankHeadField ? group.familyHeadField : undefined,
         members: group.members,
+        sourceFpsId: meta?.sourceFpsId,
+        sourceFpsName: meta?.sourceFpsName,
       });
     }
     group = null;
@@ -100,10 +182,26 @@ export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
       currentScheme = cleanSchemeLabel(c0);
       continue;
     }
-    if (c0.startsWith("FPS Detail") || c0.startsWith("Total Ration Cards") || c0.startsWith("Note:")) {
-      // Section/footer marker rows carry no member data.
+    if (c0.startsWith("FPS Detail")) {
+      const m = c0.match(/^FPS Detail\s*:\s*(.*)\((\d+)\)\s*$/);
+      if (m) {
+        meta = {
+          sourceFpsId: m[2],
+          sourceFpsName: m[1].replace(/s+/g, " ").trim(),
+          district: district.name,
+          dfso: dfso.name,
+          tfso: tfso.name,
+          officeCode: tfso.code,
+        };
+      }
       continue;
     }
+    if (c0.startsWith("Total Ration Cards")) {
+      flush();
+      footer = parseFooter(row.map((c) => String(c ?? "")));
+      continue;
+    }
+    if (c0.startsWith("Note:")) continue;
 
     const isNewRcRow = typeof row[0] === "number" && String(row[1] ?? "").trim() !== "";
     if (isNewRcRow) {
@@ -111,7 +209,8 @@ export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
       group = {
         sNo: row[0] as number,
         rcNo: String(row[1]).trim(),
-        status: cleanStatus(String(row[2] ?? "")),
+        scheme: currentScheme,
+        statusRaw: String(row[2] ?? ""),
         areaType: String(row[3] ?? "").trim(),
         familyHeadField: String(row[4] ?? "").trim(),
         members: [],
@@ -148,5 +247,10 @@ export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
   }
   flush();
 
-  return customers;
+  return { customers, meta, footer };
+}
+
+/** Cards only (the older entry point). */
+export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
+  return parseBeneficiaryFile(workbook).customers;
 }
