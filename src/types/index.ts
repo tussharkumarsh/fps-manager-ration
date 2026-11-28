@@ -294,3 +294,16 @@ export interface FpsDirectoryEntry {
   latitude: number | null;
   fetchedAt: string;
 }
+
+/** One nightly auto-sync job and how it ended (ok null = ran out of time). */
+export interface SyncRun {
+  id: string;
+  fpsId: string;
+  job: "transactions" | "scm" | string;
+  year: string;
+  month: string;
+  startedAt: string;
+  finishedAt: string | null;
+  ok: boolean | null;
+  detail: string;
+}

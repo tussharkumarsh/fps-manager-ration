@@ -11,6 +11,7 @@ import { monthsToBackfill, noAllocationMonths, currentIstYearMonth } from "@/lib
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { DayComparison } from "@/app/api/transactions/verify/route";
 import type { SyncLog, ScmSyncLog } from "@/types";
+import { NightlySyncCard } from "@/components/sync/NightlySyncCard";
 
 /** Table columns for the daily check: cards, then every commodity seen on either side. */
 function verifyColumns(days: DayComparison[]): string[] {
@@ -300,6 +301,8 @@ export default function SyncPage() {
             : t("sync.readOnlyCollective")}
         </div>
       )}
+
+      <NightlySyncCard viewFpsId={viewingDealer?.fpsId} />
 
       {/* Fetch Form + SCM Inventory Sync side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
