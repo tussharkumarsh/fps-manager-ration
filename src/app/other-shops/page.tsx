@@ -9,6 +9,7 @@ import { ShopCard, type ShopCardData } from "@/components/otherShops/ShopCard";
 import { apiFetch } from "@/lib/apiFetch";
 import { homeFpsOf } from "@/lib/otherShops";
 import { relevantShopIds } from "@/lib/shopCards";
+import { myCustomers } from "@/lib/familySummary";
 import { masterCountsBySource } from "@/lib/fpsSummary";
 import type { BeneficiaryImport } from "@/types";
 import { EmptyState } from "@/components/ui";
@@ -64,19 +65,19 @@ export default function OtherShopsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aggregateMode, relevantKey]);
 
-  // This dealer's own cards' activity (portability "Self").
+  // This dealer's own shop: his customers (his latest government file's
+  // cards, as on Customer Master) and his own cards' transactions
+  // (portability "Self").
   const ownActivity = useMemo(() => {
-    const cards = new Set<string>();
     let txns = 0;
     let last = "";
     for (const tx of transactions) {
       if (homeFpsOf(tx)) continue;
-      cards.add(tx.srcNo);
       txns++;
       if (tx.date > last) last = tx.date;
     }
-    return { families: cards.size, transactions: txns, lastDate: last };
-  }, [transactions]);
+    return { families: myCustomers(customers, transactions, ownFps).length, transactions: txns, lastDate: last };
+  }, [transactions, customers, ownFps]);
 
   // One card per shop: own shop first, then every other related shop.
   const cards = useMemo<ShopCardData[]>(() => {

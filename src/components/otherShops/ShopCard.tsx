@@ -166,7 +166,8 @@ export function ShopCard({ d, onEdit, readOnly }: { d: ShopCardData; onEdit?: ()
 
       <Section title={d.own ? t("otherShops.ownActivity") : t("otherShops.activity")}>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-600">
-          <span>{t("otherShops.families")}: <b className="font-mono">{n(d.families)}</b></span>
+          {/* Own shop: its customers as on Customer Master; others: families that collected here. */}
+          <span>{t(d.own ? "otherShops.yourCustomers" : "otherShops.families")}: <b className="font-mono">{n(d.families)}</b></span>
           <span>{t("otherShops.transactions")}: <b className="font-mono">{n(d.transactions)}</b></span>
           <span>{t("otherShops.lastSeen")}: <b className="font-mono">{d.lastDate ? formatDate(dateOnly(d.lastDate)) : "—"}</b></span>
           {portal && <span>{t("otherShops.portalCards")}: <b className="font-mono">{n(portal.totalCards)}</b></span>}

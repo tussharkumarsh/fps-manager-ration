@@ -412,6 +412,7 @@ const en = {
     resetting: "Resetting…",
   },
   otherShops: {
+    yourCustomers: "Customers",
     yourShop: "Your shop",
     license: "Licence",
     shopType: "Shop type",
@@ -911,6 +912,7 @@ const hi: typeof en = {
     resetting: "रीसेट हो रहा है…",
   },
   otherShops: {
+    yourCustomers: "ग्राहक",
     yourShop: "आपकी दुकान",
     license: "लाइसेंस",
     shopType: "दुकान प्रकार",
@@ -1410,6 +1412,7 @@ const mr: typeof en = {
     resetting: "रीसेट होत आहे…",
   },
   otherShops: {
+    yourCustomers: "ग्राहक",
     yourShop: "तुमचे दुकान",
     license: "परवाना",
     shopType: "दुकान प्रकार",
