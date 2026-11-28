@@ -250,7 +250,3 @@ export function parseBeneficiaryFile(workbook: XLSX.WorkBook): {
   return { customers, meta, footer };
 }
 
-/** Cards only (the older entry point). */
-export function parseBeneficiaryDrillDown(workbook: XLSX.WorkBook): Customer[] {
-  return parseBeneficiaryFile(workbook).customers;
-}

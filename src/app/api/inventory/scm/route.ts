@@ -13,22 +13,16 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { year, month, viewFpsId, shopNo, districtCode, districtName, batchNo } = await req.json();
+        const { year, month, viewFpsId } = await req.json();
         if (!year || !month) {
             return NextResponse.json({ error: "year and month are required" }, { status: 400 });
         }
+        // The district always comes from the dealer's own account, never
+        // from the request.
         const dealer = await resolveEffectiveDealer(session, viewFpsId ?? null);
-        const data = await backendFetch<{ success: boolean; roCount: number; truckChitCount: number; summary: any[]; transactions: any[]; }>("/inventory/scm/sync", {
+        const data = await backendFetch<{ success: boolean; allotmentRows: number; summary: unknown[]; warnings?: string[] }>("/inventory/scm/sync", {
             method: "POST",
-            body: {
-                fpsId: dealer.fpsId,
-                year,
-                month,
-                shopNo,
-                districtCode: districtCode || dealer.distCode,
-                districtName,
-                batchNo,
-            },
+            body: { fpsId: dealer.fpsId, year, month, districtCode: dealer.distCode },
         });
         return NextResponse.json({
             ...(data ?? {}),

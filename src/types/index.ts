@@ -161,8 +161,8 @@ export interface ScmSyncLog {
   timestamp: string;
   month: string;
   year: string;
-  roCount: number;
-  truckChitCount: number;
+  /** Allotment rows saved as received stock. */
+  allotmentRows: number;
   status: "success" | "error";
   message?: string;
 }

@@ -247,7 +247,6 @@ export default function SyncPage() {
         body: JSON.stringify({
           year: scmMonthYear.year,
           month: scmMonthYear.month,
-          districtCode: session?.distCode || undefined,
         }),
       });
 
@@ -265,8 +264,7 @@ export default function SyncPage() {
         timestamp: new Date().toISOString(),
         month: scmMonthYear.month,
         year: scmMonthYear.year,
-        roCount: data.roCount ?? 0,
-        truckChitCount: data.truckChitCount ?? 0,
+        allotmentRows: data.allotmentRows ?? 0,
         status: "success",
         message: `Synced ${data.allotmentRows ?? 0} allotment row(s)`,
       });
@@ -279,8 +277,7 @@ export default function SyncPage() {
         timestamp: new Date().toISOString(),
         month: scmMonthYear.month,
         year: scmMonthYear.year,
-        roCount: 0,
-        truckChitCount: 0,
+        allotmentRows: 0,
         status: "error",
         message: errMsg,
       });
@@ -591,8 +588,7 @@ export default function SyncPage() {
           <div className="text-sm text-gray-600 space-y-1">
             {scmSyncLogs[0] ? (
               <>
-                <div>RO(s) synced: <strong className="font-mono">{scmSyncLogs[0].roCount}</strong></div>
-                <div>Truck chit(s) synced: <strong className="font-mono">{scmSyncLogs[0].truckChitCount}</strong></div>
+                <div>Allotment rows synced: <strong className="font-mono">{scmSyncLogs[0].allotmentRows ?? 0}</strong></div>
                 <div className="flex items-center gap-2 pt-1">
                   <span>Last sync ({getMonthName(Number(scmSyncLogs[0].month))} {scmSyncLogs[0].year}):</span>
                   <Badge text={scmSyncLogs[0].status} variant={scmSyncLogs[0].status} />
@@ -653,8 +649,7 @@ export default function SyncPage() {
                   key: "month", label: t("sync.month"),
                   render: (v, row) => `${getMonthName(Number(v))} ${row.year}`
                 },
-                { key: "roCount", label: "RO(s)", align: "right", mono: true },
-                { key: "truckChitCount", label: "Truck Chit(s)", align: "right", mono: true },
+                { key: "allotmentRows", label: "Allotment rows", align: "right", mono: true, render: (v) => String(v ?? 0) },
                 {
                   key: "status", label: t("customers.status"),
                   render: (v) => <Badge text={String(v)} variant={String(v)} />
