@@ -155,7 +155,7 @@ export default function SettingsPage() {
             <div className="text-xs text-gray-500 mt-1">{t("nav.transactions")}</div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-2xl font-bold font-mono text-emerald-600">{customersWithTransactions(customers, transactions).length}</div>
+            <div className="text-2xl font-bold font-mono text-emerald-600">{customersWithTransactions(customers, transactions, settings.fpsId).length}</div>
             <div className="text-xs text-gray-500 mt-1">{t("nav.customers")}</div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">

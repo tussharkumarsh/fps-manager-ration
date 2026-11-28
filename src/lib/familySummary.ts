@@ -6,12 +6,28 @@ import { rationMonth } from "./utils";
  * given (full, all-months) transaction list. Cards that never took ration
  * are left out of the dealer's customer list and every family count.
  * With no transactions loaded there is nothing to check against, so the
- * master is returned as is.
+ * master is returned as is (still limited to own cards when `dealerFpsId`
+ * is given).
  */
-export function customersWithTransactions(customers: Customer[], transactions: Transaction[]): Customer[] {
-  if (transactions.length === 0) return customers;
+export function customersWithTransactions(
+  customers: Customer[],
+  transactions: Transaction[],
+  dealerFpsId?: string
+): Customer[] {
+  const own = dealerFpsId ? customers.filter((c) => isOwnCard(c, dealerFpsId)) : customers;
+  if (transactions.length === 0) return own;
   const seen = new Set(transactions.map((t) => t.srcNo));
-  return customers.filter((c) => seen.has(c.srcNo));
+  return own.filter((c) => seen.has(c.srcNo));
+}
+
+/**
+ * A card of the dealer's own FPS: its beneficiary file named that FPS, or
+ * it was imported before files recorded a source. Cards from another FPS's
+ * file stay in the master (for names) but never count in the dealer's
+ * own figures.
+ */
+export function isOwnCard(c: Customer, dealerFpsId: string): boolean {
+  return !c.sourceFpsId || c.sourceFpsId === dealerFpsId;
 }
 
 /** A family count split by scheme. */

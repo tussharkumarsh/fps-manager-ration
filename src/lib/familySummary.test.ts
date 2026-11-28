@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { customersWithTransactions, familySummary, monthlyFamilySummary } from "./familySummary";
+import { customersWithTransactions, familySummary, isOwnCard, monthlyFamilySummary } from "./familySummary";
 import type { Customer, Transaction } from "@/types";
 
 const cust = (srcNo: string, scheme: "PHH" | "AAY", disabled = false): Customer => ({
@@ -123,4 +123,21 @@ test("customersWithTransactions keeps only master cards that ever transacted", (
   assert.deepEqual(customersWithTransactions(customers, txs).map((c) => c.srcNo), ["A1", "D1"]);
   // Nothing loaded yet: nothing to check against, the master stays whole.
   assert.equal(customersWithTransactions(customers, []).length, customers.length);
+});
+
+test("isOwnCard: no source or the dealer's FPS is own; another FPS is not", () => {
+  assert.equal(isOwnCard({ srcNo: "1", name: "a" }, "151209500212"), true);
+  assert.equal(isOwnCard({ srcNo: "1", name: "a", sourceFpsId: "151209500212" }, "151209500212"), true);
+  assert.equal(isOwnCard({ srcNo: "1", name: "a", sourceFpsId: "151209500199" }, "151209500212"), false);
+});
+
+test("customersWithTransactions with a dealer FPS drops other FPSs' cards", () => {
+  const master = [
+    { srcNo: "A1", name: "own", sourceFpsId: "151209500212" },
+    { srcNo: "B1", name: "other", sourceFpsId: "151209500199" },
+  ];
+  const txs = [tx("A1", "PHH", "2026-11-01 10:00"), tx("B1", "PHH", "2026-11-01 11:00", "151209500199")];
+  assert.deepEqual(customersWithTransactions(master, txs, "151209500212").map((c) => c.srcNo), ["A1"]);
+  // Without a dealer FPS nothing is dropped for its source.
+  assert.equal(customersWithTransactions(master, txs).length, 2);
 });

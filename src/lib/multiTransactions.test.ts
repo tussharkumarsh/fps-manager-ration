@@ -80,3 +80,10 @@ test("shopLabel prefers the saved shop name, then the portal owner name", () => 
   assert.equal(shopLabel("151209500218", map, dir), "151209500218 · Ram Ration");
   assert.equal(shopLabel("151209500228", map, dir), "151209500228 · JAYSHRI GULAB PARGHANE");
 });
+
+test("seenOtherShops still lists a card that is in the master from another FPS's file", () => {
+  const txs = [tx("B1", "2026-11-05 10:00", { portability: "151209500199" })];
+  const master = [{ srcNo: "B1", name: "Other", sourceFpsId: "151209500199" }];
+  const shops = seenOtherShops(txs, master, "151209500212");
+  assert.deepEqual(shops.map((s) => [s.shopFpsId, s.families]), [["151209500199", 1]]);
+});

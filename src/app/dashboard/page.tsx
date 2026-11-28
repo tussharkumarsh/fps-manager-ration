@@ -154,8 +154,11 @@ export default function DashboardPage() {
   // disabled and other-shop (portability) families.
   // Only master cards with at least one transaction (in any month) count.
   const customers = useMemo(
-    () => (aggregateMode ? masterCustomers : customersWithTransactions(masterCustomers, transactions)),
-    [aggregateMode, masterCustomers, transactions]
+    () =>
+      aggregateMode
+        ? masterCustomers
+        : customersWithTransactions(masterCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId),
+    [aggregateMode, masterCustomers, transactions, viewingDealer?.fpsId, settings.fpsId]
   );
   const families = useMemo(() => familySummary(scopedTransactions, customers), [scopedTransactions, customers]);
   const monthlyFamilies = useMemo(() => monthlyFamilySummary(transactions, customers), [transactions, customers]);

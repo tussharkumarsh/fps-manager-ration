@@ -45,7 +45,8 @@ function lastDispatchedMonth(txns: { date: string }[]): string {
 export default function CustomersPage() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const { customers: masterCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer } = useStore();
+  const { customers: masterCustomers, transactions, importCustomers, addCustomer, updateCustomer, deleteCustomer, viewingDealer, settings } = useStore();
+  const dealerFpsId = viewingDealer?.fpsId ?? settings.fpsId;
   const isAdmin = session?.role === "admin";
   const readOnly = isAdmin;
   const showDealerColumn = isAdmin && !viewingDealer;
@@ -80,8 +81,8 @@ export default function CustomersPage() {
   // every count. Until transactions load there is nothing to check against,
   // so the full master shows. The admin's all-dealers view is not filtered.
   const allCustomers = useMemo(
-    () => (showDealerColumn ? masterCustomers : customersWithTransactions(masterCustomers, transactions)),
-    [showDealerColumn, masterCustomers, transactions]
+    () => (showDealerColumn ? masterCustomers : customersWithTransactions(masterCustomers, transactions, dealerFpsId)),
+    [showDealerColumn, masterCustomers, transactions, dealerFpsId]
   );
   const hiddenNoTxn = masterCustomers.length - allCustomers.length;
 

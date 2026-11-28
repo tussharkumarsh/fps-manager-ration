@@ -34,8 +34,13 @@ export default function ReportsPage() {
   // Active master cards with at least one transaction (in any month): cards
   // that never took ration stay out of the pending list and every report.
   const customers = useMemo(
-    () => activeCustomers(aggregateMode ? allCustomers : customersWithTransactions(allCustomers, transactions)),
-    [aggregateMode, allCustomers, transactions]
+    () =>
+      activeCustomers(
+        aggregateMode
+          ? allCustomers
+          : customersWithTransactions(allCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId)
+      ),
+    [aggregateMode, allCustomers, transactions, viewingDealer?.fpsId, settings.fpsId]
   );
   const scopeLabel = aggregateMode
     ? t("common.allDealersCollective")

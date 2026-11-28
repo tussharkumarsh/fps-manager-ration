@@ -101,10 +101,10 @@ const useOtherShopsStore = create<OtherShopsState>((set, get) => ({
 
 // seenOtherShops walks every transaction; many components use this hook at
 // once, so it's computed once per transactions/customers snapshot.
-let seenCache: { txns: Transaction[]; customers: Customer[]; seen: SeenShop[] } | null = null;
-function seenShopsCached(txns: Transaction[], customers: Customer[]): SeenShop[] {
-  if (!seenCache || seenCache.txns !== txns || seenCache.customers !== customers) {
-    seenCache = { txns, customers, seen: seenOtherShops(txns, customers) };
+let seenCache: { txns: Transaction[]; customers: Customer[]; dealer: string; seen: SeenShop[] } | null = null;
+function seenShopsCached(txns: Transaction[], customers: Customer[], dealer: string): SeenShop[] {
+  if (!seenCache || seenCache.txns !== txns || seenCache.customers !== customers || seenCache.dealer !== dealer) {
+    seenCache = { txns, customers, dealer, seen: seenOtherShops(txns, customers, dealer || undefined) };
   }
   return seenCache.seen;
 }
@@ -129,7 +129,8 @@ export function useOtherShops() {
 
   // Another account's book may still be in memory until the new one loads.
   const shops = useMemo(() => (state.loadedFor === key ? state.shops : []), [state.loadedFor, state.shops, key]);
-  const seen = seenShopsCached(transactions, customers);
+  const dealerFpsId = useStore((s) => s.viewingDealer?.fpsId ?? s.settings.fpsId);
+  const seen = seenShopsCached(transactions, customers, dealerFpsId);
 
   const ids = useMemo(() => {
     const set = new Set(seen.map((s) => s.shopFpsId));
