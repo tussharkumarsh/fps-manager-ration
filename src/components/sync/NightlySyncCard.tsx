@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import { getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { SyncRun } from "@/types";
@@ -19,8 +20,7 @@ export function NightlySyncCard({ viewFpsId }: { viewFpsId?: string }) {
   const [runs, setRuns] = useState<SyncRun[] | null>(null);
 
   useEffect(() => {
-    const view = viewFpsId ? `?viewFpsId=${encodeURIComponent(viewFpsId)}` : "";
-    apiFetch(`/api/sync-runs${view}`)
+    apiFetch(withView("/api/sync-runs", viewFpsId))
       .then((r) => r.json())
       .then((d) => setRuns(d.success ? d.runs : []))
       .catch(() => setRuns([]));

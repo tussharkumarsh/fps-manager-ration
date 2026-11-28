@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 
 /**
  * On login (from any browser/device), loads every transaction already
@@ -50,9 +51,8 @@ export function useLoadAllHistory(): void {
     if (loadedRef.current === key) return;
     loadedRef.current = key;
 
-    const suffix = viewingFpsId ? `?viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
 
-    apiFetch(`/api/transactions/all${suffix}`)
+    apiFetch(withView("/api/transactions/all", viewingFpsId))
       .then((r) => r.json())
       .then((data) => {
         if (data.success) addTransactions(data.transactions);
@@ -63,7 +63,7 @@ export function useLoadAllHistory(): void {
         loadedRef.current = null;
       });
 
-    apiFetch(`/api/customers${suffix}`)
+    apiFetch(withView("/api/customers", viewingFpsId))
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setCustomers(data.customers);

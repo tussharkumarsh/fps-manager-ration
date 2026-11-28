@@ -7,6 +7,7 @@ import { useOtherShops } from "@/store/useOtherShops";
 import { ShopDialog } from "@/components/otherShops/ShopDialog";
 import { ShopCard, type ShopCardData } from "@/components/otherShops/ShopCard";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import { homeFpsOf } from "@/lib/otherShops";
 import { relevantShopIds } from "@/lib/shopCards";
 import { myCustomers } from "@/lib/familySummary";
@@ -37,16 +38,15 @@ export default function OtherShopsPage() {
   const aggregateMode = session?.role === "admin" && !viewingDealer;
   const ownFps = viewingDealer?.fpsId ?? settings.fpsId;
 
-  const viewParam = viewingDealer ? `?viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
   const loadImports = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/customers/imports${viewParam}`);
+      const res = await apiFetch(withView("/api/customers/imports", viewingDealer?.fpsId));
       const data = await res.json();
       if (res.ok && data.success) setImports(data.imports);
     } catch {
       // Non-fatal — cards just show without the beneficiary summary.
     }
-  }, [viewParam]);
+  }, [viewingDealer?.fpsId]);
   useEffect(() => { if (!aggregateMode) loadImports(); }, [aggregateMode, loadImports]);
 
   // Shops related to this dealer — the only ones a shop report is kept for.

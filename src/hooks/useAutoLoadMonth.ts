@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 
 export interface AutoLoadInfo {
   loading: boolean;
@@ -50,8 +51,7 @@ export function useAutoLoadMonth(month: string, year: string): AutoLoadInfo {
     let cancelled = false;
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }));
 
-    const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
-    apiFetch(`/api/transactions?month=${month}&year=${year}${viewParam}`)
+    apiFetch(withView(`/api/transactions?month=${month}&year=${year}`, viewingFpsId))
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;

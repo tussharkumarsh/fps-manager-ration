@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import { seenOtherShops, type SeenShop } from "@/lib/otherShops";
 import type { Customer, FpsDirectoryEntry, OtherShop, ShopProfile, Transaction } from "@/types";
 
@@ -59,8 +60,7 @@ const useOtherShopsStore = create<OtherShopsState>((set, get) => ({
     if (!key || (!force && get().profilesKey === key)) return;
     set({ profilesKey: key });
     try {
-      const view = viewFpsId ? `&viewFpsId=${encodeURIComponent(viewFpsId)}` : "";
-      const res = await apiFetch(`/api/other-shops/profiles?ids=${encodeURIComponent(key)}${view}`);
+      const res = await apiFetch(withView(`/api/other-shops/profiles?ids=${encodeURIComponent(key)}`, viewFpsId));
       const data = await res.json();
       if (!res.ok || !data.success) return;
       const add: Record<string, ShopProfile> = {};
@@ -86,8 +86,7 @@ const useOtherShopsStore = create<OtherShopsState>((set, get) => ({
     if (get().loadedFor === key || get().loading) return;
     set({ loading: true, error: "" });
     try {
-      const viewParam = viewFpsId ? `?viewFpsId=${encodeURIComponent(viewFpsId)}` : "";
-      const res = await apiFetch(`/api/other-shops${viewParam}`);
+      const res = await apiFetch(withView("/api/other-shops", viewFpsId));
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Failed to load shops");
       set({ shops: data.shops, loadedFor: key, loading: false });

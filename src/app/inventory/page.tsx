@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { EmptyState } from "@/components/ui";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import { formatNumber, getMonthName } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { GovStockRegisterEntry, InventoryItem, InventoryLedgerEntry } from "@/types";
@@ -134,8 +135,7 @@ export default function InventoryPage() {
     govRequestKey.current = key;
     setGovError("");
     try {
-      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
-      const res = await apiFetch(`/api/inventory/gov-stock?year=${yearFilter}&month=${monthFilter}${viewParam}`);
+      const res = await apiFetch(withView(`/api/inventory/gov-stock?year=${yearFilter}&month=${monthFilter}`, viewingDealer?.fpsId));
       const data = await res.json();
       if (govRequestKey.current !== key) return;
       if (!res.ok) throw new Error(data.error || "Failed to load the government stock register");
@@ -187,8 +187,7 @@ export default function InventoryPage() {
         setAggregateRows(data.rows);
         return;
       }
-      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
-      const res = await apiFetch(`/api/inventory?year=${yearFilter}&month=${monthFilter}${viewParam}`);
+      const res = await apiFetch(withView(`/api/inventory?year=${yearFilter}&month=${monthFilter}`, viewingDealer?.fpsId));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load inventory");
       setInventoryItems(data.items);
@@ -211,8 +210,7 @@ export default function InventoryPage() {
     setScmLoading(true);
     setScmError("");
     try {
-      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
-      const res = await apiFetch(`/api/inventory/scm?year=${yearFilter}&month=${monthFilter}${viewParam}`);
+      const res = await apiFetch(withView(`/api/inventory/scm?year=${yearFilter}&month=${monthFilter}`, viewingDealer?.fpsId));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load SCM inventory summary");
       setScmSummary(data.rows || []);

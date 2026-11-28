@@ -7,6 +7,7 @@ import { Badge, DataTable } from "@/components/ui";
 import { getMonthName } from "@/lib/utils";
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import { monthsToBackfill, noAllocationMonths, currentIstYearMonth } from "@/lib/backfill";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { DayComparison } from "@/app/api/transactions/verify/route";
@@ -69,9 +70,11 @@ export default function SyncPage() {
     setVerifyError("");
     setVerifyResult(null);
     try {
-      const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
       const res = await apiFetch(
-        `/api/transactions/verify?month=${encodeURIComponent(monthYear.month)}&year=${encodeURIComponent(monthYear.year)}${viewParam}`
+        withView(
+          `/api/transactions/verify?month=${encodeURIComponent(monthYear.month)}&year=${encodeURIComponent(monthYear.year)}`,
+          viewingDealer?.fpsId
+        )
       );
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Verification failed");

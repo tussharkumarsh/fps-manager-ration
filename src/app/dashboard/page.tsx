@@ -16,6 +16,7 @@ import { FamilySummarySection, MonthWiseFamilyTable } from "@/components/dashboa
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import type { InventoryItem, InventoryLedgerEntry } from "@/types";
 
 const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
@@ -55,8 +56,7 @@ function useInventorySnapshot(month: string, year: string, viewingFpsId: string 
           setStock(Array.from(byItem.values()));
           return;
         }
-        const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
-        const res = await apiFetch(`/api/inventory?year=${year}&month=${month}${viewParam}`);
+        const res = await apiFetch(withView(`/api/inventory?year=${year}&month=${month}`, viewingFpsId));
         const data = await res.json();
         if (!res.ok || cancelled) return;
         const items = data.items as InventoryItem[];
@@ -96,8 +96,7 @@ function useScmReceived(month: string, year: string, viewingFpsId: string | unde
     let cancelled = false;
     (async () => {
       try {
-        const viewParam = viewingFpsId ? `&viewFpsId=${encodeURIComponent(viewingFpsId)}` : "";
-        const res = await apiFetch(`/api/inventory/scm?year=${year}&month=${month}${viewParam}`);
+        const res = await apiFetch(withView(`/api/inventory/scm?year=${year}&month=${month}`, viewingFpsId));
         const data = await res.json();
         if (!res.ok || cancelled) return;
         const map = new Map<string, number>();

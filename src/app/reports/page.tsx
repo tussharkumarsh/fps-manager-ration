@@ -8,6 +8,7 @@ import { calculateDailySummary, getMonthName, formatNumber, formatDate, dateOnly
 import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import type { DailySummary, Transaction, Customer, ManualGoshwara } from "@/types";
 import { myCustomers } from "@/lib/familySummary";
 import { MultiTransactionReport } from "@/components/reports/MultiTransactionReport";
@@ -216,10 +217,9 @@ export default function ReportsPage() {
     if (reportType !== "goshwara" || !manualEnabled) return;
     let cancelled = false;
     const [year, month] = monthFilter.split("-");
-    const viewParam = viewingDealer ? `&viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
     setManualStatus("idle");
     applyManual(null);
-    apiFetch(`/api/goshwara?year=${year}&month=${month}${viewParam}`)
+    apiFetch(withView(`/api/goshwara?year=${year}&month=${month}`, viewingDealer?.fpsId))
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (!cancelled && data) applyManual(data.goshwara); })
       .catch(() => { /* Non-fatal — the form just starts empty. */ });

@@ -6,6 +6,7 @@ import { useStore } from "@/store/useStore";
 import { Badge, KPICard, EmptyState } from "@/components/ui";
 import { formatNumber, formatDate, dateOnly, getMonthName, getCurrentMonth, rationMonth } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
+import { withView } from "@/lib/viewParam";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { BeneficiaryImport, Customer, FamilyMember, Transaction } from "@/types";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
@@ -64,18 +65,17 @@ export default function CustomersPage() {
     "all" | "active" | "disabled" | "otherShop" | "unlisted" | "otherFps" | "notInLatest"
   >("all");
   const [imports, setImports] = useState<BeneficiaryImport[]>([]);
-  const viewParam = viewingDealer ? `?viewFpsId=${encodeURIComponent(viewingDealer.fpsId)}` : "";
 
   // Latest beneficiary-file upload per source FPS (the FPS-wise summary).
   const loadImports = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/customers/imports${viewParam}`);
+      const res = await apiFetch(withView("/api/customers/imports", viewingDealer?.fpsId));
       const data = await res.json();
       if (res.ok && data.success) setImports(data.imports);
     } catch {
       // Non-fatal — the summary just stays as it was.
     }
-  }, [viewParam]);
+  }, [viewingDealer?.fpsId]);
   useEffect(() => { loadImports(); }, [loadImports]);
   const { byFps: shopsByFps, directory: shopDirectory } = useOtherShops();
   const [disableTarget, setDisableTarget] = useState<Customer | null>(null);
@@ -216,9 +216,9 @@ export default function CustomersPage() {
     if (current && current !== "error") return;
     setMembersByCard((m) => ({ ...m, [key]: "loading" }));
     try {
-      const view = c.fpsId ?? viewingDealer?.fpsId;
-      const viewQuery = view ? `&viewFpsId=${encodeURIComponent(view)}` : "";
-      const res = await apiFetch(`/api/customers/members?srcNo=${encodeURIComponent(c.srcNo)}${viewQuery}`);
+      const res = await apiFetch(
+        withView(`/api/customers/members?srcNo=${encodeURIComponent(c.srcNo)}`, c.fpsId ?? viewingDealer?.fpsId)
+      );
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Failed");
       setMembersByCard((m) => ({ ...m, [key]: data.members as FamilyMember[] }));
