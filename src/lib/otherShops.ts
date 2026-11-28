@@ -1,5 +1,5 @@
 import type { Customer, FpsDirectoryEntry, OtherShop, Transaction } from "@/types";
-import { isOwnCard } from "./familySummary";
+import { isOwnCard, legacyOtherShopCards } from "./familySummary";
 
 /**
  * The FPS number a transaction's ration card belongs to when it isn't this
@@ -48,9 +48,10 @@ export interface SeenShop {
  * master cards that came from another FPS's file don't count as own.
  */
 export function seenOtherShops(transactions: Transaction[], customers: Customer[], dealerFpsId?: string): SeenShop[] {
-  const own = new Set(
-    customers.filter((c) => !dealerFpsId || isOwnCard(c, dealerFpsId)).map((c) => c.srcNo)
-  );
+  const ownCards = customers.filter((c) => !dealerFpsId || isOwnCard(c, dealerFpsId));
+  // Old master cards whose transactions now name another FPS belong to it.
+  const elsewhere = dealerFpsId ? legacyOtherShopCards(ownCards, transactions) : new Set<string>();
+  const own = new Set(ownCards.map((c) => c.srcNo).filter((id) => !elsewhere.has(id)));
   const byShop = new Map<string, { cards: Set<string>; transactions: number; lastDate: string }>();
   for (const t of transactions) {
     const fps = homeFpsOf(t);

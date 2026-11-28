@@ -14,10 +14,16 @@ export function customersWithTransactions(
   transactions: Transaction[],
   dealerFpsId?: string
 ): Customer[] {
-  const own = dealerFpsId ? customers.filter((c) => isOwnCard(c, dealerFpsId)) : customers;
+  if (!dealerFpsId) {
+    if (transactions.length === 0) return customers;
+    const seen = new Set(transactions.map((t) => t.srcNo));
+    return customers.filter((c) => seen.has(c.srcNo));
+  }
+  const own = customers.filter((c) => isOwnCard(c, dealerFpsId));
   if (transactions.length === 0) return own;
   const seen = new Set(transactions.map((t) => t.srcNo));
-  return own.filter((c) => seen.has(c.srcNo));
+  const elsewhere = legacyOtherShopCards(own, transactions);
+  return own.filter((c) => seen.has(c.srcNo) && !elsewhere.has(c.srcNo));
 }
 
 /** Own cards left out of the dealer's list because they have no transaction. */
@@ -26,8 +32,33 @@ export function hiddenWithoutTransactions(
   transactions: Transaction[],
   dealerFpsId: string
 ): number {
-  const own = customers.filter((c) => isOwnCard(c, dealerFpsId)).length;
-  return own - customersWithTransactions(customers, transactions, dealerFpsId).length;
+  const seen = new Set(transactions.map((t) => t.srcNo));
+  return customers.filter((c) => isOwnCard(c, dealerFpsId) && !seen.has(c.srcNo)).length;
+}
+
+const homeOf = (t: Transaction) => {
+  const port = (t.portability || "").trim();
+  return port && port.toLowerCase() !== "self" ? port : "";
+};
+
+/**
+ * Old master cards (no government file confirms them: empty source) whose
+ * latest transaction names another FPS in its portability column. They are
+ * that FPS's cards, kept in the master by an earlier import, and count as
+ * other-shop families. A card the dealer's own file lists stays his,
+ * whatever the column says.
+ */
+export function legacyOtherShopCards(customers: Customer[], transactions: Transaction[]): Set<string> {
+  const legacy = new Set(customers.filter((c) => !c.sourceFpsId).map((c) => c.srcNo));
+  const latest = new Map<string, Transaction>();
+  for (const t of transactions) {
+    if (!legacy.has(t.srcNo)) continue;
+    const prev = latest.get(t.srcNo);
+    if (!prev || t.date > prev.date) latest.set(t.srcNo, t);
+  }
+  const out = new Set<string>();
+  for (const [srcNo, t] of Array.from(latest.entries())) if (homeOf(t)) out.add(srcNo);
+  return out;
 }
 
 /**

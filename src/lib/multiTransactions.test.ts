@@ -87,3 +87,11 @@ test("seenOtherShops still lists a card that is in the master from another FPS's
   const shops = seenOtherShops(txs, master, "151209500212");
   assert.deepEqual(shops.map((s) => [s.shopFpsId, s.families]), [["151209500199", 1]]);
 });
+
+test("seenOtherShops lists the shop of an old master card whose transactions name it", () => {
+  const txs = [tx("L1", "2026-11-12 10:34", { portability: "151209500228" })];
+  const master = [{ srcNo: "L1", name: "legacy" }];
+  assert.deepEqual(seenOtherShops(txs, master, "151209500212").map((s) => s.shopFpsId), ["151209500228"]);
+  // Confirmed by the dealer's own file: stays own, not seen as another shop.
+  assert.deepEqual(seenOtherShops(txs, [{ srcNo: "L1", name: "x", sourceFpsId: "151209500212" }], "151209500212"), []);
+});

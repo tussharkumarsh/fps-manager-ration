@@ -161,3 +161,23 @@ test("families outside the counted master take their name from the whole master"
   // A card in no master keeps the transaction's name (none here).
   assert.equal(s.unlistedFamilies[0].name, undefined);
 });
+
+test("an old master card (no file source) whose latest transaction names another FPS is that FPS's card", () => {
+  const master = [
+    { srcNo: "L1", name: "legacy, now 228" },                               // no source, latest txn says 228
+    { srcNo: "L2", name: "legacy, back to Self" },                          // no source, latest txn Self
+    { srcNo: "F1", name: "in own file", sourceFpsId: "151209500212" },      // file says own: stays own
+  ];
+  const txs = [
+    tx("L1", "PHH", "2026-11-01 10:00", "151209500228"),
+    tx("L2", "PHH", "2026-01-01 10:00", "151209500228"),
+    tx("L2", "PHH", "2026-11-01 10:00"),
+    tx("F1", "PHH", "2026-11-01 10:00", "151209500227"),
+  ];
+  assert.deepEqual(customersWithTransactions(master, txs, "151209500212").map((c) => c.srcNo), ["L2", "F1"]);
+  // It then shows as an other-shop family of 151209500228, named from the master.
+  const s = familySummary(txs, customersWithTransactions(master, txs, "151209500212"), master);
+  assert.deepEqual(s.otherShopFamilies.map((f) => [f.srcNo, f.homeFps, f.name]), [["L1", "151209500228", "legacy, now 228"]]);
+  // And it is not "hidden for having no transaction".
+  assert.equal(hiddenWithoutTransactions(master, txs, "151209500212"), 0);
+});
