@@ -7,7 +7,7 @@ import { Badge, KPICard, EmptyState } from "@/components/ui";
 import { formatNumber, formatDate, dateOnly, getMonthName, getCurrentMonth, rationMonth } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslation } from "@/lib/i18n/useTranslation";
-import type { BeneficiaryImport, Customer, Transaction } from "@/types";
+import type { BeneficiaryImport, Customer, FamilyMember, Transaction } from "@/types";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { useOtherShops } from "@/store/useOtherShops";
 import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
@@ -16,7 +16,8 @@ import { isNotInLatestFile, latestBySource } from "@/lib/fpsSummary";
 
 const PAGE_SIZE = 25;
 
-type CustomerWithDealer = Customer & { dealerName?: string };
+/** In the admin all-dealers list each card also names its dealer. */
+type CustomerWithDealer = Customer & { dealerName?: string; fpsId?: string };
 
 /**
  * The FPS a card belongs to, from the latest of its transactions whose
@@ -205,13 +206,36 @@ export default function CustomersPage() {
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 
-  const toggleExpanded = (srcNo: string) => {
+  // Family members aren't in the customer list (it would be several MB);
+  // a card's members are read when its row is first opened.
+  const [membersByCard, setMembersByCard] = useState<Record<string, FamilyMember[] | "loading" | "error">>({});
+  const memberKey = (c: CustomerWithDealer) => `${c.fpsId ?? viewingDealer?.fpsId ?? ""}:${c.srcNo}`;
+  const loadMembers = async (c: CustomerWithDealer) => {
+    const key = memberKey(c);
+    const current = membersByCard[key];
+    if (current && current !== "error") return;
+    setMembersByCard((m) => ({ ...m, [key]: "loading" }));
+    try {
+      const view = c.fpsId ?? viewingDealer?.fpsId;
+      const viewQuery = view ? `&viewFpsId=${encodeURIComponent(view)}` : "";
+      const res = await apiFetch(`/api/customers/members?srcNo=${encodeURIComponent(c.srcNo)}${viewQuery}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed");
+      setMembersByCard((m) => ({ ...m, [key]: data.members as FamilyMember[] }));
+    } catch {
+      setMembersByCard((m) => ({ ...m, [key]: "error" }));
+    }
+  };
+
+  const toggleExpanded = (c: CustomerWithDealer) => {
+    const opening = !expanded.has(c.srcNo);
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(srcNo)) next.delete(srcNo);
-      else next.add(srcNo);
+      if (next.has(c.srcNo)) next.delete(c.srcNo);
+      else next.add(c.srcNo);
       return next;
     });
+    if (opening && !c.members?.length) loadMembers(c);
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -514,14 +538,16 @@ export default function CustomersPage() {
                 {paged.map((c, i) => {
                   const dealer = c as CustomerWithDealer;
                   const isOpen = expanded.has(c.srcNo);
-                  const hasMembers = (c.members?.length || 0) > 0;
+                  const hasMembers = (c.memberCount || 0) > 0 || (c.members?.length || 0) > 0;
+                  const loaded = c.members?.length ? c.members : membersByCard[memberKey(dealer)];
+                  const members = Array.isArray(loaded) ? loaded : [];
                   return (
                     <Fragment key={`${dealer.dealerName || ""}-${c.srcNo}`}>
                       <tr
                         className={`border-b border-gray-100 hover:bg-blue-50/50 transition-colors ${
                           i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
                         } ${hasMembers ? "cursor-pointer" : ""}`}
-                        onClick={() => hasMembers && toggleExpanded(c.srcNo)}
+                        onClick={() => hasMembers && toggleExpanded(dealer)}
                       >
                         <td className="px-2 py-2 text-center">
                           {hasMembers && (
@@ -645,8 +671,15 @@ export default function CustomersPage() {
                               </div>
                             )}
                             <div className="text-xs font-semibold text-gray-500 mb-2">
-                              {t("customers.familyMembers")} ({c.members!.length})
+                              {t("customers.familyMembers")} ({members.length || c.memberCount || 0})
                             </div>
+                            {loaded === "loading" && <div className="text-xs text-gray-400 py-2">…</div>}
+                            {loaded === "error" && (
+                              <button onClick={() => loadMembers(dealer)} className="text-xs text-red-600 hover:underline py-2">
+                                {t("customers.membersLoadFailed")}
+                              </button>
+                            )}
+                            {members.length > 0 && (
                             <div className="overflow-x-auto rounded border border-gray-200 bg-white">
                               <table className="w-full border-collapse text-xs">
                                 <thead>
@@ -666,7 +699,7 @@ export default function CustomersPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {c.members!.map((m, mi) => (
+                                  {members.map((m, mi) => (
                                     <tr key={mi} className={mi % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
                                       <td className="px-2 py-1.5 font-mono">{m.msNo}</td>
                                       <td className="px-2 py-1.5">{m.nameEng}</td>
@@ -687,6 +720,7 @@ export default function CustomersPage() {
                                 </tbody>
                               </table>
                             </div>
+                            )}
                           </td>
                         </tr>
                       )}

@@ -164,6 +164,7 @@ const en = {
     dealer: "Dealer",
   },
   customers: {
+    membersLoadFailed: "Could not load the family members — tap to retry",
     hiddenNotInFile: "{count} old master cards not in your latest government file are hidden",
     tookThisMonth: "Took ration · {month}",
     tookThisMonthSub: "of {count} active customers",
@@ -668,6 +669,7 @@ const hi: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    membersLoadFailed: "परिवार के सदस्य लोड नहीं हो सके — फिर से कोशिश करने के लिए दबाएँ",
     hiddenNotInFile: "{count} पुराने मास्टर कार्ड जो आपकी नवीनतम सरकारी फ़ाइल में नहीं हैं, छिपाए गए हैं",
     tookThisMonth: "राशन लिया · {month}",
     tookThisMonthSub: "{count} सक्रिय ग्राहकों में से",
@@ -1172,6 +1174,7 @@ const mr: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    membersLoadFailed: "कुटुंबातील सदस्य लोड झाले नाहीत — पुन्हा प्रयत्न करण्यासाठी दाबा",
     hiddenNotInFile: "{count} जुनी मास्टर कार्डे जी तुमच्या नवीनतम सरकारी फाइलमध्ये नाहीत, लपवली आहेत",
     tookThisMonth: "रेशन घेतले · {month}",
     tookThisMonthSub: "{count} सक्रिय ग्राहकांपैकी",
