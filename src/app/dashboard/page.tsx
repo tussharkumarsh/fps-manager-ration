@@ -9,7 +9,7 @@ import {
 import { useStore } from "@/store/useStore";
 import { EmptyState } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, rationMonth } from "@/lib/utils";
-import { customersWithTransactions, familySummary, monthlyFamilySummary } from "@/lib/familySummary";
+import { familySummary, latestOwnFileCards, monthlyFamilySummary, myCustomers } from "@/lib/familySummary";
 import { transactionBreakdown, type TransactionBreakdown } from "@/lib/multiTransactions";
 import Link from "next/link";
 import { FamilySummarySection, MonthWiseFamilyTable } from "@/components/dashboard/FamilySummary";
@@ -157,9 +157,10 @@ export default function DashboardPage() {
     () =>
       aggregateMode
         ? masterCustomers
-        : customersWithTransactions(masterCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId),
+        : myCustomers(masterCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId),
     [aggregateMode, masterCustomers, transactions, viewingDealer?.fpsId, settings.fpsId]
   );
+  const fileMode = !aggregateMode && latestOwnFileCards(masterCustomers, viewingDealer?.fpsId ?? settings.fpsId) !== null;
   // The whole master (incl. other FPSs' cards) only supplies names.
   const families = useMemo(
     () => familySummary(scopedTransactions, customers, masterCustomers),
@@ -338,6 +339,7 @@ export default function DashboardPage() {
 
       {/* Family summary: matched against active Customer Master families */}
       <FamilySummarySection
+        fileMode={fileMode}
         key={monthFilter}
         summary={families}
         isAllMonths={monthFilter === "ALL"}
@@ -380,7 +382,7 @@ export default function DashboardPage() {
       </div>
 
       {monthlyFamilies.length > 1 && (
-        <MonthWiseFamilyTable rows={monthlyFamilies} selected={monthFilter} onSelect={setMonthFilter} />
+        <MonthWiseFamilyTable rows={monthlyFamilies} selected={monthFilter} onSelect={setMonthFilter} fileMode={fileMode} />
       )}
 
       {/* Charts Row */}

@@ -26,6 +26,43 @@ export function customersWithTransactions(
   return own.filter((c) => seen.has(c.srcNo) && !elsewhere.has(c.srcNo));
 }
 
+/**
+ * The cards of the dealer's latest uploaded government beneficiary file
+ * for his own FPS (every card stamped with that upload's time), or null
+ * when he has not uploaded one.
+ */
+export function latestOwnFileCards(customers: Customer[], dealerFpsId: string): Customer[] | null {
+  const fileCards = customers.filter((c) => c.sourceFpsId === dealerFpsId && c.portalSyncedAt);
+  if (fileCards.length === 0) return null;
+  const latest = Math.max(...fileCards.map((c) => Date.parse(c.portalSyncedAt!)));
+  return fileCards.filter((c) => Date.parse(c.portalSyncedAt!) === latest);
+}
+
+/**
+ * The dealer's real customers. Once he has uploaded his own beneficiary
+ * file, they are exactly the cards of its latest upload — transacted or not,
+ * active or disabled. Before that, the master cards with a transaction
+ * (see customersWithTransactions).
+ */
+export function myCustomers(customers: Customer[], transactions: Transaction[], dealerFpsId: string): Customer[] {
+  return latestOwnFileCards(customers, dealerFpsId) ?? customersWithTransactions(customers, transactions, dealerFpsId);
+}
+
+/**
+ * Own master cards left out of the dealer's list: in "file" mode those not
+ * in his latest own file; in "transactions" mode those with no transaction.
+ */
+export function hiddenFromMaster(
+  customers: Customer[],
+  transactions: Transaction[],
+  dealerFpsId: string
+): { count: number; mode: "file" | "transactions" } {
+  const file = latestOwnFileCards(customers, dealerFpsId);
+  if (!file) return { count: hiddenWithoutTransactions(customers, transactions, dealerFpsId), mode: "transactions" };
+  const kept = new Set(file.map((c) => c.srcNo));
+  return { count: customers.filter((c) => isOwnCard(c, dealerFpsId) && !kept.has(c.srcNo)).length, mode: "file" };
+}
+
 /** Own cards left out of the dealer's list because they have no transaction. */
 export function hiddenWithoutTransactions(
   customers: Customer[],

@@ -59,6 +59,10 @@ const en = {
     tooManyAttempts: "Too many failed attempts. Please try again in 15 minutes.",
   },
   dashboard: {
+    notInFileFamilies: "Not in Your Latest File",
+    notInFileSub: "Your shop's cards (portability Self) that took ration but are not in your latest government file",
+    eqNotInFile: "not in your latest file",
+    notInFileShort: "Not in file",
     eqServedAtShop: "families took ration at your shop",
     eqMyCustomers: "your customers",
     eqDisabled: "disabled",
@@ -156,6 +160,9 @@ const en = {
     dealer: "Dealer",
   },
   customers: {
+    hiddenNotInFile: "{count} old master cards not in your latest government file are hidden",
+    tookThisMonth: "Took ration · {month}",
+    tookThisMonthSub: "of {count} active customers",
     ownFps: "Your FPS",
     updatedOn: "Updated",
     totalCards: "Ration cards",
@@ -551,6 +558,10 @@ const hi: typeof en = {
     tooManyAttempts: "बहुत ज़्यादा गलत प्रयास। कृपया 15 मिनट बाद फिर से कोशिश करें।",
   },
   dashboard: {
+    notInFileFamilies: "आपकी नवीनतम फ़ाइल में नहीं",
+    notInFileSub: "आपकी दुकान के कार्ड (पोर्टेबिलिटी Self) जिन्होंने राशन लिया पर आपकी नवीनतम सरकारी फ़ाइल में नहीं हैं",
+    eqNotInFile: "आपकी नवीनतम फ़ाइल में नहीं",
+    notInFileShort: "फ़ाइल में नहीं",
     eqServedAtShop: "परिवारों ने आपकी दुकान से राशन लिया",
     eqMyCustomers: "आपके ग्राहक",
     eqDisabled: "निष्क्रिय",
@@ -648,6 +659,9 @@ const hi: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    hiddenNotInFile: "{count} पुराने मास्टर कार्ड जो आपकी नवीनतम सरकारी फ़ाइल में नहीं हैं, छिपाए गए हैं",
+    tookThisMonth: "राशन लिया · {month}",
+    tookThisMonthSub: "{count} सक्रिय ग्राहकों में से",
     ownFps: "आपकी FPS",
     updatedOn: "अपडेट",
     totalCards: "राशन कार्ड",
@@ -1043,6 +1057,10 @@ const mr: typeof en = {
     tooManyAttempts: "खूप चुकीचे प्रयत्न झाले. कृपया 15 मिनिटांनी पुन्हा प्रयत्न करा.",
   },
   dashboard: {
+    notInFileFamilies: "तुमच्या नवीनतम फाइलमध्ये नाही",
+    notInFileSub: "तुमच्या दुकानाची कार्डे (पोर्टेबिलिटी Self) ज्यांनी रेशन घेतले पण तुमच्या नवीनतम सरकारी फाइलमध्ये नाहीत",
+    eqNotInFile: "तुमच्या नवीनतम फाइलमध्ये नाही",
+    notInFileShort: "फाइलमध्ये नाही",
     eqServedAtShop: "कुटुंबांनी तुमच्या दुकानातून रेशन घेतले",
     eqMyCustomers: "तुमचे ग्राहक",
     eqDisabled: "निष्क्रिय",
@@ -1140,6 +1158,9 @@ const mr: typeof en = {
     dealer: "डीलर",
   },
   customers: {
+    hiddenNotInFile: "{count} जुनी मास्टर कार्डे जी तुमच्या नवीनतम सरकारी फाइलमध्ये नाहीत, लपवली आहेत",
+    tookThisMonth: "रेशन घेतले · {month}",
+    tookThisMonthSub: "{count} सक्रिय ग्राहकांपैकी",
     ownFps: "तुमचे FPS",
     updatedOn: "अपडेट",
     totalCards: "रेशन कार्डे",

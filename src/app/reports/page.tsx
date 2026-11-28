@@ -9,7 +9,7 @@ import { useAutoLoadMonth } from "@/hooks/useAutoLoadMonth";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { apiFetch } from "@/lib/apiFetch";
 import type { DailySummary, Transaction, Customer, ManualGoshwara } from "@/types";
-import { customersWithTransactions } from "@/lib/familySummary";
+import { myCustomers } from "@/lib/familySummary";
 import { MultiTransactionReport } from "@/components/reports/MultiTransactionReport";
 
 /** The most recent transaction month for this customer, e.g. "July 2026" — or "" if none. */
@@ -38,7 +38,7 @@ export default function ReportsPage() {
       activeCustomers(
         aggregateMode
           ? allCustomers
-          : customersWithTransactions(allCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId)
+          : myCustomers(allCustomers, transactions, viewingDealer?.fpsId ?? settings.fpsId)
       ),
     [aggregateMode, allCustomers, transactions, viewingDealer?.fpsId, settings.fpsId]
   );

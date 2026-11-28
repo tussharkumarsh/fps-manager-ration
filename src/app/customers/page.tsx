@@ -4,14 +4,14 @@ import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "rea
 import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { Badge, KPICard, EmptyState } from "@/components/ui";
-import { formatNumber, formatDate, dateOnly, getMonthName } from "@/lib/utils";
+import { formatNumber, formatDate, dateOnly, getMonthName, getCurrentMonth, rationMonth } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import type { BeneficiaryImport, Customer, Transaction } from "@/types";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { useOtherShops } from "@/store/useOtherShops";
 import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
-import { customersWithTransactions, hiddenWithoutTransactions, isOwnCard } from "@/lib/familySummary";
+import { hiddenFromMaster, isOwnCard, myCustomers } from "@/lib/familySummary";
 import { isNotInLatestFile, latestBySource } from "@/lib/fpsSummary";
 
 const PAGE_SIZE = 25;
@@ -98,10 +98,16 @@ export default function CustomersPage() {
   // every count. Until transactions load there is nothing to check against,
   // so the full master shows. The admin's all-dealers view is not filtered.
   const allCustomers = useMemo(
-    () => (showDealerColumn ? masterCustomers : customersWithTransactions(masterCustomers, transactions, dealerFpsId)),
+    () => (showDealerColumn ? masterCustomers : myCustomers(masterCustomers, transactions, dealerFpsId)),
     [showDealerColumn, masterCustomers, transactions, dealerFpsId]
   );
-  const hiddenNoTxn = showDealerColumn ? 0 : hiddenWithoutTransactions(masterCustomers, transactions, dealerFpsId);
+  const hidden = showDealerColumn
+    ? { count: 0, mode: "transactions" as const }
+    : hiddenFromMaster(masterCustomers, transactions, dealerFpsId);
+  // With the dealer's own government file uploaded, his customers are that
+  // file's cards; master cards outside it are listed under "not in your
+  // latest file" instead.
+  const fileMode = hidden.mode === "file";
 
   // Cards from another FPS's beneficiary file: kept for names, never counted.
   const otherFpsCards = useMemo(
@@ -152,6 +158,12 @@ export default function CustomersPage() {
   }, [allCustomers, cardFilter, otherShopFamilies, unlistedCards, otherFpsCards, notInLatestCards]);
   const disabledCount = useMemo(() => allCustomers.filter((c) => c.disabled).length, [allCustomers]);
   const activeCount = allCustomers.length - disabledCount;
+  // Active customers with a transaction in the current ration month.
+  const tookThisMonth = useMemo(() => {
+    const month = getCurrentMonth();
+    const took = new Set(transactions.filter((tx) => rationMonth(tx) === month).map((tx) => tx.srcNo));
+    return allCustomers.filter((c) => !c.disabled && took.has(c.srcNo)).length;
+  }, [allCustomers, transactions]);
   const activeCollectedCount = useMemo(() => {
     const collected = new Set(transactions.filter((t) => t.wheat > 0).map((t) => t.srcNo));
     return allCustomers.filter((c) => !c.disabled && collected.has(c.srcNo)).length;
@@ -305,9 +317,9 @@ export default function CustomersPage() {
           <p className="text-sm text-gray-500 mt-1">
             {t("customers.subtitle")}
           </p>
-          {hiddenNoTxn > 0 && (
+          {hidden.count > 0 && (
             <p className="text-xs text-gray-400 mt-1">
-              ℹ️ {t("customers.hiddenNoTxn", { count: formatNumber(hiddenNoTxn) })}
+              ℹ️ {t(fileMode ? "customers.hiddenNotInFile" : "customers.hiddenNoTxn", { count: formatNumber(hidden.count) })}
             </p>
           )}
         </div>
@@ -368,9 +380,9 @@ export default function CustomersPage() {
         )}
         {!showDealerColumn && (
           <KPICard
-            label={t("dashboard.unlistedFamilies")}
+            label={t(fileMode ? "dashboard.notInFileFamilies" : "dashboard.unlistedFamilies")}
             value={unlistedCards.length}
-            sub={t("customers.unlistedSub")}
+            sub={t(fileMode ? "dashboard.notInFileSub" : "customers.unlistedSub")}
             color="purple" icon="🆕"
             onClick={() => { setCardFilter("unlisted"); setPage(0); }}
             active={cardFilter === "unlisted"}
@@ -386,7 +398,7 @@ export default function CustomersPage() {
             active={cardFilter === "otherFps"}
           />
         )}
-        {!showDealerColumn && imports.length > 0 && (
+        {!showDealerColumn && !fileMode && imports.length > 0 && (
           <KPICard
             label={t("customers.notInLatestFile")}
             value={notInLatestCards.length}
@@ -396,6 +408,12 @@ export default function CustomersPage() {
             active={cardFilter === "notInLatest"}
           />
         )}
+        <KPICard
+          label={t("customers.tookThisMonth", { month: getMonthName(parseInt(getCurrentMonth().slice(5), 10)) })}
+          value={tookThisMonth}
+          sub={t("customers.tookThisMonthSub", { count: formatNumber(activeCount) })}
+          color="green" icon="🛒"
+        />
         <KPICard
           label={t("customers.coverage")}
           value={activeCount > 0 ? `${((activeCollectedCount / activeCount) * 100).toFixed(1)}%` : "—"}
@@ -456,7 +474,7 @@ export default function CustomersPage() {
               />
               {cardFilter !== "all" && (
                 <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : cardFilter === "unlisted" ? t("dashboard.unlistedFamilies") : cardFilter === "otherFps" ? t("customers.otherFpsCards") : cardFilter === "notInLatest" ? t("customers.notInLatestFile") : t("customers.otherShopFamilies")}</strong>
+                  {t("customers.filteredBy")}: <strong>{cardFilter === "active" ? t("customers.active") : cardFilter === "disabled" ? t("customers.disabledCustomers") : cardFilter === "unlisted" ? t(fileMode ? "dashboard.notInFileFamilies" : "dashboard.unlistedFamilies") : cardFilter === "otherFps" ? t("customers.otherFpsCards") : cardFilter === "notInLatest" ? t("customers.notInLatestFile") : t("customers.otherShopFamilies")}</strong>
                   <button onClick={() => { setCardFilter("all"); setPage(0); }} className="text-brand-600 hover:underline">
                     {t("common.clearFilters")}
                   </button>

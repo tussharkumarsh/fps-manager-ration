@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { customersWithTransactions, familySummary, hiddenWithoutTransactions, isOwnCard, monthlyFamilySummary } from "./familySummary";
+import { customersWithTransactions, familySummary, hiddenFromMaster, hiddenWithoutTransactions, isOwnCard, monthlyFamilySummary, myCustomers } from "./familySummary";
 import type { Customer, Transaction } from "@/types";
 
 const cust = (srcNo: string, scheme: "PHH" | "AAY", disabled = false): Customer => ({
@@ -180,4 +180,29 @@ test("an old master card (no file source) whose latest transaction names another
   assert.deepEqual(s.otherShopFamilies.map((f) => [f.srcNo, f.homeFps, f.name]), [["L1", "151209500228", "legacy, now 228"]]);
   // And it is not "hidden for having no transaction".
   assert.equal(hiddenWithoutTransactions(master, txs, "151209500212"), 0);
+});
+
+const AT = "2026-11-28T05:41:54.380Z";
+const OLD = "2026-10-01T05:00:00.000Z";
+const own = "151209500212";
+
+test("myCustomers: with an own file uploaded, every card of its latest upload counts, transacted or not", () => {
+  const master = [
+    { srcNo: "F1", name: "file, took", sourceFpsId: own, portalSyncedAt: AT },
+    { srcNo: "F2", name: "file, never took", sourceFpsId: own, portalSyncedAt: "2026-11-28T05:41:54.38+00:00" },
+    { srcNo: "F3", name: "file, disabled", sourceFpsId: own, portalSyncedAt: AT, disabled: true },
+    { srcNo: "O1", name: "older upload only", sourceFpsId: own, portalSyncedAt: OLD },
+    { srcNo: "L1", name: "old master, took Self" },
+    { srcNo: "X1", name: "other FPS", sourceFpsId: "151209500218", portalSyncedAt: AT },
+  ];
+  const txs = [tx("F1", "PHH", "2026-11-01 10:00"), tx("L1", "PHH", "2026-11-02 10:00")];
+  assert.deepEqual(myCustomers(master, txs, own).map((c) => c.srcNo), ["F1", "F2", "F3"]);
+  assert.deepEqual(hiddenFromMaster(master, txs, own), { count: 2, mode: "file" });
+});
+
+test("myCustomers: without an own file, the transaction rule still applies", () => {
+  const master = [{ srcNo: "A1", name: "took" }, { srcNo: "A2", name: "never took" }];
+  const txs = [tx("A1", "PHH", "2026-11-01 10:00")];
+  assert.deepEqual(myCustomers(master, txs, own).map((c) => c.srcNo), ["A1"]);
+  assert.deepEqual(hiddenFromMaster(master, txs, own), { count: 1, mode: "transactions" });
 });

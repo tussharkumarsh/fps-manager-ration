@@ -71,7 +71,7 @@ function Tile({
  * shop is exactly one of own customer, disabled, other shop or own card
  * not in master; and registered = took ration + not taken.
  */
-function FamilyEquations({ s }: { s: FamilySummary }) {
+function FamilyEquations({ s, fileMode }: { s: FamilySummary; fileMode: boolean }) {
   const { t } = useTranslation();
   const n = (v: number) => <b className="font-semibold text-gray-900">{formatNumber(v)}</b>;
   return (
@@ -81,7 +81,7 @@ function FamilyEquations({ s }: { s: FamilySummary }) {
         <span className="text-emerald-700">{n(s.collected.total)} {t("dashboard.eqMyCustomers")}</span>
         {" + "}<span className="text-amber-700">{n(s.disabledServed.total)} {t("dashboard.eqDisabled")}</span>
         {" + "}<span className="text-cyan-700">{n(s.otherShop.total)} {t("dashboard.eqOtherShop")}</span>
-        {" + "}<span className="text-indigo-700">{n(s.unlisted.total)} {t("dashboard.eqNotInMaster")}</span>
+        {" + "}<span className="text-indigo-700">{n(s.unlisted.total)} {t(fileMode ? "dashboard.eqNotInFile" : "dashboard.eqNotInMaster")}</span>
       </div>
       <div>
         👥 {n(s.registered.total)} {t("dashboard.eqRegistered")} ={" "}
@@ -96,11 +96,14 @@ type ListTab = "pending" | "otherShop" | "unlisted" | "disabled";
 type SchemeFilter = "ALL" | "PHH" | "AAY";
 
 export function FamilySummarySection({
-  summary, isAllMonths, monthCount,
+  summary, isAllMonths, monthCount, fileMode = false,
 }: {
   summary: FamilySummary; isAllMonths: boolean; monthCount: number;
+  /** The dealer's customers are his latest government file's cards. */
+  fileMode?: boolean;
 }) {
   const { t } = useTranslation();
+  const unlistedLabel = t(fileMode ? "dashboard.notInFileFamilies" : "dashboard.unlistedFamilies");
   const [tab, setTab] = useState<ListTab>("pending");
   const ownFps = useStore((st) => st.viewingDealer?.fpsId ?? st.settings.fpsId);
   const [schemeFilter, setSchemeFilter] = useState<SchemeFilter>("ALL");
@@ -147,7 +150,7 @@ export function FamilySummarySection({
   const tabs: { key: ListTab; label: string; count: number; tone: string }[] = [
     { key: "pending", label: t("dashboard.notTaken"), count: s.pending.total, tone: "text-red-600" },
     { key: "otherShop", label: t("dashboard.otherShopFamilies"), count: s.otherShop.total, tone: "text-cyan-700" },
-    { key: "unlisted", label: t("dashboard.unlistedFamilies"), count: s.unlisted.total, tone: "text-indigo-700" },
+    { key: "unlisted", label: unlistedLabel, count: s.unlisted.total, tone: "text-indigo-700" },
     { key: "disabled", label: t("dashboard.disabledFamilies"), count: s.disabledServed.total, tone: "text-amber-700" },
   ];
   const rowTone: Record<ListTab, string> = {
@@ -174,7 +177,7 @@ export function FamilySummarySection({
           </div>
         </div>
 
-        <FamilyEquations s={s} />
+        <FamilyEquations s={s} fileMode={fileMode} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Tile accent="border-l-violet-500" icon="📋" label={t("dashboard.registeredFamilies")}
@@ -215,8 +218,8 @@ export function FamilySummarySection({
               </div>
             )}
           </Tile>
-          <Tile accent="border-l-indigo-500" icon="🆕" label={t("dashboard.unlistedFamilies")}
-            value={s.unlisted.total} sub={t("dashboard.unlistedSub")}
+          <Tile accent="border-l-indigo-500" icon="🆕" label={unlistedLabel}
+            value={s.unlisted.total} sub={t(fileMode ? "dashboard.notInFileSub" : "dashboard.unlistedSub")}
             onClick={() => openList("unlisted")} active={tab === "unlisted"}>
             <SchemeRows count={s.unlisted} />
           </Tile>
@@ -296,11 +299,12 @@ export function FamilySummarySection({
 }
 
 export function MonthWiseFamilyTable({
-  rows, selected, onSelect,
+  rows, selected, onSelect, fileMode = false,
 }: {
   rows: { month: string; summary: FamilySummary }[];
   selected: string;
   onSelect: (month: string) => void;
+  fileMode?: boolean;
 }) {
   const { t } = useTranslation();
   const th = "px-3 py-2 text-right font-semibold whitespace-nowrap";
@@ -327,7 +331,7 @@ export function MonthWiseFamilyTable({
               <th className={cn(th, "text-emerald-700")}>= {t("dashboard.myCustomers")}</th>
               <th className={cn(th, "text-amber-700")}>+ {t("dashboard.disabledShort")}</th>
               <th className={cn(th, "text-cyan-700")}>+ {t("dashboard.otherShopShort")}</th>
-              <th className={cn(th, "text-indigo-700")}>+ {t("dashboard.notInMasterShort")}</th>
+              <th className={cn(th, "text-indigo-700")}>+ {t(fileMode ? "dashboard.notInFileShort" : "dashboard.notInMasterShort")}</th>
               <th className={th}>{t("dashboard.registeredShort")}</th>
               <th className={cn(th, "text-emerald-700")}>= {t("dashboard.tookRation")}</th>
               <th className={cn(th, "text-red-600")}>+ {t("dashboard.notTaken")}</th>
