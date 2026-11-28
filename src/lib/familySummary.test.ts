@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { customersWithTransactions, familySummary, isOwnCard, monthlyFamilySummary } from "./familySummary";
+import { customersWithTransactions, familySummary, hiddenWithoutTransactions, isOwnCard, monthlyFamilySummary } from "./familySummary";
 import type { Customer, Transaction } from "@/types";
 
 const cust = (srcNo: string, scheme: "PHH" | "AAY", disabled = false): Customer => ({
@@ -140,4 +140,14 @@ test("customersWithTransactions with a dealer FPS drops other FPSs' cards", () =
   assert.deepEqual(customersWithTransactions(master, txs, "151209500212").map((c) => c.srcNo), ["A1"]);
   // Without a dealer FPS nothing is dropped for its source.
   assert.equal(customersWithTransactions(master, txs).length, 2);
+});
+
+test("hiddenWithoutTransactions counts own cards without a transaction, not other FPSs' cards", () => {
+  const master = [
+    { srcNo: "A1", name: "own, took ration" },
+    { srcNo: "A2", name: "own, never took", sourceFpsId: "151209500212" },
+    { srcNo: "B1", name: "other FPS", sourceFpsId: "151209500199" },
+  ];
+  const txs = [tx("A1", "PHH", "2026-11-01 10:00")];
+  assert.equal(hiddenWithoutTransactions(master, txs, "151209500212"), 1);
 });

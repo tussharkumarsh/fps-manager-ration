@@ -11,7 +11,7 @@ import type { BeneficiaryImport, Customer, Transaction } from "@/types";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { useOtherShops } from "@/store/useOtherShops";
 import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
-import { customersWithTransactions, isOwnCard } from "@/lib/familySummary";
+import { customersWithTransactions, hiddenWithoutTransactions, isOwnCard } from "@/lib/familySummary";
 import { isNotInLatestFile, latestBySource } from "@/lib/fpsSummary";
 import { FpsSummary } from "@/components/customers/FpsSummary";
 
@@ -102,7 +102,7 @@ export default function CustomersPage() {
     () => (showDealerColumn ? masterCustomers : customersWithTransactions(masterCustomers, transactions, dealerFpsId)),
     [showDealerColumn, masterCustomers, transactions, dealerFpsId]
   );
-  const hiddenNoTxn = masterCustomers.length - allCustomers.length;
+  const hiddenNoTxn = showDealerColumn ? 0 : hiddenWithoutTransactions(masterCustomers, transactions, dealerFpsId);
 
   // Cards from another FPS's beneficiary file: kept for names, never counted.
   const otherFpsCards = useMemo(

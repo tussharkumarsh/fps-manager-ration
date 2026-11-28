@@ -20,6 +20,16 @@ export function customersWithTransactions(
   return own.filter((c) => seen.has(c.srcNo));
 }
 
+/** Own cards left out of the dealer's list because they have no transaction. */
+export function hiddenWithoutTransactions(
+  customers: Customer[],
+  transactions: Transaction[],
+  dealerFpsId: string
+): number {
+  const own = customers.filter((c) => isOwnCard(c, dealerFpsId)).length;
+  return own - customersWithTransactions(customers, transactions, dealerFpsId).length;
+}
+
 /**
  * A card of the dealer's own FPS: its beneficiary file named that FPS, or
  * it was imported before files recorded a source. Cards from another FPS's
