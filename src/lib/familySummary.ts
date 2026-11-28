@@ -133,6 +133,8 @@ export interface DisabledFamily {
 export interface FamilySummary {
   /** Active (not disabled) families in Customer Master. */
   registered: SchemeCount;
+  /** Disabled families in Customer Master (all registered = registered + this). */
+  disabledRegistered: SchemeCount;
   /** Active registered families with at least one transaction in the period. */
   collected: SchemeCount;
   /** Active registered families with no transaction in the period. */
@@ -210,6 +212,7 @@ export function familySummary(
 
   const s: FamilySummary = {
     registered: zero(),
+    disabledRegistered: zero(),
     collected: zero(),
     pending: zero(),
     pendingCustomers: [],
@@ -224,7 +227,10 @@ export function familySummary(
   };
 
   for (const c of customers) {
-    if (c.disabled) continue;
+    if (c.disabled) {
+      add(s.disabledRegistered, normScheme(c.scheme) ?? normScheme(served.get(c.srcNo)?.latest.scheme) ?? "PHH");
+      continue;
+    }
     const hit = served.get(c.srcNo);
     const scheme = normScheme(c.scheme) ?? normScheme(hit?.latest.scheme) ?? "PHH";
     add(s.registered, scheme);

@@ -206,3 +206,10 @@ test("myCustomers: without an own file, the transaction rule still applies", () 
   assert.deepEqual(myCustomers(master, txs, own).map((c) => c.srcNo), ["A1"]);
   assert.deepEqual(hiddenFromMaster(master, txs, own), { count: 1, mode: "transactions" });
 });
+
+test("familySummary counts disabled master cards too, so registered = active + disabled", () => {
+  const master = [cust("A1", "AAY"), cust("P1", "PHH"), cust("D1", "PHH", true), cust("D2", "AAY", true)];
+  const s = familySummary([tx("A1", "AAY", "2026-11-01 10:00")], master);
+  assert.deepEqual(s.registered, { total: 2, phh: 1, aay: 1 }); // active
+  assert.deepEqual(s.disabledRegistered, { total: 2, phh: 1, aay: 1 });
+});

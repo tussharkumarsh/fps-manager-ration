@@ -10,6 +10,13 @@ import type { FamilySummary, SchemeCount } from "@/lib/familySummary";
 
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
+/** Every registered family, active and disabled (as on Customer Master). */
+const allRegistered = (s: FamilySummary): SchemeCount => ({
+  total: s.registered.total + s.disabledRegistered.total,
+  phh: s.registered.phh + s.disabledRegistered.phh,
+  aay: s.registered.aay + s.disabledRegistered.aay,
+});
+
 function monthLabel(ym: string) {
   const [y, m] = ym.split("-");
   return `${getMonthName(parseInt(m, 10))} ${y}`;
@@ -69,7 +76,8 @@ function Tile({
 /**
  * Spells out how the family figures add up: every family served at this
  * shop is exactly one of own customer, disabled, other shop or own card
- * not in master; and registered = took ration + not taken.
+ * not in master; registered = active + disabled; and active = took ration
+ * + not taken.
  */
 function FamilyEquations({ s, fileMode }: { s: FamilySummary; fileMode: boolean }) {
   const { t } = useTranslation();
@@ -84,7 +92,12 @@ function FamilyEquations({ s, fileMode }: { s: FamilySummary; fileMode: boolean 
         {" + "}<span className="text-indigo-700">{n(s.unlisted.total)} {t(fileMode ? "dashboard.eqNotInFile" : "dashboard.eqNotInMaster")}</span>
       </div>
       <div>
-        👥 {n(s.registered.total)} {t("dashboard.eqRegistered")} ={" "}
+        👥 {n(allRegistered(s).total)} {t("dashboard.eqRegistered")} ={" "}
+        <span className="text-gray-800">{n(s.registered.total)} {t("dashboard.eqActive")}</span>
+        {" + "}<span className="text-amber-700">{n(s.disabledRegistered.total)} {t("dashboard.eqDisabled")}</span>
+      </div>
+      <div>
+        ✅ {n(s.registered.total)} {t("dashboard.eqActive")} ={" "}
         <span className="text-emerald-700">{n(s.collected.total)} {t("dashboard.eqTook")}</span>
         {" + "}<span className="text-red-600">{n(s.pending.total)} {t("dashboard.eqNotTaken")}</span>
       </div>
@@ -181,12 +194,15 @@ export function FamilySummarySection({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Tile accent="border-l-violet-500" icon="📋" label={t("dashboard.registeredFamilies")}
-            value={s.registered.total} sub={t("dashboard.activeInMaster")}>
-            <SchemeRows count={s.registered} />
+            value={allRegistered(s).total}
+            sub={t("dashboard.activeAndDisabled", {
+              active: formatNumber(s.registered.total), disabled: formatNumber(s.disabledRegistered.total),
+            })}>
+            <SchemeRows count={allRegistered(s)} />
           </Tile>
           <Tile accent="border-l-emerald-500" icon="✅" label={t("dashboard.tookRation")}
             value={s.collected.total}
-            sub={t("dashboard.ofRegisteredPct", {
+            sub={t("dashboard.ofActivePct", {
               count: formatNumber(s.registered.total), pct: pct(s.collected.total, s.registered.total),
             })}>
             <SchemeRows count={s.collected} of={s.registered} />
@@ -322,7 +338,7 @@ export function MonthWiseFamilyTable({
                 🏪 {t("dashboard.servedAtShop")}
               </th>
               <th className="w-3" rowSpan={2} />
-              <th className={cn(th, "text-center text-gray-700 border-b border-gray-200")} colSpan={3}>
+              <th className={cn(th, "text-center text-gray-700 border-b border-gray-200")} colSpan={4}>
                 👥 {t("dashboard.masterGroup")}
               </th>
             </tr>
@@ -333,6 +349,7 @@ export function MonthWiseFamilyTable({
               <th className={cn(th, "text-cyan-700")}>+ {t("dashboard.otherShopShort")}</th>
               <th className={cn(th, "text-indigo-700")}>+ {t(fileMode ? "dashboard.notInFileShort" : "dashboard.notInMasterShort")}</th>
               <th className={th}>{t("dashboard.registeredShort")}</th>
+              <th className={cn(th, "text-gray-800")}>{t("dashboard.activeShort")}</th>
               <th className={cn(th, "text-emerald-700")}>= {t("dashboard.tookRation")}</th>
               <th className={cn(th, "text-red-600")}>+ {t("dashboard.notTaken")}</th>
             </tr>
@@ -355,7 +372,8 @@ export function MonthWiseFamilyTable({
                   <td className={td} title={split(s.otherShop)}>{formatNumber(s.otherShop.total)}</td>
                   <td className={td} title={split(s.unlisted)}>{formatNumber(s.unlisted.total)}</td>
                   <td />
-                  <td className={td} title={split(s.registered)}>{formatNumber(s.registered.total)}</td>
+                  <td className={td} title={split(allRegistered(s))}>{formatNumber(allRegistered(s).total)}</td>
+                  <td className={cn(td, "text-gray-800")} title={split(s.registered)}>{formatNumber(s.registered.total)}</td>
                   <td className={cn(td, "text-emerald-700")} title={split(s.collected)}>
                     {formatNumber(s.collected.total)}
                     <span className="ml-1 text-gray-400">{pct(s.collected.total, s.registered.total)}%</span>
