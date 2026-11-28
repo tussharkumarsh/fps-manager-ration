@@ -82,8 +82,10 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       // Settings
       settings: {
-        distCode: "1512",
-        fpsId: "151209500212",
+        // Filled from the signed-in session (useLoadAllHistory); never a
+        // fixed dealer, so no account ever starts on another one's FPS.
+        distCode: "",
+        fpsId: "",
         month: String(new Date().getMonth() + 1),
         year: String(new Date().getFullYear()),
         fpsName: "FPS Smart Management",

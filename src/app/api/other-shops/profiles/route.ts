@@ -1,29 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { backendFetch } from "@/server/backendClient";
+import { resolveEffectiveDealer } from "@/server/resolveEffectiveDealer";
 import type { ShopProfile } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 /**
- * Stored government shop-report profiles for the given FPS numbers
- * (?ids=…). Public government data, readable by any signed-in user.
+ * The dealer's stored government shop-report profiles for the given FPS
+ * numbers (?ids=…). Each dealer sees only what he uploaded; an admin may
+ * pass ?viewFpsId= to see a dealer's.
  */
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.fpsId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-  const ids = (new URL(req.url).searchParams.get("ids") || "")
+  const params = new URL(req.url).searchParams;
+  const ids = (params.get("ids") || "")
     .split(",")
     .map((s) => s.trim())
     .filter((s) => /^\d{6,20}$/.test(s));
   if (ids.length === 0) return NextResponse.json({ success: true, profiles: [] });
   if (ids.length > 500) return NextResponse.json({ error: "Too many ids" }, { status: 400 });
   try {
+    const dealer = await resolveEffectiveDealer(session, params.get("viewFpsId"));
     const data = await backendFetch<{ profiles: ShopProfile[] }>("/other-shops/profiles", {
-      query: { ids: ids.join(",") },
+      query: { fpsId: dealer.fpsId, ids: ids.join(",") },
     });
     return NextResponse.json({ success: true, profiles: data.profiles });
   } catch (error: unknown) {
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
     const data = await backendFetch<{ saved: number; skippedOlder: number; rejected: number }>(
       "/other-shops/profiles",
-      { method: "POST", body: { profiles: body.profiles } }
+      { method: "POST", body: { fpsId: session.fpsId, profiles: body.profiles } }
     );
     return NextResponse.json({ success: true, ...data });
   } catch (error: unknown) {

@@ -24,9 +24,12 @@ interface OtherShopsState {
   profiles: Record<string, ShopProfile>;
   /** The id set the profiles were last loaded for. */
   profilesKey: string;
+  /** Which account the loaded profiles belong to. */
+  profilesOwner: string;
   load: (key: string, viewFpsId?: string) => Promise<void>;
   loadDirectory: (ids: string[], force?: boolean) => Promise<void>;
-  loadProfiles: (ids: string[], force?: boolean) => Promise<void>;
+  /** Loads this account's profiles; `owner` (account key) resets them when it changes. */
+  loadProfiles: (ids: string[], force?: boolean, owner?: string, viewFpsId?: string) => Promise<void>;
   saveProfiles: (profiles: ShopProfile[]) => Promise<{ saved: number; skippedOlder: number }>;
   save: (shopFpsId: string, details: OtherShopDetails) => Promise<OtherShop>;
   remove: (shopFpsId: string) => Promise<void>;
@@ -48,16 +51,21 @@ const useOtherShopsStore = create<OtherShopsState>((set, get) => ({
   directoryKey: "",
   profiles: {},
   profilesKey: "",
-  loadProfiles: async (ids, force = false) => {
+  profilesOwner: "",
+  loadProfiles: async (ids, force = false, owner = "", viewFpsId) => {
+    // Profiles are per dealer: another account's must never show.
+    if (get().profilesOwner !== owner) set({ profiles: {}, profilesKey: "", profilesOwner: owner });
     const key = [...ids].sort().join(",");
     if (!key || (!force && get().profilesKey === key)) return;
     set({ profilesKey: key });
     try {
-      const res = await apiFetch(`/api/other-shops/profiles?ids=${encodeURIComponent(key)}`);
+      const view = viewFpsId ? `&viewFpsId=${encodeURIComponent(viewFpsId)}` : "";
+      const res = await apiFetch(`/api/other-shops/profiles?ids=${encodeURIComponent(key)}${view}`);
       const data = await res.json();
       if (!res.ok || !data.success) return;
       const add: Record<string, ShopProfile> = {};
       for (const p of data.profiles as ShopProfile[]) add[p.shopFpsId] = p;
+      if (get().profilesOwner !== owner) return; // the account changed meanwhile
       set((s) => ({ profiles: { ...s.profiles, ...add } }));
     } catch {
       // Non-fatal — the cards just show without report details.
@@ -180,12 +188,16 @@ export function useOtherShops() {
 
   const byFps = useMemo(() => new Map(shops.map((s) => [s.shopFpsId, s])), [shops]);
   const directory = useMemo(() => new Map(Object.entries(state.directory)), [state.directory]);
-  const profiles = useMemo(() => new Map(Object.entries(state.profiles)), [state.profiles]);
+  // Another account's profiles may still be in memory until its own load.
+  const profiles = useMemo(
+    () => (state.profilesOwner === key ? new Map(Object.entries(state.profiles)) : new Map<string, ShopProfile>()),
+    [state.profiles, state.profilesOwner, key]
+  );
 
   return {
     /** Government shop-report profiles loaded so far, by FPS number (see loadProfiles). */
     profiles,
-    loadProfiles: state.loadProfiles,
+    loadProfiles: (ids: string[], force = false) => state.loadProfiles(ids, force, key, viewingFpsId),
     saveProfiles: state.saveProfiles,
     shops,
     byFps,
