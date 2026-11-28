@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn, formatDate, formatNumber, dateOnly } from "@/lib/utils";
+import { Stat } from "@/components/ui";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import { callMobile } from "@/lib/shopCards";
 import type { BeneficiaryImport, FpsDirectoryEntry, OtherShop, ShopProfile } from "@/types";
@@ -34,15 +35,6 @@ function Section({ title, sub, children }: { title: string; sub?: string; childr
         {sub && <span className="text-[11px] text-gray-400">{sub}</span>}
       </div>
       {children}
-    </div>
-  );
-}
-
-function Stat({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[11px] text-gray-400">{label}</div>
-      <div className="font-mono text-[13px] font-semibold text-gray-800 break-words">{children}</div>
     </div>
   );
 }

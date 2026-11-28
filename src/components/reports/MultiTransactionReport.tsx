@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { Badge } from "@/components/ui";
+import { Badge, MiniStat } from "@/components/ui";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { itemsOf, multiTransactionFamilies, transactionBreakdown, type ItemField } from "@/lib/multiTransactions";
 import { cn, formatDate, formatNumber, dateOnly, getMonthName, rationMonth } from "@/lib/utils";
@@ -103,10 +103,7 @@ export function MultiTransactionReport({
         <p className="text-xs text-gray-400 mt-0.5 mb-4">{t("reports.multiTxnSub")}</p>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {tiles.map((x) => (
-            <div key={x.label} className="rounded-xl bg-gray-50 px-3 py-2">
-              <div className="text-[11px] text-gray-500">{x.label}</div>
-              <div className={cn("text-xl font-semibold font-mono", x.tone)}>{formatNumber(x.value)}</div>
-            </div>
+            <MiniStat key={x.label} label={x.label} value={x.value} tone={x.tone} />
           ))}
         </div>
         <p className="mt-3 text-xs text-gray-500 font-mono">

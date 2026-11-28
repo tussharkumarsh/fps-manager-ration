@@ -4,6 +4,12 @@ import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { cn, formatNumber } from "@/lib/utils";
 
 // ─── KPI Card ───
+/**
+ * The app's figure card: a label, a big number and an optional line under
+ * it. `accent` (a Tailwind border-l-* colour) draws a coloured left edge
+ * instead of the dot; `children` adds content below (e.g. a PHH/AAY split).
+ * Clickable when `onClick` is set; `active` rings the selected one.
+ */
 export function KPICard({
   label,
   value,
@@ -12,14 +18,20 @@ export function KPICard({
   icon,
   onClick,
   active,
+  accent,
+  valueClassName,
+  children,
 }: {
   label: string;
   value: string | number;
-  sub?: string;
+  sub?: ReactNode;
   color?: string;
   icon?: string;
   onClick?: () => void;
   active?: boolean;
+  accent?: string;
+  valueClassName?: string;
+  children?: ReactNode;
 }) {
   const colorMap: Record<string, string> = {
     blue: "bg-blue-600",
@@ -34,20 +46,46 @@ export function KPICard({
     <div
       onClick={onClick}
       className={cn(
-        "card p-5",
+        "card",
+        accent ? cn("p-4 border-l-4", accent) : "p-5",
         onClick && "cursor-pointer transition-shadow hover:shadow-apple-lg",
         active && "ring-2 ring-blue-600"
       )}
     >
       <div className="flex items-center gap-1.5 text-[13px] font-medium text-apple-secondary">
-        <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colorMap[color] || "bg-blue-600")} />
+        {!accent && <span className={cn("h-2 w-2 rounded-full flex-shrink-0", colorMap[color] || "bg-blue-600")} />}
         {icon && <span className="mr-1">{icon}</span>}
         {label}
       </div>
-      <div className="mt-1.5 text-[28px] leading-tight font-semibold tracking-tight text-apple-label font-mono">
+      <div className={cn("mt-1.5 text-[28px] leading-tight font-semibold tracking-tight font-mono", valueClassName ?? "text-apple-label")}>
         {typeof value === "number" ? formatNumber(value) : value}
       </div>
       {sub && <div className="mt-0.5 text-xs text-apple-tertiary">{sub}</div>}
+      {children}
+    </div>
+  );
+}
+
+// ─── Mini Stat ───
+/** A small figure in a grey box, for rows of related numbers inside a card. */
+export function MiniStat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
+  return (
+    <div className="rounded-xl bg-gray-50 px-3 py-2">
+      <div className="text-[11px] text-gray-500">{label}</div>
+      <div className={cn("text-xl font-semibold font-mono", tone ?? "text-gray-900")}>
+        {typeof value === "number" ? formatNumber(value) : value}
+      </div>
+    </div>
+  );
+}
+
+// ─── Stat ───
+/** A labelled figure inside a card section (label above, value and any detail below). */
+export function Stat({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] text-gray-400">{label}</div>
+      <div className="font-mono text-[13px] font-semibold text-gray-800 break-words">{children}</div>
     </div>
   );
 }

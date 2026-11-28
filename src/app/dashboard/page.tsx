@@ -7,7 +7,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
 } from "recharts";
 import { useStore } from "@/store/useStore";
-import { EmptyState } from "@/components/ui";
+import { EmptyState, MiniStat } from "@/components/ui";
 import { calculateMonthlyStats, calculateChartData, getMonthName, formatNumber, getDistinctMonths, getCurrentMonth, rationMonth } from "@/lib/utils";
 import { familySummary, latestOwnFileCards, monthlyFamilySummary, myCustomers } from "@/lib/familySummary";
 import { transactionBreakdown, type TransactionBreakdown } from "@/lib/multiTransactions";
@@ -364,10 +364,7 @@ export default function DashboardPage() {
             { label: t("reports.multiTxnFamilies"), value: txnBreakdown.multiFamilies, tone: "text-amber-600" },
             { label: t("reports.extraTxns"), value: txnBreakdown.extraTransactions, tone: "text-amber-600" },
           ].map((x) => (
-            <div key={x.label} className="rounded-xl bg-gray-50 px-3 py-2">
-              <div className="text-[11px] text-gray-500">{x.label}</div>
-              <div className={`text-xl font-semibold font-mono ${x.tone}`}>{formatNumber(x.value)}</div>
-            </div>
+            <MiniStat key={x.label} label={x.label} value={x.value} tone={x.tone} />
           ))}
         </div>
         <p className="mt-3 text-xs text-gray-500 font-mono">

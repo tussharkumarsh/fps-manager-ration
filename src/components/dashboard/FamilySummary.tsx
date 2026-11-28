@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import { Badge } from "@/components/ui";
+import { useMemo, useState } from "react";
+import { Badge, KPICard } from "@/components/ui";
 import { ShopTag } from "@/components/otherShops/ShopDialog";
 import { useStore } from "@/store/useStore";
 import { cn, formatNumber, getMonthName } from "@/lib/utils";
@@ -45,30 +45,6 @@ function SchemeRows({ count, of }: { count: SchemeCount; of?: SchemeCount }) {
           )}
         </div>
       ))}
-    </div>
-  );
-}
-
-function Tile({
-  accent, icon, label, value, sub, children, onClick, active,
-}: {
-  accent: string; icon: string; label: string; value: number; sub?: ReactNode;
-  children?: ReactNode; onClick?: () => void; active?: boolean;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "card p-4 border-l-4",
-        accent,
-        onClick && "cursor-pointer transition-shadow hover:shadow-apple-lg",
-        active && "ring-2 ring-blue-600"
-      )}
-    >
-      <div className="text-[13px] font-medium text-gray-500">{icon} {label}</div>
-      <div className="mt-1 text-[28px] leading-tight font-semibold font-mono text-gray-900">{formatNumber(value)}</div>
-      {sub && <div className="text-xs text-gray-400">{sub}</div>}
-      {children}
     </div>
   );
 }
@@ -193,30 +169,30 @@ export function FamilySummarySection({
         <FamilyEquations s={s} fileMode={fileMode} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Tile accent="border-l-violet-500" icon="📋" label={t("dashboard.registeredFamilies")}
+          <KPICard accent="border-l-violet-500" icon="📋" label={t("dashboard.registeredFamilies")}
             value={allRegistered(s).total}
             sub={t("dashboard.activeAndDisabled", {
               active: formatNumber(s.registered.total), disabled: formatNumber(s.disabledRegistered.total),
             })}>
             <SchemeRows count={allRegistered(s)} />
-          </Tile>
-          <Tile accent="border-l-emerald-500" icon="✅" label={t("dashboard.tookRation")}
+          </KPICard>
+          <KPICard accent="border-l-emerald-500" icon="✅" label={t("dashboard.tookRation")}
             value={s.collected.total}
             sub={t("dashboard.ofActivePct", {
               count: formatNumber(s.registered.total), pct: pct(s.collected.total, s.registered.total),
             })}>
             <SchemeRows count={s.collected} of={s.registered} />
-          </Tile>
-          <Tile accent="border-l-red-500" icon="⚠️" label={t("dashboard.notTaken")}
+          </KPICard>
+          <KPICard accent="border-l-red-500" icon="⚠️" label={t("dashboard.notTaken")}
             value={s.pending.total}
             sub={`${pct(s.pending.total, s.registered.total)}%`}
             onClick={() => openList("pending")} active={tab === "pending"}>
             <SchemeRows count={s.pending} of={s.registered} />
-          </Tile>
+          </KPICard>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <Tile accent="border-l-cyan-500" icon="🔁" label={t("dashboard.otherShopFamilies")}
+          <KPICard accent="border-l-cyan-500" icon="🔁" label={t("dashboard.otherShopFamilies")}
             value={s.otherShop.total} sub={t("dashboard.otherShopSub")}
             onClick={() => openList("otherShop")} active={tab === "otherShop"}>
             <SchemeRows count={s.otherShop} />
@@ -233,17 +209,17 @@ export function FamilySummarySection({
                 </ul>
               </div>
             )}
-          </Tile>
-          <Tile accent="border-l-indigo-500" icon="🆕" label={unlistedLabel}
+          </KPICard>
+          <KPICard accent="border-l-indigo-500" icon="🆕" label={unlistedLabel}
             value={s.unlisted.total} sub={t(fileMode ? "dashboard.notInFileSub" : "dashboard.unlistedSub")}
             onClick={() => openList("unlisted")} active={tab === "unlisted"}>
             <SchemeRows count={s.unlisted} />
-          </Tile>
-          <Tile accent="border-l-amber-500" icon="🚫" label={t("dashboard.disabledFamilies")}
+          </KPICard>
+          <KPICard accent="border-l-amber-500" icon="🚫" label={t("dashboard.disabledFamilies")}
             value={s.disabledServed.total} sub={t("dashboard.disabledSub")}
             onClick={() => openList("disabled")} active={tab === "disabled"}>
             <SchemeRows count={s.disabledServed} />
-          </Tile>
+          </KPICard>
         </div>
 
         {isAllMonths && monthCount > 1 && (

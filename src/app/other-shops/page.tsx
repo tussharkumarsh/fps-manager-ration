@@ -13,8 +13,7 @@ import { relevantShopIds } from "@/lib/shopCards";
 import { myCustomers } from "@/lib/familySummary";
 import { masterCountsBySource } from "@/lib/fpsSummary";
 import type { BeneficiaryImport } from "@/types";
-import { EmptyState } from "@/components/ui";
-import { formatNumber } from "@/lib/utils";
+import { EmptyState, KPICard } from "@/components/ui";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
 
@@ -229,26 +228,11 @@ export default function OtherShopsPage() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="card p-4">
-          <div className="text-[13px] text-gray-500">{t("otherShops.shopsSeen")}</div>
-          <div className="text-[28px] font-semibold font-mono">{formatNumber(otherCards.filter((c) => c.transactions > 0).length)}</div>
-        </div>
-        <div className="card p-4">
-          <div className="text-[13px] text-gray-500">{t("otherShops.inPortal")}</div>
-          <div className="text-[28px] font-semibold font-mono text-blue-700">{formatNumber(otherCards.length - notInPortal)}</div>
-        </div>
-        <div className="card p-4">
-          <div className="text-[13px] text-gray-500">{t("otherShops.detailsSaved")}</div>
-          <div className="text-[28px] font-semibold font-mono text-emerald-700">{formatNumber(otherCards.length - unsaved)}</div>
-        </div>
-        <div className="card p-4">
-          <div className="text-[13px] text-gray-500">{t("otherShops.detailsMissing")}</div>
-          <div className="text-[28px] font-semibold font-mono text-amber-600">{formatNumber(unsaved)}</div>
-        </div>
-        <div className="card p-4">
-          <div className="text-[13px] text-gray-500">{t("otherShops.withReport")}</div>
-          <div className="text-[28px] font-semibold font-mono text-violet-700">{formatNumber(withReport)}</div>
-        </div>
+        <KPICard label={t("otherShops.shopsSeen")} value={otherCards.filter((c) => c.transactions > 0).length} color="blue" />
+        <KPICard label={t("otherShops.inPortal")} value={otherCards.length - notInPortal} color="blue" valueClassName="text-blue-700" />
+        <KPICard label={t("otherShops.detailsSaved")} value={otherCards.length - unsaved} color="green" valueClassName="text-emerald-700" />
+        <KPICard label={t("otherShops.detailsMissing")} value={unsaved} color="yellow" valueClassName="text-amber-600" />
+        <KPICard label={t("otherShops.withReport")} value={withReport} color="purple" valueClassName="text-violet-700" />
       </div>
 
       {notInPortal > 0 && (
