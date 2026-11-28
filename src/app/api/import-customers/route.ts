@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { apiRoute } from "@/server/route";
 import * as XLSX from "xlsx";
-import { auth } from "@/auth";
 import { backendFetch } from "@/server/backendClient";
 import { isBeneficiaryDrillDownSheet, parseBeneficiaryFile } from "@/lib/beneficiaryParser";
 import type { BeneficiaryImport, Customer } from "@/types";
@@ -100,111 +100,102 @@ async function importInChunks(
   return total;
 }
 
-export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.fpsId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+export const POST = apiRoute(async (req, session) => {
   if (session.role === "admin") {
     return NextResponse.json({ error: "Admin view is read-only" }, { status: 403 });
   }
 
+  const formData = await req.formData();
+  const file = formData.get("file") as File;
+
+  if (!file) {
+    return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+  }
+
+  let workbook: XLSX.WorkBook;
+  let customers: Customer[];
+  let sheetName: string;
+  let format: "beneficiary_drilldown" | "kgs_master";
+  let beneficiary: ReturnType<typeof parseBeneficiaryFile> | null = null;
+
   try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const buffer = await file.arrayBuffer();
+    workbook = XLSX.read(buffer, { type: "array" });
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
-
-    let workbook: XLSX.WorkBook;
-    let customers: Customer[];
-    let sheetName: string;
-    let format: "beneficiary_drilldown" | "kgs_master";
-    let beneficiary: ReturnType<typeof parseBeneficiaryFile> | null = null;
-
-    try {
-      const buffer = await file.arrayBuffer();
-      workbook = XLSX.read(buffer, { type: "array" });
-
-      if (looksLikeBeneficiaryDrillDown(workbook)) {
-        format = "beneficiary_drilldown";
-        sheetName = workbook.SheetNames[0];
-        beneficiary = parseBeneficiaryFile(workbook);
-        customers = beneficiary.customers;
-        if (!beneficiary.meta) {
-          return NextResponse.json(
-            { error: "This file has no \"FPS Detail\" line, so it can't tell which FPS it belongs to." },
-            { status: 400 }
-          );
-        }
-      } else {
-        format = "kgs_master";
-        const parsed = parseKgsMaster(workbook);
-        customers = parsed.customers;
-        sheetName = parsed.sheetName;
+    if (looksLikeBeneficiaryDrillDown(workbook)) {
+      format = "beneficiary_drilldown";
+      sheetName = workbook.SheetNames[0];
+      beneficiary = parseBeneficiaryFile(workbook);
+      customers = beneficiary.customers;
+      if (!beneficiary.meta) {
+        return NextResponse.json(
+          { error: "This file has no \"FPS Detail\" line, so it can't tell which FPS it belongs to." },
+          { status: 400 }
+        );
       }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return NextResponse.json({ error: `Failed to parse Excel: ${message}` }, { status: 400 });
-    }
-
-    try {
-      if (beneficiary?.meta) {
-        // One upload = one stamp: every card it touches gets this time, and
-        // the summary row records it after all chunks are in.
-        const importedAt = new Date().toISOString();
-        const { savedCount, newCards, updatedCards } = await importInChunks(session.fpsId, customers, importedAt);
-        const { import: upload } = await backendFetch<{ import: BeneficiaryImport }>("/customers/imports", {
-          method: "POST",
-          body: {
-            fpsId: session.fpsId,
-            upload: {
-              ...beneficiary.meta,
-              fileName: file.name || "",
-              importedAt,
-              cards: customers.length,
-              members: customers.reduce((s, c) => s + (c.memberCount || 0), 0),
-              aayCards: customers.filter((c) => c.scheme === "AAY").length,
-              phhCards: customers.filter((c) => c.scheme === "PHH").length,
-              footer: beneficiary.footer,
-              newCards,
-              updatedCards,
-            },
-          },
-        });
-        return NextResponse.json({
-          success: true,
-          format,
-          sheetName,
-          count: customers.length,
-          savedCount,
-          meta: beneficiary.meta,
-          newCards,
-          updatedCards,
-          missingCards: upload.missingCards,
-          importedAt,
-        });
-      }
-
-      const { savedCount } = await importInChunks(session.fpsId, customers);
-      return NextResponse.json({
-        success: true,
-        customers,
-        count: customers.length,
-        savedCount,
-        sheetName,
-        format,
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return NextResponse.json(
-        { error: `Parsed ${customers.length} customer(s) but failed to save them to storage: ${message}` },
-        { status: 500 }
-      );
+    } else {
+      format = "kgs_master";
+      const parsed = parseKgsMaster(workbook);
+      customers = parsed.customers;
+      sheetName = parsed.sheetName;
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: `Failed to parse Excel: ${message}` }, { status: 400 });
   }
-}
+
+  try {
+    if (beneficiary?.meta) {
+      // One upload = one stamp: every card it touches gets this time, and
+      // the summary row records it after all chunks are in.
+      const importedAt = new Date().toISOString();
+      const { savedCount, newCards, updatedCards } = await importInChunks(session.fpsId, customers, importedAt);
+      const { import: upload } = await backendFetch<{ import: BeneficiaryImport }>("/customers/imports", {
+        method: "POST",
+        body: {
+          fpsId: session.fpsId,
+          upload: {
+            ...beneficiary.meta,
+            fileName: file.name || "",
+            importedAt,
+            cards: customers.length,
+            members: customers.reduce((s, c) => s + (c.memberCount || 0), 0),
+            aayCards: customers.filter((c) => c.scheme === "AAY").length,
+            phhCards: customers.filter((c) => c.scheme === "PHH").length,
+            footer: beneficiary.footer,
+            newCards,
+            updatedCards,
+          },
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        format,
+        sheetName,
+        count: customers.length,
+        savedCount,
+        meta: beneficiary.meta,
+        newCards,
+        updatedCards,
+        missingCards: upload.missingCards,
+        importedAt,
+      });
+    }
+
+    const { savedCount } = await importInChunks(session.fpsId, customers);
+    return NextResponse.json({
+      success: true,
+      customers,
+      count: customers.length,
+      savedCount,
+      sheetName,
+      format,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json(
+      { error: `Parsed ${customers.length} customer(s) but failed to save them to storage: ${message}` },
+      { status: 500 }
+    );
+  }
+});

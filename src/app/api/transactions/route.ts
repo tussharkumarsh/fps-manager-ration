@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { NextResponse } from "next/server";
+import { apiRoute } from "@/server/route";
 import { backendFetch } from "@/server/backendClient";
 import { resolveEffectiveDealer } from "@/server/resolveEffectiveDealer";
 import type { Transaction } from "@/types";
@@ -14,12 +14,7 @@ export const fetchCache = "force-no-store";
  * (see /api/fetch-transactions), so viewing data here never triggers a
  * live fetch, no matter how many times it's read.
  */
-export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.fpsId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const GET = apiRoute(async (req, session) => {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month");
   const year = searchParams.get("year");
@@ -31,26 +26,21 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  try {
-    const dealer = await resolveEffectiveDealer(session, searchParams.get("viewFpsId"));
-    const viewingOther = dealer.fpsId !== session.fpsId;
-    const data = await backendFetch<{
-      transactions: Transaction[];
-      count: number;
-      source: string;
-      lockStatus: string;
-    }>("/transactions", {
-      query: {
-        fpsId: dealer.fpsId,
-        distCode: dealer.distCode,
-        year,
-        month,
-        readOnly: viewingOther ? "true" : undefined,
-      },
-    });
-    return NextResponse.json({ success: true, ...data });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+  const dealer = await resolveEffectiveDealer(session, searchParams.get("viewFpsId"));
+  const viewingOther = dealer.fpsId !== session.fpsId;
+  const data = await backendFetch<{
+    transactions: Transaction[];
+    count: number;
+    source: string;
+    lockStatus: string;
+  }>("/transactions", {
+    query: {
+      fpsId: dealer.fpsId,
+      distCode: dealer.distCode,
+      year,
+      month,
+      readOnly: viewingOther ? "true" : undefined,
+    },
+  });
+  return NextResponse.json({ success: true, ...data });
+});

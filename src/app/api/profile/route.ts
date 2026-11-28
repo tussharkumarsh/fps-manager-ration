@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { apiRoute } from "@/server/route";
 import { backendFetch } from "@/server/backendClient";
 
 export const dynamic = "force-dynamic";
@@ -15,19 +15,9 @@ export interface UserProfile {
   active: boolean;
 }
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.fpsId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  try {
-    const data = await backendFetch<{ profile: UserProfile }>("/auth/profile", {
-      query: { fpsId: session.fpsId },
-    });
-    return NextResponse.json({ success: true, ...data });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+export const GET = apiRoute(async (_req, session) => {
+  const data = await backendFetch<{ profile: UserProfile }>("/auth/profile", {
+    query: { fpsId: session.fpsId },
+  });
+  return NextResponse.json({ success: true, ...data });
+});
