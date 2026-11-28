@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useStore } from "@/store/useStore";
 import { apiFetch } from "@/lib/apiFetch";
 import { seenOtherShops, type SeenShop } from "@/lib/otherShops";
-import type { Customer, FpsDirectoryEntry, OtherShop, Transaction } from "@/types";
+import type { Customer, FpsDirectoryEntry, OtherShop, ShopProfile, Transaction } from "@/types";
 
 export type OtherShopDetails = Omit<OtherShop, "fpsId" | "shopFpsId" | "updatedAt">;
 
@@ -20,8 +20,14 @@ interface OtherShopsState {
   directory: Record<string, FpsDirectoryEntry>;
   /** The id set the directory was last loaded for. */
   directoryKey: string;
+  /** Government shop-report profiles loaded so far, by FPS number. */
+  profiles: Record<string, ShopProfile>;
+  /** The id set the profiles were last loaded for. */
+  profilesKey: string;
   load: (key: string, viewFpsId?: string) => Promise<void>;
   loadDirectory: (ids: string[], force?: boolean) => Promise<void>;
+  loadProfiles: (ids: string[], force?: boolean) => Promise<void>;
+  saveProfiles: (profiles: ShopProfile[]) => Promise<{ saved: number; skippedOlder: number }>;
   save: (shopFpsId: string, details: OtherShopDetails) => Promise<OtherShop>;
   remove: (shopFpsId: string) => Promise<void>;
   syncOffice: (officeCode: string) => Promise<number>;
@@ -40,6 +46,34 @@ const useOtherShopsStore = create<OtherShopsState>((set, get) => ({
   error: "",
   directory: {},
   directoryKey: "",
+  profiles: {},
+  profilesKey: "",
+  loadProfiles: async (ids, force = false) => {
+    const key = [...ids].sort().join(",");
+    if (!key || (!force && get().profilesKey === key)) return;
+    set({ profilesKey: key });
+    try {
+      const res = await apiFetch(`/api/other-shops/profiles?ids=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) return;
+      const add: Record<string, ShopProfile> = {};
+      for (const p of data.profiles as ShopProfile[]) add[p.shopFpsId] = p;
+      set((s) => ({ profiles: { ...s.profiles, ...add } }));
+    } catch {
+      // Non-fatal — the cards just show without report details.
+      set({ profilesKey: "" });
+    }
+  },
+  saveProfiles: async (profiles) => {
+    const res = await apiFetch("/api/other-shops/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profiles }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || "Failed to save the shop report");
+    return { saved: data.saved as number, skippedOlder: data.skippedOlder as number };
+  },
   load: async (key, viewFpsId) => {
     if (get().loadedFor === key || get().loading) return;
     set({ loading: true, error: "" });
@@ -146,8 +180,13 @@ export function useOtherShops() {
 
   const byFps = useMemo(() => new Map(shops.map((s) => [s.shopFpsId, s])), [shops]);
   const directory = useMemo(() => new Map(Object.entries(state.directory)), [state.directory]);
+  const profiles = useMemo(() => new Map(Object.entries(state.profiles)), [state.profiles]);
 
   return {
+    /** Government shop-report profiles loaded so far, by FPS number (see loadProfiles). */
+    profiles,
+    loadProfiles: state.loadProfiles,
+    saveProfiles: state.saveProfiles,
     shops,
     byFps,
     /** Portal directory entries, by FPS number. */

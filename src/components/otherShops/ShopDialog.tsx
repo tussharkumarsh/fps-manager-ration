@@ -15,10 +15,11 @@ const EMPTY: OtherShopDetails = { shopName: "", dealerName: "", mobile: "", altM
  */
 export function ShopDialog({ shopFpsId, onClose }: { shopFpsId: string; onClose: () => void }) {
   const { t } = useTranslation();
-  const { byFps, directory, save, remove, readOnly } = useOtherShops();
+  const { byFps, directory, profiles, save, remove, readOnly } = useOtherShops();
   const ownFps = useStore((s) => s.settings.fpsId);
   const existing = shopFpsId ? byFps.get(shopFpsId) : undefined;
   const portal = directory.get(shopFpsId || "");
+  const report = profiles.get(shopFpsId || "");
   const [fps, setFps] = useState(shopFpsId);
   const [form, setForm] = useState<OtherShopDetails>(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -26,10 +27,19 @@ export function ShopDialog({ shopFpsId, onClose }: { shopFpsId: string; onClose:
 
   useEffect(() => {
     setFps(shopFpsId);
+    // Blank fields are pre-filled from the government shop report (then the
+    // portal); anything the dealer saved is kept as is.
+    const reportAddress = report ? [report.village, report.tehsil].filter(Boolean).join(", ") : "";
     setForm(existing ? {
-      shopName: existing.shopName, dealerName: existing.dealerName, mobile: existing.mobile,
-      altMobile: existing.altMobile, address: existing.address, notes: existing.notes,
-    } : { ...EMPTY, dealerName: portal?.ownerName ?? "" });
+      shopName: existing.shopName, dealerName: existing.dealerName || report?.dealerName || "",
+      mobile: existing.mobile || report?.mobile || "",
+      altMobile: existing.altMobile, address: existing.address || reportAddress, notes: existing.notes,
+    } : {
+      ...EMPTY,
+      dealerName: report?.dealerName || portal?.ownerName || "",
+      mobile: report?.mobile || "",
+      address: reportAddress,
+    });
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopFpsId, existing?.updatedAt]);

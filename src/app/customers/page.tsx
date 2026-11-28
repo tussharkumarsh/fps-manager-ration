@@ -13,7 +13,6 @@ import { useOtherShops } from "@/store/useOtherShops";
 import { homeFpsOf, shopDisplayName } from "@/lib/otherShops";
 import { customersWithTransactions, hiddenWithoutTransactions, isOwnCard } from "@/lib/familySummary";
 import { isNotInLatestFile, latestBySource } from "@/lib/fpsSummary";
-import { FpsSummary } from "@/components/customers/FpsSummary";
 
 const PAGE_SIZE = 25;
 
@@ -333,8 +332,6 @@ export default function CustomersPage() {
             : t("common.readOnlyCollective")}
         </div>
       )}
-
-      {!showDealerColumn && <FpsSummary imports={imports} customers={masterCustomers} ownFpsId={dealerFpsId} />}
 
       {/* KPIs — click a card to filter the list below; Registered (all) is the default */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
